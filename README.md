@@ -24,7 +24,7 @@ The entire studio and installation instructions are free. The walkthrough is an 
 
 Here is a teaser of the walkthrough video:
 
-TEASER_VIDEO_URL
+https://github.com/user-attachments/assets/bc5030dc-d3f3-443a-a95b-c45130d863b6
 
 ## 🚀 Get started with one prompt
 
