@@ -18,8 +18,15 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.files=dict(export.sources())
     def test_release_versions_and_empty_seeds_agree(self):
         self.assertEqual(release_check.verify(self.files),json.loads(self.files['package.json'])['version'])
-    def test_old_interface_or_install_prompt_cannot_ship(self):
-        for name in ['style-library/dist/index.html','README.md','INSTALL_PROMPT.md','docs/PILOT.md','SETUP.md','STATUS.md','BRIEF.md','PROJECT_CONTEXT.md']:
+    def test_install_docs_cannot_hardcode_a_tag(self):
+        for name in ['README.md','INSTALL_PROMPT.md','docs/PILOT.md','SETUP.md']:
+            files=self.files.copy();files[name]=files[name]+b'\nUse tag v0.1.0-beta.6.\n'
+            with self.subTest(name=name),self.assertRaisesRegex(ValueError,'Hardcoded installation tag'):release_check.verify(files)
+    def test_readme_and_install_prompt_share_one_prompt(self):
+        files=self.files.copy();files['INSTALL_PROMPT.md']=files['INSTALL_PROMPT.md'].replace(b'Do not publish my work.',b'Do not publish anything.')
+        with self.assertRaisesRegex(ValueError,'identical starter prompt'):release_check.verify(files)
+    def test_old_interface_cannot_ship(self):
+        for name in ['style-library/dist/index.html','STATUS.md','BRIEF.md','PROJECT_CONTEXT.md']:
             files=self.files.copy();version=json.loads(files['package.json'])['version']
             files[name]=files[name].replace(version.encode(),b'0.0.0-outdated')
             with self.subTest(name=name),self.assertRaises(ValueError):release_check.verify(files)
