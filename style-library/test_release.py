@@ -23,8 +23,9 @@ class ReleaseConsistencyTests(unittest.TestCase):
             files=self.files.copy();files[name]=files[name]+b'\nUse tag v0.1.0-beta.6.\n'
             with self.subTest(name=name),self.assertRaisesRegex(ValueError,'Hardcoded installation tag'):release_check.verify(files)
     def test_readme_and_install_prompt_share_one_prompt(self):
-        files=self.files.copy();files['INSTALL_PROMPT.md']=files['INSTALL_PROMPT.md'].replace(b'Do not publish my work.',b'Do not publish anything.')
-        with self.assertRaisesRegex(ValueError,'identical starter prompt'):release_check.verify(files)
+        for old,new in [(b'Do not publish my work.',b'Do not publish anything.'),(b'Preserve existing files.',b'Keep existing files.')]:
+            files=self.files.copy();files['INSTALL_PROMPT.md']=files['INSTALL_PROMPT.md'].replace(old,new)
+            with self.subTest(change=new),self.assertRaisesRegex(ValueError,'identical starter prompt'):release_check.verify(files)
     def test_old_interface_cannot_ship(self):
         for name in ['style-library/dist/index.html','STATUS.md','BRIEF.md','PROJECT_CONTEXT.md']:
             files=self.files.copy();version=json.loads(files['package.json'])['version']

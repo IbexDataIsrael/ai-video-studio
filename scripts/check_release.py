@@ -27,10 +27,12 @@ def verify(files):
     for name in ['README.md', 'INSTALL_PROMPT.md', 'docs/PILOT.md', 'SETUP.md']:
         if re.search(r'\bv\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?', files[name].decode()):
             raise ValueError('Hardcoded installation tag in ' + name + '; keep the starter prompt version-free')
-    prompts = [re.findall(r'^Set up AI Video Studio from .+$', files[name].decode(), re.M) for name in ['README.md', 'INSTALL_PROMPT.md']]
+    # The prompt may wrap across lines for readability; it runs from "Set up AI Video Studio from" to "Do not publish my work."
+    prompts = [re.findall(r'^Set up AI Video Studio from .*?Do not publish my work\.$', files[name].decode(), re.M | re.S)
+               for name in ['README.md', 'INSTALL_PROMPT.md']]
     if any(len(found) != 1 for found in prompts) or prompts[0] != prompts[1]:
         raise ValueError('README.md and INSTALL_PROMPT.md need one identical starter prompt')
-    if 'newest published release, including beta releases' not in prompts[0][0]:
+    if 'newest published release, including beta releases' not in ' '.join(prompts[0][0].split()):
         raise ValueError('The starter prompt must install the newest published release, including betas')
     # Plain current-version labels that new users and assistants read first.
     number = r'(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)'
