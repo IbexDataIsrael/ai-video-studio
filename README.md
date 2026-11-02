@@ -1,53 +1,101 @@
-# AI Video Studio
+# AI Video Editing Studio
 
-**Video editing with AI.**
+**Your own AI video editing studio. Free. Open source. Powered by Claude Code or Codex.**
 
-An open-source AI video editing studio for your footage, visual storyboards and creative references. Create in chat with Codex or Claude Code; keep each cut, review and final in your own studio.
+Give it your raw footage (bad takes and all), and work with AI to create polished videos.
 
-**Public launch beta · v0.1.0-beta.6.** Start with Apple Silicon macOS for the closest match to current validation. Fresh assistant/team workflows and other platforms are being tested. [What has been verified](docs/VALIDATION.md) · [Pilot checklist](docs/PILOT.md)
+Clean cuts. Captions. B-roll. Motion graphics. Sound effects. The works.
 
-## Set up with one prompt
+But here's where it gets really cool.
 
-Paste this into Codex or Claude Code on your computer:
+Review visual storyboards before the full edit. Give feedback at specific timestamps. Save previous videos and borrow editing techniques inspired by your favorite creators.
 
-> Set up AI Video Studio from https://github.com/mattp68/ai-video-studio at tag v0.1.0-beta.6 in a new local folder. Read SETUP.md and AGENTS.md first. Check prerequisites and guide me through any missing system tools with my authorization. Install project-local dependencies, including local transcription on a supported Apple Silicon Mac. Run the tests and full synthetic smoke workflow, report available and unavailable capabilities, and open my local studio. Preserve existing files. Use my own footage, references and accounts; ask before paid services or system-wide changes. Do not publish my work.
+No video editing experience. No coding. No engineering degree required to get started.
 
-The repository includes the working code and templates. Setup installs their dependencies; the assistant does not rebuild the application. Missing system tools may need your authorization or your company’s installation process. [Setup and troubleshooting](SETUP.md) · [Capabilities and optional tools](docs/CAPABILITIES.md)
+The AI handles the editing work. Your local studio is where you review, refine, and manage everything.
 
-## From first take to final export
+### 🎬 Want to see exactly how I use it?
 
-1. Bring your raw video, script and references.
-2. Review the best takes in a tightly paced spoken cut.
-3. Align actual visual storyboard frames before the designed edit.
-4. Refine captions, B-roll, motion graphics, zooms, transitions and sound.
-5. Approve the final and keep it in your Reference Library.
+I recorded an 11-minute, start-to-finish walkthrough showing how I turn raw footage into finished videos, including the little tricks I've learned to save hours of editing.
 
-Already edited the speech? Preserve it and start with the visual plan. Carousels and presentations start with an outline and their own dimensions. The studio organizes saved work and review decisions; the assistant does the editing in chat. [Workflow](docs/WORKFLOW.md)
+**[Get the free setup guide + see the full walkthrough →](https://mattpaige68.substack.com/p/its-here-my-entire-ai-video-editing)**
 
-## Review without losing your place
+The entire studio and installation instructions are free. The walkthrough is an optional paid Substack benefit.
 
-Move between Spoken cut, Storyboard and Edit, with each stage's versions together. Enlarge storyboard scenes or see the full sequence. Save feedback at the paused video time or selected scene, then tell your editing chat, “Apply my saved feedback for [project].” Notes stay in the local project; saving them never starts an edit or approves a version. Working files remain available under More downloads and Project details.
+Here is a teaser of the walkthrough video:
 
-## Your own collection
+TEASER_VIDEO_URL
 
-Use Add reference to save a source link and what caught your eye. Analyze in chat copies a request to inspect that same entry. You can skip it and return later; copying never marks analysis complete. The + selects examples, the copy icon copies a library link, and Review selected references combines optional notes. Nothing is automatically sent to a chat. [Reference guide](docs/ADDING-REFERENCES.md)
+## 🚀 Get started with one prompt
 
-Personal footage, projects, catalogs, settings and downloaded references stay local and are ignored/excluded from starter exports. Each user starts with empty personal registries. Local links work in that user’s installation and do not share media across computers. The included smoke demo is synthetic. [Security boundaries](SECURITY.md)
+Getting your own studio set up is pretty simple.
 
-## Tools
+1. Open Claude Code or Codex on your computer.
+2. Paste the prompt below into a new chat.
+3. Follow the setup instructions and open your studio.
 
-The home base needs Python 3.11+. Media work adds Node 22+, FFmpeg/FFprobe, project-local Pillow, HyperFrames and GSAP. Setup downloads the render browser. Optional local transcription currently targets Apple Silicon macOS. Basic sound effects can be synthesized locally; browser connections, image generation and paid libraries depend on the user’s available tools/accounts. [Capability guide](docs/CAPABILITIES.md)
+Copy this exact prompt:
 
-Restart with `python3 style-library/start.py` and use its printed HTTP address. Public source is separate from hosting: this studio is a personal local service, not a public team server.
+```text
+Set up AI Video Studio from https://github.com/mattp68/ai-video-studio using the newest published release, including beta releases, in a new local folder. Check the GitHub Releases page to identify the correct version rather than using an older hardcoded tag or unreleased changes from the main branch. Read SETUP.md and AGENTS.md from that release first. Check prerequisites and guide me through any missing system tools with my authorization. Install project-local dependencies and configure local transcription if supported, or explain available alternatives. Run the tests and full synthetic smoke workflow, report available and unavailable capabilities, and open my local studio. Preserve existing files. Use my own footage, references and accounts; ask before paid services or system-wide changes. Do not publish my work.
+```
 
-## Learn the system
+Your assistant will guide you through any required installations and checks. Some dependencies may require your approval.
 
-Created by [Matt Paige](https://substack.com/@mattpaige68). A full Substack deep dive on building and using this workflow is forthcoming. The repository’s setup guide stands on its own; no paid article or private chat is needed to install it.
+That's it. Your own AI video editing studio.
 
-## Updates
+*The studio software is completely free. Your Claude/Codex plan and optional external AI services may have separate costs.*
 
-Open **Updates** in your studio, copy the update request and paste it into chat in this same folder. Your assistant checks official releases, including newer betas, and preserves your projects, videos, references, techniques, settings and feedback. New installations start empty; upgrades keep your collection. Git and ZIP installations are supported by the documented procedure. [Upgrade guide](docs/UPDATING.md) · [Release process](docs/RELEASE.md) · [Releases](https://github.com/mattp68/ai-video-studio/releases)
+## What you can do
 
-## License and feedback
+- **Raw footage → clean cuts.** Find your best takes, remove dead space, and assemble your video.
+- **Visual storyboards.** Review the creative direction before committing to a full edit.
+- **AI-powered editing.** Create captions, B-roll, motion graphics, transitions, and sound effects using available tools.
+- **Timestamped feedback.** Tell AI exactly what to change and keep previous versions.
+- **Reusable reference library.** Save your videos, creative references, and editing techniques to use in future projects.
 
-Project code is under the [MIT License](LICENSE). Fonts and dependencies keep their [own notices](THIRD_PARTY_NOTICES.md). For pilot feedback, include the version, OS, setup report and reproducible steps in [GitHub Issues](https://github.com/mattp68/ai-video-studio/issues). Keep private footage, credentials and sensitive logs out of public reports. [Contributing](CONTRIBUTING.md)
+And there's plenty more you can do with it.
+
+## 🔥 Want to get REALLY good at using it?
+
+Installing the studio is one thing. Knowing how to get incredible videos out of it is where the real magic happens.
+
+I've created a complete 11-minute video walkthrough and written guide showing my exact workflow.
+
+How I use other creators' techniques, build storyboards, give feedback that actually works, and turn raw footage into finished videos.
+
+All the stuff I figured out through trial and error, so you don't have to.
+
+The walkthrough is available to paid subscribers of my Substack, **AI for the Rest of Us**, for $5/month or $50/year.
+
+You also get access to my other in-depth AI tutorials, guides, and future workflows.
+
+**[Watch the full walkthrough + get the written guide →](https://mattpaige68.substack.com/p/its-here-my-entire-ai-video-editing)**
+
+The software is free either way. The walkthrough is just the shortcut to getting really freaking good at using it.
+
+## Documentation
+
+For deeper technical details:
+
+- [Full setup and troubleshooting](SETUP.md)
+- [Editing workflow](docs/WORKFLOW.md)
+- [Capabilities and optional tools](docs/CAPABILITIES.md)
+- [Updates and upgrades](docs/UPDATING.md)
+- [Security and privacy](SECURITY.md)
+
+Your studio runs locally on your computer. Your personal projects and references are not included in the public repository.
+
+## Support the project ⭐
+
+If you find this useful, give the repo a star! It helps more people discover it.
+
+And please share it with friends, teammates, or anyone who creates videos.
+
+I'd love to see what you make. Tag me on Instagram ([@mpaige13](https://www.instagram.com/mpaige13/)) or TikTok ([@mattpaige68](https://www.tiktok.com/@mattpaige68)).
+
+Found a bug or have a suggestion? [Open a GitHub issue](https://github.com/mattp68/ai-video-studio/issues).
+
+Created by [Matt Paige](https://substack.com/@mattpaige68).
+
+Released under the [MIT License](LICENSE). Third-party assets and dependencies retain their [own license terms](THIRD_PARTY_NOTICES.md).

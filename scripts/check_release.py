@@ -23,10 +23,15 @@ def verify(files):
         raise ValueError('Installed interface version disagrees with package.json.')
     if 'Local preview' in html:
         raise ValueError('Published interface still says Local preview.')
+    # Installation docs are version-free: the starter prompt installs the newest published release (betas included).
     for name in ['README.md', 'INSTALL_PROMPT.md', 'docs/PILOT.md', 'SETUP.md']:
-        tags = re.findall(r'v\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?', files[name].decode())
-        if not tags or any(tag != 'v' + version for tag in tags):
-            raise ValueError('Wrong installation/pilot tag in ' + name)
+        if re.search(r'\bv\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?', files[name].decode()):
+            raise ValueError('Hardcoded installation tag in ' + name + '; keep the starter prompt version-free')
+    prompts = [re.findall(r'^Set up AI Video Studio from .+$', files[name].decode(), re.M) for name in ['README.md', 'INSTALL_PROMPT.md']]
+    if any(len(found) != 1 for found in prompts) or prompts[0] != prompts[1]:
+        raise ValueError('README.md and INSTALL_PROMPT.md need one identical starter prompt')
+    if 'newest published release, including beta releases' not in prompts[0][0]:
+        raise ValueError('The starter prompt must install the newest published release, including betas')
     # Plain current-version labels that new users and assistants read first.
     number = r'(\d+\.\d+\.\d+(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?)'
     for name, label in [('STATUS.md', r'^# AI Video Studio — '), ('BRIEF.md', r'Current release:\s*'), ('PROJECT_CONTEXT.md', r'version \*\*')]:

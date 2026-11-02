@@ -14,13 +14,13 @@ This file is the shared release procedure for new Codex and Claude Code chats. A
 3. Run the checks below. GitHub's required checks must pass for the exact PR head before merging. Protect main against unreviewed direct pushes, force pushes and deletion. A solo maintainer need not require an unavailable second human reviewer.
 4. Merge the reviewed PR after publication authorization. Do not fold unrelated dependency proposals into a feature release. A renderer upgrade requires separate setup/render verification.
 5. Publish a new numbered tag and GitHub Release at the tested merged commit, with a reviewed source ZIP, checksum manifest, changes, upgrade instructions and known limits. Never overwrite a previous release/tag. A merge alone does not publish a release.
-6. Verify the public tag/tree/assets and anonymous installation after publication. Confirm the setup prompt requests that tag. Retain the previous release and local checkpoint for rollback.
+6. Verify the public tag/tree/assets and anonymous installation after publication. Confirm the new tag is the newest entry on the Releases page, which is what the version-free starter prompt installs. Retain the previous release and local checkpoint for rollback.
 
 Publication, repository settings changes and messages to others need appropriate user authorization. Authorization to release application code does not authorize publication of creative media or sending team messages.
 
 ## Required checks before each release
 
-- **Version:** package.json is the canonical release version. Match package-lock.json, the interface studio-version meta tag, README/INSTALL_PROMPT/PILOT tag references and release notes. Remove local-preview wording from a published build. Run `python3 scripts/check_release.py`.
+- **Version:** package.json is the canonical release version. Match package-lock.json, the interface studio-version meta tag and release notes. README, INSTALL_PROMPT, SETUP and PILOT stay version-free: the starter prompt installs the newest published release (betas included), and README and INSTALL_PROMPT must carry the identical prompt. Never hardcode a tag there. Remove local-preview wording from a published build. Run `python3 scripts/check_release.py`.
 - **Source/privacy:** review every path in release-files.txt and the actual Git tree, including new files. Exporter scanning is an additional guard, not a substitute for review. Owner projects, catalogs, removed-reference metadata, reference notes, previews, accounts, environments, logs and journals must be absent. Third-party font/dependency notices stay included.
 - **Tests:** run Python unit tests, all Node UI tests, JS syntax and registry validators. Tests that write or approve use temporary fixtures. Run supported Python/OS checks in CI; do not mistake them for full media-platform support.
 - **Dependencies/security:** audit the pinned npm, core Python and optional speech locks. Review local HTTP/path boundaries, outbound cover retrieval and editor launch if changed. Keep production tools pinned unless an explicit change is tested. Report actual findings and limitations.
