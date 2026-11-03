@@ -1,3 +1,11 @@
+# Optional scripting feature — review preview
+
+Unreleased branch work on top of 0.1.0-beta.6. The optional Script section, idea/reference starter, shared baseline and private writing preferences are ready for isolated UI review. Development and disposable preview data live in a separate worktree; the production studio is independent. No release or production installation has occurred.
+
+Script and preference writes are guarded and versioned. Personal writing memory starts empty and is excluded from source exports. See docs/SCRIPTING.md for the experience and assistant persistence contract. Keep existing owner projects, media, scripts, briefs, memory, references, settings and feedback during any later source installation.
+
+---
+
 # AI Video Studio — 0.1.0-beta.6
 
 Prepared: 2026-11-01. A small fix on top of the beta.5 Public Launch build. GitHub's actual tag/release is authoritative for publication; local preparation alone is not a published release.

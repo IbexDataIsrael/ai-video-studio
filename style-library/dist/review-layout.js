@@ -9,8 +9,10 @@ window.ReviewLayout = (() => {
     if (a.type === 'board') return p.format === 'presentation' ? 'slides' : /storyboard/.test(words) ? 'storyboard' : 'studies';
     return /visual.plan|direction|storyboard/.test(words) ? 'storyboard' : 'notes';
   }
-  const labels = {spoken: 'Spoken cut', storyboard: 'Storyboard', edit: 'Edit', carousel: 'Carousel', slides: 'Slides & layouts', studies: 'Design studies', notes: 'Project notes'};
+  const labels = {script: 'Script', spoken: 'Spoken cut', storyboard: 'Storyboard', edit: 'Edit', carousel: 'Carousel', slides: 'Slides & layouts', studies: 'Design studies', notes: 'Project notes'};
+  function script(p) { return {id: "@script", type: "script", stage: "script", label: "Your script", available: true}; }
   function versions(p, name) {
+    if (name === "script") return p.format === "video" ? [script(p)] : [];
     return p.artifacts.filter(a => stage(p, a) === name).sort((a, b) => {
       if (a.id === p.primary_artifact) return -1;
       if (b.id === p.primary_artifact) return 1;
@@ -30,8 +32,8 @@ window.ReviewLayout = (() => {
   }
   function navigation(p, a) {
     const name = stage(p, a), rows = versions(p, name);
-    return `<div class="review-navigation"><div class="stage-tabs" role="group" aria-label="Project stages">${Object.entries(labels).filter(([key]) => p.artifacts.some(v => stage(p, v) === key)).map(([key, label]) => `<button data-stage="${h(key)}" aria-pressed="${key === name}">${label}</button>`).join('')}</div>
-      <details class="version-picker"><summary>${h(a.version || a.label)} <span>${h(badge(p, a))}</span> <span aria-hidden="true">⌄</span></summary><div class="version-list" role="group" aria-label="${h(labels[name] || name)} versions">${rows.map(v => `<button data-artifact="${h(v.id)}" aria-label="View ${h(v.label)} ${h(v.version || '')}" aria-pressed="${v.id === a.id}"><span><strong>${h(v.version || v.label)}</strong><small>${h(badge(p, v))}</small></span><b>${h(v.label)}</b><span class="version-description">${h(v.description || '')}</span></button>`).join('')}</div></details></div>`;
+    return `<div class="review-navigation"><div class="stage-tabs" role="group" aria-label="Project stages">${Object.entries(labels).filter(([key]) => key === 'script' ? p.format === 'video' : p.artifacts.some(v => stage(p, v) === key)).map(([key, label]) => `<button data-stage="${h(key)}" aria-pressed="${key === name}">${label}</button>`).join('')}</div>
+      ${name==='script'?'':`<details class="version-picker"><summary>${h(a.version || a.label)} <span>${h(badge(p, a))}</span> <span aria-hidden="true">⌄</span></summary><div class="version-list" role="group" aria-label="${h(labels[name] || name)} versions">${rows.map(v => `<button data-artifact="${h(v.id)}" aria-label="View ${h(v.label)} ${h(v.version || '')}" aria-pressed="${v.id === a.id}"><span><strong>${h(v.version || v.label)}</strong><small>${h(badge(p, v))}</small></span><b>${h(v.label)}</b><span class="version-description">${h(v.description || '')}</span></button>`).join('')}</div></details>`}</div>`;
   }
   function download(d) {
     return d.available ? `<a href="${h(d.url)}" download="${h(d.path.split('/').pop())}">${h(d.label)} ↓</a>` : `<span class="unavailable">${h(d.label)} · unavailable</span>`;
@@ -86,6 +88,7 @@ window.ReviewLayout = (() => {
     return true;
   }
   function content(p, a, frameIndex) {
+    if (a.type === "script") return "";
     const title = heading(p, a);
     const earlier = a.id !== p.primary_artifact ? `<div class="viewing-saved"><span>You’re viewing ${h(a.version || a.label)}. ${h(badge(p, a))}.</span><button class="text-button" data-back-current>Back to latest</button>${a.type === 'video' ? '<button class="text-button" data-use-version>Use as a starting point</button>' : ''}</div>` : '';
     if (!a.available) return title + earlier + '<p class="project-notice">This saved file is unavailable. Ask your assistant to relink this exact version.</p>';
@@ -109,5 +112,5 @@ window.ReviewLayout = (() => {
     const menu=document.querySelector('.version-picker[open]');
     if(menu){menu.open=false;menu.querySelector('summary').focus();event.preventDefault();event.stopPropagation();}
   });
-  return {stage, labels, versions, navigation, details, heading, content, readable, updateFrame, revealFrame};
+  return {stage, script, labels, versions, navigation, details, heading, content, readable, updateFrame, revealFrame};
 })();

@@ -61,3 +61,6 @@ The project starter can include exact library references alongside its goal and 
 ## Project-only reference positioning
 
 A starter request may include borrowing intent with an exact source timestamp or a free-text moment/range. Keep the position with its named reference and exact technique example. A captured timestamp uses the source-video clock, including for a bounded technique excerpt. A manual range describes user intent and is not evidence that the source was analyzed or its timing verified. These notes belong to the new project brief; they do not update saved library notes. Preserve the spoken-cut-first workflow and existing approved speech/timing.
+
+
+For a script-writing handoff, read docs/SCRIPTING.md and SCRIPTING-BASELINE.md plus scripting.voice_current(). Resolve exact #project/script hashes through project_script.current. Read that project's script brief through scripting.brief_current. Save revisions with project_script.save, retaining the supplied original and the selected spoken script separately. Record reusable owner feedback with its source through scripting.voice_save; preserve all unrelated preferences. Do not treat recording readiness as footage approval.

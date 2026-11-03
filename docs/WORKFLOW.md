@@ -13,6 +13,10 @@ For carousels: set dimensions in the brief, adapt the hook for swiping, keep eac
 
 At every meaningful handoff follow HANDOFF.md: status, review notes, safe build command and the navigation descriptor. Never assume an export filename means approved.
 
+## Script before recording
+
+Choose Start with an idea in the video starter to work from an idea, draft or creator reference. The request loads the shared writing guidance and this installation's private writing preferences. Develop the script in chat; the assistant creates the project and saves the script/brief. Script sits before Spoken cut and stays optional. I have footage keeps the existing footage-first path. See SCRIPTING.md.
+
 ## Optional saved script
 
 Your script is optional context before the spoken-cut assembly. Supply it with footage in chat or paste it into Your script in the project’s Spoken cut section. Save script keeps a version without changing the original script.txt, raw footage, selected spoken script or approval. Copy request for chat identifies the exact saved text to use. A new-project guided request can include the full script; the receiving assistant saves it when creating the project. The recording determines what speech is available; flag absent lines and preserve natural delivery.

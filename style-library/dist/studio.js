@@ -18,7 +18,7 @@ window.Studio=(()=>{
     const updated=projects.find(p=>p.id===activeProject.id);
     if(updated&&JSON.stringify(updated)===JSON.stringify(activeProject))return;
     const params=new URLSearchParams(location.hash.slice(1)),video=$('#project-artifact video');
-    if(updated&&!params.has('artifact')&&!window.ProjectFeedback?.hasDraft()&&(!video||video.paused)){
+    if(updated&&!params.has('artifact')&&!window.ProjectFeedback?.hasDraft()&&!window.ProjectScript?.hasDraft()&&(!video||video.paused)){
      projectPage(updated,null,0);return;
     }
     pendingUpdate=true;$('#project-update').hidden=false;
@@ -31,7 +31,7 @@ window.Studio=(()=>{
  setInterval(checkUpdates,20000);
  const h=esc,updateRequestBase=$('#studio-update-request').value;
  const stateLabel=p=>p.stale?'Notes updated':p.review_action==='reopened'?'Changes requested':p.state==='in_progress'&&p.review_decision?.action==='approve'?(p.review_decision.kind==='spoken_cut'?'Spoken cut approved':'Storyboard approved'):({review:'Ready for review',approved:'Approved edit',final:'Final assets ready'}[p.state]||'In progress');
- const projectHash=(p,a=null,f=null)=>{const params=new URLSearchParams({project:p.id});if(a)params.set('artifact',a.id);if(f!==null)params.set('frame',String(f+1));return '#'+params;};
+ const projectHash=(p,a=null,f=null)=>{const params=new URLSearchParams({project:p.id});if(a){if(a.type==='script')params.set('stage','script');else params.set('artifact',a.id);}if(f!==null)params.set('frame',String(f+1));return '#'+params;};
  function pause(){document.querySelectorAll('#project-page video').forEach(v=>v.pause());}
  function section(next){
   if(next!=='project')window.ProjectFeedback?.retain();
@@ -65,7 +65,7 @@ window.Studio=(()=>{
  function guide(){
   activeProject=null;section('guide');
   const steps=[
-   ['Bring the raw material.','Share the video file in your editing chat, along with the script, goal and any must-keep lines. Add references and say what you like about them.','You provide the footage and direction.'],
+   ['Start with an idea—or your footage.','Develop a script from an idea, a draft or a creator reference in your editing chat. Or bring recorded footage and go straight to the spoken cut. Your script and revisions stay with the project.','You provide the footage and direction.'],
    ['Get the spoken cut right.','Your assistant compares takes, removes bad starts and dead air, and joins complete thoughts into a quick, cohesive cut. Watch this version before the graphics work, then approve the spoken cut in the project or in chat.','Already edited your speech? Skip this stage and preserve the timing.'],
    ['See the idea before the edit.','Review actual storyboard frames: the on-screen copy, your framing, reference clips, transitions and motion ideas. Give feedback until the direction feels right, then approve the storyboard.','Your storyboard stays with the project.'],
    ['Build the full edit.','Your assistant adds captions, genuine product B-roll, motion graphics, purposeful zooms and transitions, sound effects and audio cleanup. Music is optional and follows your brief.','You choose the creative direction; the assistant builds it.'],
@@ -79,7 +79,7 @@ window.Studio=(()=>{
  function projectPage(p,artifactId,wantedFrame){
   window.ProjectScript?.retain();
   window.ProjectFeedback?.retain();pendingUpdate=false;activeProject=p;section('project');
-  const primary=p.artifacts.find(a=>a.id===p.primary_artifact),a=artifactId?p.artifacts.find(a=>a.id===artifactId):primary;
+  const primary=p.artifacts.find(a=>a.id===p.primary_artifact),a=artifactId==='@script'&&p.format==='video'?ReviewLayout.script(p):artifactId?p.artifacts.find(a=>a.id===artifactId):p.stage==='script'&&p.format==='video'?ReviewLayout.script(p):primary;
   $('#project-page').innerHTML=`<a class="project-back" href="#projects">← All projects</a><section class="project-heading compact-heading"><div><p class="eyebrow">${h(p.subtitle||'')}</p><h1>${h(p.title)}</h1><div class="project-status-line"><span class="project-state ${h(p.stale?'stale':p.state)}">${h(stateLabel(p))}</span><span>${h(p.next_step||'')}</span></div></div><button class="secondary" data-copy-project>Copy project link</button></section><div id="project-update" class="project-update" hidden><p id="project-update-status">New work is available. Your current preview and draft are preserved.</p><button class="secondary" data-load-update>Load updates</button></div>${p.stale?'<p class="project-notice">Project notes have changed. Ask your assistant to reconcile the versions before approving.</p>':''}<div id="review-navigation"></div><section id="project-script-panel" hidden></section><section id="project-artifact" aria-label="Version preview"></section>${ReviewLayout.details(p)}`;
   if(!a){activeArtifact=null;$('#project-artifact').innerHTML='<h2>This version is unavailable</h2><p>The exact version in this link is not registered. Your other work is still saved.</p><button class="secondary" data-back-current>View latest version</button>';return;}
   showArtifact(a,Number.isInteger(wantedFrame)?wantedFrame:0,false);
@@ -155,7 +155,7 @@ window.Studio=(()=>{
  $('#projects-page').addEventListener('input',e=>{if(e.target.id==='project-search'){query=e.target.value;renderCards();}});
  $('#project-page').addEventListener('click',e=>{
   const stage=e.target.closest('[data-stage]');if(stage){const rows=ReviewLayout.versions(activeProject,stage.dataset.stage),chosen=stageChoices.get(activeProject.id+'/'+stage.dataset.stage);return showArtifact(rows.find(a=>a.id===chosen)||rows[0]);}
-  if(e.target.closest('[data-load-update]')){if(window.ProjectFeedback?.hasDraft()){notify('Save your feedback draft before loading updates.');return;}return route();}
+  if(e.target.closest('[data-load-update]')){if(window.ProjectFeedback?.hasDraft()||window.ProjectScript?.hasDraft()){notify('Save your draft before loading updates.');return;}return route();}
   if(e.target.closest('[data-use-version]'))return copy(`Continue ${activeProject.title} from this saved version as the starting point: ${new URL(projectHash(activeProject,activeArtifact),location.href)}. Create a new revision and preserve approved files and history.`,e.target.closest('[data-use-version]'));
   if(e.target.closest('[data-enlarge-frame]'))return enlargeFrame();
   if(e.target.closest('[data-overview]')){const grid=$('.project-thumbs');grid.classList.toggle('is-overview');e.target.closest('[data-overview]').textContent=grid.classList.contains('is-overview')?'Back to filmstrip':`See all ${activeArtifact.frames.length} ${activeArtifact.type==='carousel'?'slides':'scenes'}`;if(!grid.classList.contains('is-overview'))ReviewLayout.revealFrame($('#project-artifact'));return;}
@@ -184,7 +184,7 @@ window.Studio=(()=>{
   if(hash==='how-it-works'){guide();return true;}
   if(id){
    if(activeProject?.id!==id){window.ProjectFeedback?.retain();window.ProjectScript?.retain();section('project');$('#project-page').innerHTML='<p class="studio-loading">Opening the latest saved project information…</p>';}
-   loadProjects().then(()=>{if(token!==routeRequest||location.hash.slice(1)!==hash)return;const p=projects.find(p=>p.id===id);if(p)projectPage(p,params.get('artifact')||(params.has('script')?ReviewLayout.versions(p,'spoken')[0]?.id:null),params.has('frame')?Number(params.get('frame'))-1:0);else{$('#project-page').innerHTML='<a href="#projects">← All projects</a><div class="empty"><h2>Project not found</h2><p>This project is not registered in this studio.</p></div>';}}).catch(()=>{if(token===routeRequest)$('#project-page').innerHTML='<p class="project-notice">This project could not refresh. Your files are still saved. Check the studio connection and try the link again.</p>';});
+   loadProjects().then(()=>{if(token!==routeRequest||location.hash.slice(1)!==hash)return;const p=projects.find(p=>p.id===id);if(p)projectPage(p,params.get('stage')==='script'||params.has('script')?'@script':params.get('artifact'),params.has('frame')?Number(params.get('frame'))-1:0);else{$('#project-page').innerHTML='<a href="#projects">← All projects</a><div class="empty"><h2>Project not found</h2><p>This project is not registered in this studio.</p></div>';}}).catch(()=>{if(token===routeRequest)$('#project-page').innerHTML='<p class="project-notice">This project could not refresh. Your files are still saved. Check the studio connection and try the link again.</p>';});
    return true;
   }
   if(!hash||hash==='projects'){home();if(!loaded)loadProjects().then(()=>{if(token===routeRequest)home();}).catch(()=>{failed=true;home();});return true;}

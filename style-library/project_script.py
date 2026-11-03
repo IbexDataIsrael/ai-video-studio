@@ -76,6 +76,8 @@ def current(project_id, version=None):
         if version is not None and saved is None: raise FeedbackError('That saved script version is unavailable.', 404)
         return {'project_id': project_id, 'title': project['title'], 'revision': revision,
                 'version_id': saved['id'] if saved else None, 'text': saved['text'] if saved else original,
+                'current_version_id': data['current'],
+                'versions': [{'id': v['id'], 'at': v.get('at', ''), 'origin': v.get('origin', 'studio'), 'preview': v['text'][:90]} for v in reversed(data['versions'])],
                 'version_count': len(data['versions']), 'original': original, 'assembled': assembled}
 
 

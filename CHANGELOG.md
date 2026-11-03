@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — optional script writing
+
+- Start videos from an idea, draft or creator reference, with shared writing guidance and private creator preferences.
+- Optional Script section with exact saved versions, retained drafts, project context and recording readiness.
+- Owner controls for personal writing preferences, with source evidence, guarded saves and recoverable history.
+- Existing footage-first editing remains available. No embedded AI service or analytics integration.
+
+
 ## 0.1.0-beta.6 — 2026-11-01
 
 - A newly registered project now appears first on the Projects home instead of last. Replacing an existing project keeps its place, and reference registrations are unchanged.

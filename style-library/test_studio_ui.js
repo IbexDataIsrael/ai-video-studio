@@ -13,10 +13,11 @@ function starter(options={}){
   if(!nodes.has(key))nodes.set(key,{value:'',textContent:'',hidden:false,disabled:false,open:false,isConnected:true,listeners:{},attributes:{},dataset:{},classList:{toggle(){}},
    addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(name,value){this.attributes[name]=value;},focus(){this.focused=true;},select(){this.selected=true;},
    showModal(){this.open=true;},close(){this.open=false;this.listeners.close?.();},getBoundingClientRect(){return {left:100,right:760,top:50,bottom:650};},
-   querySelector(selector){const match=selector.match(/^\[data-start-type="(.+)"\]$/);return node(match?'type-'+match[1]:selector);},querySelectorAll(){return radios;}});
+   querySelector(selector){const match=selector.match(/^\[data-start-type="(.+)"\]$/);const journey=selector.match(/^\[data-start-journey="(.+)"\]$/);return node(match?'type-'+match[1]:journey?'journey-'+journey[1]:selector);},querySelectorAll(selector){return selector==='[data-start-journey]'?journeys:radios;}});
   return nodes.get(key);
  };
  const radios=['video','carousel','presentation'].map(type=>{const button=node('type-'+type);button.dataset.startType=type;return button;});
+ const journeys=['idea','footage'].map(start=>{const button=node('journey-'+start);button.dataset.startJourney=start;return button;});
  const document={body:{append(){}},activeElement:node('opener'),createElement:()=>node('dialog'),querySelector:node,addEventListener:(type,fn)=>documentHandlers[type]=fn};
  let referenceConfig,depth=0;const referenceAPI={restore:rows=>Array.isArray(rows)?rows:[],targetKey:r=>JSON.stringify([r.reference_id,r.example_id||null,r.slide||null]),text:rows=>rows.map(r=>r.message).join('\n'),validate:async rows=>{if(options.validationWait)await options.validationWait;if(options.referenceError&&rows.length)throw Error(options.referenceError);},create:config=>{referenceConfig=config;return {busy:false,hide(){depth=0;config.showPicker(false);},back(){if(!depth)return false;depth--;config.level(depth?'library':'project');return true;},render(){}};}};
  const context={document,window:{StartReferences:referenceAPI,Studio:{currentSection:'projects'},addEventListener:(type,fn)=>windowHandlers[type]=fn},sessionStorage:{getItem:key=>{if(options.blocked)throw Error();return storage.get(key)||null;},setItem:(key,value)=>{if(options.blocked)throw Error();storage.set(key,value);}},navigator:{clipboard:{writeText:async text=>{if(options.wait)await options.wait;if(options.fail)throw Error('No clipboard');copies.push(text);}}}};
@@ -119,4 +120,25 @@ test('automatic filmstrip reveal scrolls only horizontally and respects the over
  selected.getBoundingClientRect=()=>({left:120,right:205});context.window.ReviewLayout.revealFrame(container);assert.equal(strip.scrollLeft,379);
  selected.getBoundingClientRect=()=>({left:20,right:105});context.window.ReviewLayout.revealFrame(container);assert.equal(strip.scrollLeft,295);
  strip.classList.contains=()=>true;context.window.ReviewLayout.revealFrame(container);assert.equal(strip.scrollLeft,295);
+});
+
+test('idea-first request uses writing context and does not require recorded footage',async()=>{
+ const h=starter();h.node('journey-idea').listeners.click();h.input('start-goal','Explain the idea.');h.input('start-script','An opening draft.');h.input('start-references','A reference and what I like.');h.input('start-scriptreference','A video opening I want to adapt.');
+ const message=h.node('#project-starter').value;
+ assert.match(message,/SCRIPTING-BASELINE.md/);assert.match(message,/local writing preferences/);assert.match(message,/Initial script draft/);assert.match(message,/A reference and what I like/);assert.match(message,/A video opening I want to adapt/);
+ assert.doesNotMatch(message,/attach my raw video|Script I recorded|spoken cut first/);assert.equal(h.node('#start-location').hidden,true);
+ await h.copy();assert.match(h.node('#start-status').textContent,/develop your script/);
+ h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('journey-idea').attributes['aria-checked'],'true');assert.match(restored.node('#project-starter').value,/An opening draft/);
+});
+test('switching video starting point preserves edited requests and recorded-script flow',()=>{
+ const h=starter();h.input('project-starter','My edited footage request.');h.node('journey-idea').listeners.click();h.input('project-starter','My edited idea request.');
+ h.node('journey-footage').listeners.click();assert.equal(h.node('#project-starter').value,'My edited footage request.');
+ h.node('journey-idea').listeners.click();assert.equal(h.node('#project-starter').value,'My edited idea request.');
+ h.type('carousel');assert.equal(h.node('#start-journeys').hidden,true);h.type('video');assert.equal(h.node('#project-starter').value,'My edited idea request.');
+});
+test('Script navigation is optional for videos and never creates a review approval',()=>{
+ const context={window:{},document:{addEventListener(){}},esc:String};runInNewContext(readFileSync(join(__dirname,'dist/review-layout.js'),'utf8'),context);
+ const layout=context.window.ReviewLayout,p={format:'video',artifacts:[{id:'spoken-v1',type:'video',label:'Spoken cut'}],primary_artifact:'spoken-v1'};
+ assert.match(layout.navigation(p,p.artifacts[0]),/data-stage="script"/);assert.equal(layout.versions(p,'script')[0].type,'script');
+ assert.equal(layout.content(p,layout.script(p),0),'');p.format='carousel';assert.doesNotMatch(layout.navigation(p,p.artifacts[0]),/data-stage="script"/);
 });

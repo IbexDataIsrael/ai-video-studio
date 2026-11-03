@@ -17,3 +17,6 @@ After a new save, the UI may explicitly request a best-effort public cover image
 Open in HyperFrames requires a guarded explicit POST, a registered exact-version source and its current revision. It prepares/reopens a bounded local working copy and invokes the pinned local CLI with fixed arguments, without a shell. GET requests never launch processes. Opening the editor does not modify a saved review, approve it or render a final. Like other local creative tools, editable source code should come from trusted or inspected sources.
 
 Upgrades must preserve owner files and local source changes; see docs/UPDATING.md. Release checks include a clean source allowlist, consistent versions and empty starter seeds. Never replace existing registries with those seeds during an update.
+
+
+Writing preferences in style-library/writing-voice.json, per-project script briefs and script histories are owner data. They are not release files. Their endpoints require loopback/same-origin requests, and saves require explicit action headers and optimistic revisions. The website never sends scripts or preferences to a model service. Copying a request prepares a local handoff that the owner sends in their editing chat.

@@ -170,3 +170,11 @@ The public change remains on a feature PR for user review. No merge, tag or numb
 ### Storyboard layout follow-up — pending PR review
 
 51 Node UI tests pass after adding per-version saved-note scroll retention/new-save reset and horizontal-only active-thumbnail reveal regressions. JavaScript syntax, whitespace and source-seed checks pass. On the actual33-scene board with9saved notes, the scene strip moved from about1449px below the preview to68px below it; the page shortened from2826px to1580px. The list retains its1031px reading position between scenes; choosing scene31 in overview and returning to filmstrip reveals that exact selection without horizontal page overflow. Native390px/820px static viewport fixtures confirm the strip precedes details/feedback on narrow screens. These are local layout checks, not physical-device validation. Owner records remain unchanged.
+
+## Optional scripting branch — November 3, 2026
+
+Unreleased feature preview based on beta.6. Local verification: 147 Python tests and 54 Node UI tests pass; the new cases cover empty/non-writing memory reads, guarded/idempotent/conflicting saves, source evidence, symlink refusal, exact script history, script-bound recording readiness, same-origin endpoints, idea/reference handoffs and retained footage-first behavior. Setup preservation fixtures now include private writing memory and project script briefs; the source exporter explicitly rejects writing memory.
+
+An isolated running preview with a disposable example was inspected at the normal 1280px viewport and a 390px viewport. Browser checks exercised unsaved-script reload recovery, save/history/readiness, private preference add/save/remove/undo, and an idea/reference request that includes shared guidance without requiring footage. No horizontal overflow was observed at 390px; the normal viewport was restored.
+
+This is application/UI verification. No new production video was rendered, no embedded AI or analytics service was added, and a fresh independent assistant/creator pilot has not been claimed. Publication and installation into an active production studio remain separate steps.

@@ -14,6 +14,7 @@ from reference_preview import save as save_reference_preview, PreviewError
 from project_tools import state as project_tools_state, open_editor, ToolsError
 
 from project_script import current as script_state, save as save_script
+from scripting import brief_current, brief_save, voice_current, voice_save
 
 class Handler(SimpleHTTPRequestHandler):
     def trusted(self, write=False):
@@ -36,6 +37,20 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
+        if self.path in {'/script-brief', '/writing-voice'}:
+            if not self.trusted(write=True): return
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
+            if self.headers.get('X-Studio-Action') != self.path[1:]: return self.send_error(403)
+            if self.headers.get_content_type() != 'application/json': return self.send_error(415)
+            try:
+                size = int(self.headers.get('Content-Length', '0'))
+                if not 0 < size <= 262144: return self.send_error(413)
+                body = json.loads(self.rfile.read(size))
+                result = brief_save(body) if self.path == '/script-brief' else voice_save(body)
+            except json.JSONDecodeError: return self.json_error(400, 'Use a valid writing request.')
+            except (FeedbackError, ReviewError) as error: return self.json_error(error.status, str(error))
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'Writing context could not be saved. Your existing files and draft are preserved.')
+            return self.text(json.dumps(result), 'application/json', False)
         if self.path == '/project-script':
             if not self.trusted(write=True):return
             if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length',[]))!=1:return self.send_error(400)
@@ -192,6 +207,18 @@ class Handler(SimpleHTTPRequestHandler):
     def respond(self, head=False):
         if not self.trusted(): return
         route=urlparse(self.path); path=unquote(route.path)
+        if path in {'/script-brief', '/writing-voice'}:
+            try:
+                query = parse_qs(route.query, keep_blank_values=True)
+                if path == '/writing-voice':
+                    if query: return self.send_error(400)
+                    result = voice_current()
+                else:
+                    if set(query) != {'project'} or len(query['project']) != 1: return self.send_error(400)
+                    result = brief_current(query['project'][0])
+                return self.text(json.dumps(result), 'application/json', head)
+            except (FeedbackError, ReviewError) as error: return self.json_error(error.status, str(error))
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'Writing context is unavailable. Your existing files are preserved.')
         if path=='/project-tools':
             if not self.trusted():return
             try:
