@@ -116,3 +116,5 @@ style-library/dist/project-script-ui.js
 style-library/dist/start-references.js
 style-library/test_start_references.js
 style-library/test_register.py
+docs/SCRIPTING.md
+docs/SCRIPTING-BASELINE.md
