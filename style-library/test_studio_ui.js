@@ -142,3 +142,68 @@ test('Script navigation is optional for videos and never creates a review approv
  assert.match(layout.navigation(p,p.artifacts[0]),/data-stage="script"/);assert.equal(layout.versions(p,'script')[0].type,'script');
  assert.equal(layout.content(p,layout.script(p),0),'');p.format='carousel';assert.doesNotMatch(layout.navigation(p,p.artifacts[0]),/data-stage="script"/);
 });
+
+function scriptEditor(options={}){
+ const copies=[],calls=[],storage=options.storage||new Map(),handlers={},nodes=new Map();
+ const decode=value=>value.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&amp;/g,'&');
+ const escape=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ class Node{
+  constructor(){this.children=new Map();this.style={};this.hidden=false;this.isConnected=true;this.value='';this.textContent='';this.scrollHeight=740;this.listeners={};}
+  set innerHTML(value){this.html=value;this.children.clear();}get innerHTML(){return this.html||'';}
+  querySelector(selector){
+   if(this.children.has(selector))return this.children.get(selector);
+   const attr=selector.startsWith('[')?selector.slice(1,-1):selector;
+   const match=this.innerHTML.match(new RegExp('<[^>]*'+attr+'[^>]*>'));
+   if(!match)return null;
+   const child=new Node();child.hidden=/\shidden(?:\s|>)/.test(match[0]);
+   if(attr==='data-script-text')child.value=decode(this.innerHTML.match(/<textarea[^>]*data-script-text[^>]*>([\s\S]*?)<\/textarea>/)[1]);
+   this.children.set(selector,child);return child;
+  }
+  addEventListener(name,fn){this.listeners[name]=fn;}closest(){return {hidden:false};}focus(){}select(){}showModal(){}
+ }
+ const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
+ let saved={project_id:'test',title:'Example',revision:'r1',version_id:'a'.repeat(64),current_version_id:'a'.repeat(64),text:'Current draft.',versions:[{id:'a'.repeat(64)}],version_count:1,assembled:null,...options.data};
+ const brief={idea:'The creator’s original idea.',references:'https://example.org/clip — the opening question.',ready:true,revision:'b1'};
+ const context={window:{addEventListener:(name,fn)=>handlers[name]=fn},document:{hidden:false},$:node,esc:escape,location:{hash:'#project=test&stage=script',href:'http://localhost:6000/'},URL,URLSearchParams,crypto:{randomUUID:()=>require('node:crypto').randomUUID()},history:{replaceState(){}},setInterval(){},sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},navigator:{clipboard:{writeText:async text=>copies.push(text)}},fetch:async(url,init)=>{
+  calls.push({url,init});
+  if(init?.method==='POST'){
+   if(options.conflict)return {ok:false,status:409,json:async()=>({error:'This script changed elsewhere.'})};
+   const body=JSON.parse(init.body);saved={...saved,text:body.text,revision:'r2',version_id:'b'.repeat(64),current_version_id:'b'.repeat(64),versions:[{id:'b'.repeat(64)},...saved.versions],version_count:saved.version_count+1};
+  }
+  const value=url.startsWith('/script-brief')?brief:{...saved};
+  return {ok:true,json:async()=>value};
+ }};
+ runInNewContext(readFileSync(join(__dirname,'dist/project-script-ui.js'),'utf8'),context);
+ const panel=node('#project-script-panel');
+ return {api:context.window.ProjectScript,panel,node,copies,calls,storage,handlers,context,async mount(full=true){await context.window.ProjectScript.mount({id:'test',title:'Example',format:'video'},{type:full?'script':'video'});},field:()=>panel.querySelector('[data-script-text]'),button:name=>panel.querySelector('[data-'+name+']'),input(text){const field=this.field();field.value=text;field.listeners.input();}};
+}
+
+test('Script keeps context under Project details and retains an unsaved draft through reload',async()=>{
+ const h=scriptEditor();await h.mount();
+ assert.doesNotMatch(h.panel.innerHTML,/Idea & references|Save context|Ready to record|FROM THOUGHT|Your writing preferences|data-script-idea/);
+ assert.match(h.node('#project-script-context').innerHTML,/The creator’s original idea/);assert.match(h.node('#project-script-context').innerHTML,/https:\/\/example.org\/clip/);
+ assert.equal(h.button('save-script').hidden,true);assert.equal(h.button('reload-script').hidden,true);assert.equal(h.field().style.height,'742px');
+ h.input('Keep this unsaved revision.');assert.equal(h.button('save-script').hidden,false);assert.equal(h.button('copy-script').disabled,true);
+ const reloaded=scriptEditor({storage:h.storage});await reloaded.mount();assert.equal(reloaded.field().value,'Keep this unsaved revision.');assert.equal(reloaded.api.hasDraft(),true);
+ await reloaded.button('save-script').onclick();assert.equal(reloaded.api.hasDraft(),false);assert.equal(reloaded.button('save-script').hidden,true);
+});
+
+test('Script copy pins the exact version and stays a writing request with legacy readiness metadata',async()=>{
+ const h=scriptEditor();await h.mount();await h.button('copy-script').onclick();
+ assert.equal(h.copies.length,1);assert.match(h.copies[0],new RegExp('script='+'a'.repeat(64)));assert.match(h.copies[0],/few distinct hook options/);
+ assert.doesNotMatch(h.copies[0],/attach my recorded footage|build or refine the spoken cut/);assert.match(h.button('script-status').textContent,/paste into your editing chat/);
+ const spoken=scriptEditor();spoken.context.ReviewLayout={stage:()=> 'spoken'};await spoken.mount(false);await spoken.button('copy-script').onclick();assert.match(spoken.copies[0],/attach my recorded footage/);
+});
+
+test('a conflicting script save keeps the draft and reveals comparison before retrying',async()=>{
+ const options={conflict:true},h=scriptEditor(options);await h.mount();h.input('My local changes.');await h.button('save-script').onclick();
+ assert.equal(h.field().value,'My local changes.');assert.equal(h.button('reload-script').hidden,false);assert.equal(h.button('save-script').disabled,true);
+ await h.button('reload-script').onclick();assert.equal(h.button('saved-comparison').hidden,false);assert.equal(h.field().value,'My local changes.');assert.equal(h.button('save-script').disabled,false);
+ options.conflict=false;await h.button('save-script').onclick();assert.equal(h.api.hasDraft(),false);
+});
+
+test('choosing a saved version while editing never replaces or drops the local draft',async()=>{
+ const h=scriptEditor();await h.mount();h.input('Keep my draft while browsing history.');const menu=h.button('script-history');menu.value='b'.repeat(64);await menu.onchange();
+ assert.equal(h.field().value,'Keep my draft while browsing history.');assert.match(h.button('script-status').textContent,/Save your draft/);assert.equal(menu.value,'a'.repeat(64));
+ assert.equal(h.calls.filter(c=>c.init?.method==='POST').length,0);
+});

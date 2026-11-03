@@ -6,9 +6,13 @@ Start a video with an idea, a rough draft or a creator reference. Or choose I ha
 
 Projects → Start a project → Video offers Start with an idea and I have footage. The idea path accepts your thought, an optional draft, and a video link with what you like. You can also choose exact examples from your reference library. Copy request prepares a single request for your editing chat. It does not create a project or send an AI message.
 
-The assistant creates/registers a video project with stage script, develops the writing with you, and saves the script and context. Open Script to read/edit the current draft, compare saved versions, keep idea/reference context, and copy a request for further refinement. The text editor keeps an unsaved local draft across navigation/reload in the same browser tab. Save script records a durable immutable version with the project. A failed or conflicting save keeps your draft; Compare with saved script shows both before you choose which to use.
+The assistant creates/registers a video project with stage script, develops the writing with you, and saves the script and context. When choosing the opening, offer a few distinct hook options in chat with a recommendation, then develop the chosen direction. Preserve an accepted hook during targeted revisions. There is no separate hook picker or required approval step.
 
-Ready to record identifies an exact saved script. It is optional planning state, not footage approval. A later saved rewrite returns readiness to draft. Copy recording request prepares the existing take-selection workflow with that script; bring your recording into chat. The supplied script and the actual words assembled from footage remain separate.
+Script shows the readable draft, a quiet Saved/Versions toolbar and Copy for chat. The editor grows with its text. Manual edits reveal Save script; drafts survive navigation/reload in the same tab. Saving records a durable immutable version. Conflicting saves keep the local draft and reveal comparison before another save. Earlier versions remain available without replacing unsaved work.
+
+The original idea and useful reference links/borrowing notes appear read-only under Project details. Keep these concise and in the creator's own words. Assistant reasoning, audience assumptions, fetch diagnostics and evidence limits belong in brief.md/review-notes.md, rather than padding the visible fields. Keep any existing history. A placeholder/sample URL is not a reference to register or analyze; record that limitation in the project notes.
+
+Copy for chat prepares an exact saved-script link and writing request; its confirmation says to paste into the editing chat. The separate Spoken cut section retains its footage/take-selection request. Recording readiness is agreed in chat, with no Ready to record control or required status step. Earlier ready_script metadata remains readable and is preserved for compatibility; it does not change the Script copy action or approve footage. The supplied script and the actual words assembled from footage remain separate.
 
 When the assistant saves a script from chat, a clean open editor checks for updates and displays the latest version. Unsaved local work and a deliberately selected earlier version are retained. Exact #project/script links continue to identify the requested immutable text, even when a newer script exists.
 
@@ -25,7 +29,7 @@ Maintain writing memory during meaningful script revisions:
 - Current instructions override memory. Do not revive removed preferences or import a reference creator's voice as the owner's.
 - Do not infer virality or post performance from saved scripts. No performance analytics integration is included.
 
-Your writing preferences is available from Script and the footer. Owners can add, edit or remove preferences, inspect why a preference was remembered, and undo a removal. Closing retains an in-memory draft; Save preferences makes it durable. Earlier saved snapshots remain in local recovery history.
+Your writing preferences is available from the studio footer. Owners can add, edit or remove preferences, inspect why a preference was remembered, and undo a removal. Closing retains an in-memory draft; Save preferences makes it durable. Earlier saved snapshots remain in local recovery history.
 
 ## Assistant persistence
 

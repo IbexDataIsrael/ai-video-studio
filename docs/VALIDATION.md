@@ -178,3 +178,12 @@ Unreleased feature preview based on beta.6. Local verification: 147 Python tests
 An isolated running preview with a disposable example was inspected at the normal 1280px viewport and a 390px viewport. Browser checks exercised unsaved-script reload recovery, save/history/readiness, private preference add/save/remove/undo, and an idea/reference request that includes shared guidance without requiring footage. No horizontal overflow was observed at 390px; the normal viewport was restored.
 
 This is application/UI verification. No new production video was rendered, no embedded AI or analytics service was added, and a fresh independent assistant/creator pilot has not been claimed. Publication and installation into an active production studio remain separate steps.
+
+
+### Scripting simplification after the creator pilot — November 3
+
+The Script view now leads with the draft and a Saved/Versions/Copy for chat toolbar. The textarea grows with its content; Save appears after manual changes, comparison appears for conflicting/earlier versions, original context is read-only under Project details, and personal preferences stay in the footer. Recording-readiness UI was removed while preserving earlier owner metadata. The shared guidance and copied requests offer distinct hook choices in chat without a new picker or required selection gate.
+
+147 Python and 58 Node UI tests pass locally. Four added UI regressions exercise unsaved-draft reload/save, exact-version writing requests with legacy readiness metadata, conflict comparison/retry, and version switching while editing. JavaScript syntax, registry validation, whitespace and source/empty-seed checks pass. Browser inspection covered the simplified desktop layout, a 390px viewport without horizontal overflow, growing textarea dimensions, read-only original context, native copy/paste of the writing request and exact script link, retained unsaved text after reload, and historical/current versions in a disposable example. No test approved or rendered creator work.
+
+A fingerprint comparison of 235 existing source/owner files across the isolated preview, production studio and canonical public checkout found only the three intentional preview project updates: its current brief, status and review notes. Its script and earlier brief versions remain intact; no production source, owner collection, preference record or canonical source changed. Preview source changes remain on the feature branch; no merge, release or production installation is included.

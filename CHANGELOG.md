@@ -3,7 +3,7 @@
 ## Unreleased — optional script writing
 
 - Start videos from an idea, draft or creator reference, with shared writing guidance and private creator preferences.
-- Optional Script section with exact saved versions, retained drafts, project context and recording readiness.
+- Optional Script section with a readable growing editor, exact saved versions, retained drafts and Copy for chat. Original idea/reference context stays in Project details; writing happens in chat, including hook alternatives.
 - Owner controls for personal writing preferences, with source evidence, guarded saves and recoverable history.
 - Existing footage-first editing remains available. No embedded AI service or analytics integration.
 

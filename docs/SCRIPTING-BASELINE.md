@@ -58,7 +58,7 @@ There is no default runtime, sentence count, number of payoffs or attention-rese
 
 ## Apply this lightly in chat
 
-Start from the supplied idea, draft, source or footage. Ask only about missing information that materially changes the script. Offer alternatives when requested or useful; no fixed number is required.
+Start from the supplied idea, draft, source or footage. Ask only about missing information that materially changes the script. When the opening is still being chosen, offer a few distinct hook directions in chat, usually three, with a brief recommendation. Explore different reasons to watch rather than small word swaps. Let the creator choose or refine one before developing that direction; when a complete draft is requested, include it without forcing a separate selection step. Preserve an already accepted hook during targeted revisions. No fixed number or hook formula is required.
 
 Give the requested script or revision first, with only useful explanation or essential visual cues. Detailed storyboarding is separate. Keep the intended script distinct from the words selected from recorded footage.
 
