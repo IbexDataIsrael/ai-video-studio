@@ -23,6 +23,7 @@ function starter(options={}){
  const context={document,window:{StartReferences:referenceAPI,Studio:{currentSection:'projects'},addEventListener:(type,fn)=>windowHandlers[type]=fn},sessionStorage:{getItem:key=>{if(options.blocked)throw Error();return storage.get(key)||null;},setItem:(key,value)=>{if(options.blocked)throw Error();storage.set(key,value);}},navigator:{clipboard:{writeText:async text=>{if(options.wait)await options.wait;if(options.fail)throw Error('No clipboard');copies.push(text);}}}};
  runInNewContext(readFileSync(join(__dirname,'dist/start-ui.js'),'utf8'),context);
  const api=context.window.StudioStart,dialog=api.mount();api.open();
+ if(!options.unselected&&!journeys.some(button=>button.attributes['aria-checked']==='true'))node('journey-footage').listeners.click();
  return {node,api,dialog,copies,storage,windowHandlers,documentHandlers,inspire:rows=>referenceConfig.set(rows),enter:layer=>{depth=layer==='reference'?2:1;referenceConfig.level(layer);},input(id,value){node('#'+id).value=value;return node('#guided-start').listeners.input({target:{id,value,dataset:{}}});},type:type=>node('type-'+type).listeners.click(),copy:()=>node('#start-copy').listeners.click()};
 }
 test('starter formats retain input and show a format-specific material handoff',()=>{
@@ -125,16 +126,17 @@ test('automatic filmstrip reveal scrolls only horizontally and respects the over
 test('idea-first request uses writing context and does not require recorded footage',async()=>{
  const h=starter();h.node('journey-idea').listeners.click();h.input('start-goal','Explain the idea.');h.input('start-script','An opening draft.');h.input('start-references','A reference and what I like.');h.input('start-scriptreference','A video opening I want to adapt.');
  const message=h.node('#project-starter').value;
- assert.match(message,/SCRIPTING-BASELINE.md/);assert.match(message,/local writing preferences/);assert.match(message,/Initial script draft/);assert.match(message,/A reference and what I like/);assert.match(message,/A video opening I want to adapt/);
+ assert.match(message,/SCRIPTING-BASELINE.md/);assert.match(message,/local writing preferences/);assert.match(message,/Initial script draft/);assert.doesNotMatch(message,/A reference and what I like/);assert.match(message,/A video opening I want to adapt/);
  assert.doesNotMatch(message,/attach my raw video|Script I recorded|spoken cut first/);assert.equal(h.node('#start-location').hidden,true);
  await h.copy();assert.match(h.node('#start-status').textContent,/develop your script/);
  h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('journey-idea').attributes['aria-checked'],'true');assert.match(restored.node('#project-starter').value,/An opening draft/);
 });
-test('switching video starting point preserves edited requests and recorded-script flow',()=>{
- const h=starter();h.input('project-starter','My edited footage request.');h.node('journey-idea').listeners.click();h.input('project-starter','My edited idea request.');
- h.node('journey-footage').listeners.click();assert.equal(h.node('#project-starter').value,'My edited footage request.');
- h.node('journey-idea').listeners.click();assert.equal(h.node('#project-starter').value,'My edited idea request.');
- h.type('carousel');assert.equal(h.node('#start-journeys').hidden,true);h.type('video');assert.equal(h.node('#project-starter').value,'My edited idea request.');
+test('journey switches retain legacy request text without hidden overrides in the writing path',()=>{
+ const storage=new Map([['ai-video-studio-starter-v2',JSON.stringify({start:'idea',goal:'My visible idea.',messages:{video:'My edited footage request.','video-idea':'My earlier custom writing request.'}})]]),h=starter({storage});
+ assert.match(h.node('#project-starter').value,/My visible idea/);assert.doesNotMatch(h.node('#project-starter').value,/earlier custom writing/);
+ h.node('journey-footage').listeners.click();assert.equal(h.node('#project-starter').value,'My edited footage request.');h.node('journey-idea').listeners.click();assert.match(h.node('#project-starter').value,/My visible idea/);
+ h.type('carousel');assert.equal(h.node('#start-journeys').hidden,true);h.type('video');assert.match(h.node('#project-starter').value,/My visible idea/);
+ assert.equal(JSON.parse(h.storage.get('ai-video-studio-starter-v2')).messages['video-idea'],'My earlier custom writing request.');
 });
 test('Script navigation is optional for videos and never creates a review approval',()=>{
  const context={window:{},document:{addEventListener(){}},esc:String};runInNewContext(readFileSync(join(__dirname,'dist/review-layout.js'),'utf8'),context);
@@ -206,4 +208,34 @@ test('choosing a saved version while editing never replaces or drops the local d
  const h=scriptEditor();await h.mount();h.input('Keep my draft while browsing history.');const menu=h.button('script-history');menu.value='b'.repeat(64);await menu.onchange();
  assert.equal(h.field().value,'Keep my draft while browsing history.');assert.match(h.button('script-status').textContent,/Save your draft/);assert.equal(menu.value,'a'.repeat(64));
  assert.equal(h.calls.filter(c=>c.init?.method==='POST').length,0);
+});
+
+test('a fresh video starter reveals fields only after an explicit, keyboard-accessible journey choice',()=>{
+ const h=starter({unselected:true});
+ assert.equal(h.node('#start-fields').hidden,true);assert.equal(h.node('#start-copy').hidden,true);assert.equal(h.node('#start-footer').hidden,true);assert.equal(h.node('journey-idea').attributes['aria-checked'],'false');assert.equal(h.node('journey-idea').tabIndex,0);
+ assert.match(h.dialog.innerHTML,/Help me write a script<small>Start with an idea, draft, or reference/);
+ const keyboard=starter({unselected:true});keyboard.node('journey-idea').listeners.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(keyboard.node('journey-footage').attributes['aria-checked'],'true');
+ h.node('journey-idea').listeners.click();assert.equal(h.node('#start-fields').hidden,false);assert.equal(h.node('#start-script-field').open,false);assert.equal(h.node('#start-script-reference-field').open,false);
+ for(const id of ['start-inspiration','start-extras','start-preview'])assert.equal(h.node('#'+id).hidden,true);
+ assert.equal(h.node('#start-copy').disabled,true);
+ h.node('journey-idea').listeners.keydown({key:'ArrowRight',preventDefault(){}});assert.equal(h.node('journey-footage').attributes['aria-checked'],'true');assert.equal(h.node('journey-footage').focused,true);assert.equal(h.node('#start-location').hidden,false);
+});
+
+test('an idea, a draft, or a reference can each start script writing without filling the other fields',async()=>{
+ for(const [id,value] of [['start-goal','Show how this feature works.'],['start-script','My existing opening draft.'],['start-scriptreference','https://example.org/video — borrow its opening question.']]){
+  const h=starter({unselected:true});h.node('journey-idea').listeners.click();h.input(id,value);assert.equal(h.node('#start-copy').disabled,false);await h.copy();assert.equal(h.copies.length,1);assert.ok(h.copies[0].includes(value));assert.match(h.copies[0],/few distinct hook options/);assert.doesNotMatch(h.copies[0],/attach my raw video/);
+  h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('#'+id).value,value);assert.equal(restored.node('journey-idea').attributes['aria-checked'],'true');
+ }
+});
+
+test('hidden editing context cannot leak into or block the simple writing request',async()=>{
+ const storage=new Map([['ai-video-studio-starter-v2',JSON.stringify({start:'footage',keep:'Keep this footage-only detail.',references:'Other old editing link.',inspiration:[{message:'An old exact visual example.'}]})]]);
+ const h=starter({storage,referenceError:'This visual source changed.'});h.node('journey-idea').listeners.click();h.input('start-goal','My new script idea.');await h.copy();
+ assert.equal(h.copies.length,1);assert.doesNotMatch(h.copies[0],/footage-only detail|Other old editing link|old exact visual example/);
+ h.node('journey-footage').listeners.click();assert.match(h.node('#project-starter').value,/Keep this footage-only detail/);assert.match(h.node('#project-starter').value,/An old exact visual example/);await h.copy();assert.equal(h.copies.length,1);assert.match(h.node('#start-status').textContent,/source changed/);
+});
+
+test('script clipboard failure reveals a manual-copy fallback only when needed',async()=>{
+ const h=starter({fail:true,unselected:true});h.node('journey-idea').listeners.click();h.input('start-goal','Keep this idea through a clipboard failure.');assert.equal(h.node('#start-preview').hidden,true);await h.copy();
+ assert.equal(h.node('#start-preview').hidden,false);assert.equal(h.node('#start-preview').open,true);assert.equal(h.node('#project-starter').readOnly,true);assert.equal(h.node('#project-starter').selected,true);assert.match(h.node('#project-starter').value,/Keep this idea/);assert.match(h.node('#start-status').textContent,/Select and copy/);
 });

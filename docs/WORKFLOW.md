@@ -15,7 +15,7 @@ At every meaningful handoff follow HANDOFF.md: status, review notes, safe build 
 
 ## Script before recording
 
-Choose Start with an idea in the video starter to work from an idea, draft or creator reference. The request loads the shared writing guidance and this installation's private writing preferences. Develop the script in chat; the assistant creates the project and saves the script/brief. Script sits before Spoken cut and stays optional. I have footage keeps the existing footage-first path. See SCRIPTING.md.
+Choose Help me write a script in the video starter to work from an idea, draft or creator reference. The request loads the shared writing guidance and this installation's private writing preferences. Develop the script in chat; the assistant creates the project and saves the script/brief. Script sits before Spoken cut and stays optional. Edit my footage keeps the existing footage-first path. See SCRIPTING.md.
 
 ## Optional saved script
 

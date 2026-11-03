@@ -1,10 +1,12 @@
 # Write before you record
 
-Start a video with an idea, a rough draft or a creator reference. Or choose I have footage and continue with the existing editing flow. Script writing is optional.
+Start a video with an idea, a rough draft or a creator reference. Or choose Edit my footage and continue with the existing editing flow. Script writing is optional.
 
 ## The experience
 
-Projects → Start a project → Video offers Start with an idea and I have footage. The idea path accepts your thought, an optional draft, and a video link with what you like. You can also choose exact examples from your reference library. Copy request prepares a single request for your editing chat. It does not create a project or send an AI message.
+Projects → Start a project starts with Video / Carousel / Presentation. A fresh Video draft asks Where are you starting? Choose Help me write a script or Edit my footage on the same screen. The writing path shows one idea box plus Add a draft and Use a reference video disclosures. Any one of the three inputs is enough, including a draft or reference with no idea text. Saved drafts reopen with their existing choice and text.
+
+The writing path has no library picker, extra requirements/links form or request preview. Other editing journeys keep their existing material/reference handoff. Hidden editing-only values stay recoverable in the tab draft and are excluded from newly generated writing requests. Earlier custom writing requests remain in the tab’s recovery data; current writing requests use the three visible inputs. Edited requests for the other journeys retain their existing behavior. Copy request prepares one request to paste into the editing chat opened in this studio folder; it does not create a project or send an AI message. A manual-copy fallback appears only if automatic clipboard copying fails.
 
 The assistant creates/registers a video project with stage script, develops the writing with you, and saves the script and context. When choosing the opening, offer a few distinct hook options in chat with a recommendation, then develop the chosen direction. Preserve an accepted hook during targeted revisions. There is no separate hook picker or required approval step.
 

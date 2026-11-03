@@ -17,3 +17,16 @@
 .writing-voice-dialog .project-start-head{position:static;flex-shrink:0}
 .writing-voice-dialog .voice-body{min-height:0;flex:1;max-height:none;overflow-y:auto}
 .writing-voice-dialog .project-start-foot{position:static;flex-shrink:0}
+
+/* The writing starter reveals only the material this journey needs. */
+#start-fields[hidden],#start-footer[hidden],#start-copy[hidden]{display:none!important}
+.start-journeys legend{font-weight:600}.start-journeys button{min-height:82px;border-radius:10px;padding:14px 16px;font-size:14px;font-weight:600;line-height:1.4}.start-journeys button small{font-size:12px;line-height:1.5;margin-top:6px}
+.start-types button,.project-start-foot button{min-height:44px}.start-types button:focus-visible,.start-journeys button:focus-visible,.start-core-extra>summary:focus-visible{outline:2px solid #6f8050;outline-offset:3px}
+.script-start #start-goal{min-height:104px}.start-core-extra{margin:0;border-top:1px solid #e0e5d7}.start-core-extra>summary{display:flex;align-items:center;gap:8px;min-height:44px;padding:6px 0;list-style:none;font-size:13px;font-weight:500;color:#50613d;box-sizing:border-box}.start-core-extra>summary::-webkit-details-marker{display:none}.start-core-extra>summary::before{content:'+';font-size:20px;font-weight:400;line-height:1;width:16px;text-align:center;color:#70815b}.start-core-extra[open]>summary::before{content:'−'}.start-core-extra>summary small{margin-left:auto;font-size:11px}.project-start-body .start-core-extra>label:first-of-type{margin-top:8px}.start-core-extra>textarea{margin-bottom:16px}
+@media(max-width:600px){.start-journeys button{min-height:96px;padding:12px;font-size:14px}.start-journeys button small{font-size:12px}.script-start .project-start-body textarea{font-size:16px}.script-start .project-start-foot{padding-top:14px}}
+
+@media(min-width:601px){#project-start-dialog{--starter-top:clamp(18px,6vh,52px);margin:var(--starter-top) auto auto;max-height:calc(100dvh - var(--starter-top) - 20px)}}
+.script-start .project-start-foot{display:flex;align-items:center;justify-content:space-between;gap:18px;padding-top:16px;padding-bottom:16px}.script-start .project-start-foot>p{flex:1;min-width:0;margin:0;font-size:12px}.script-start .project-start-foot>div{flex-shrink:0}.script-start #start-done{display:none}.script-start #start-goal{min-height:88px}
+
+#project-start-dialog .project-start-head .close-button{width:44px;height:44px;min-width:44px;min-height:44px;display:grid;place-items:center;line-height:1}
+#project-start-dialog:not(.choosing-inspiration) .project-start-head{align-items:center}
