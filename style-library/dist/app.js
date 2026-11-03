@@ -240,4 +240,6 @@ async function init(){
   applyRoute();
  }catch{$('#result-count').textContent='';$('#load-error').hidden=false;window.Studio?.route();}
 }
-init();
+// The first route needs every deferred UI module, even when local fetches finish first.
+if(document.readyState==='complete')init();
+else document.addEventListener('DOMContentLoaded',init,{once:true});

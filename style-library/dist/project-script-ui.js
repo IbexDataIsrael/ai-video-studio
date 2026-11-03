@@ -8,9 +8,10 @@ window.ProjectScript=(()=>{
  function persist(){try{sessionStorage.setItem(key,JSON.stringify(Object.fromEntries(drafts)));}catch{}}
  function retain(){
   if(!current?.panel.isConnected)return;
+  if(current.renderedVersion!==undefined&&current.renderedVersion!==current.data.version_id)return;
   const field=current.panel.querySelector('[data-script-text]');if(!field)return;
   // Keep earlier tab-only context drafts recoverable, even though context is now read-only here.
-  const d={...drafts.get(current.project.id),text:field.value,open:current.panel.querySelector('details')?.open??true,base:current.data.version_id};
+  const d={...drafts.get(current.project.id),text:field.value,editing:current.editing,open:current.panel.querySelector('details')?.open??true,base:current.data.version_id};
   drafts.set(current.project.id,d);persist();retainFeedback(current);
  }
  function dirty(target){
@@ -23,17 +24,34 @@ window.ProjectScript=(()=>{
  }
  function controls(target){
   const field=target.panel.querySelector('[data-script-text]');if(!field)return;
-  field.readOnly=!!target.busy;
   const earlier=target.data.version_id!==target.data.current_version_id,changed=dirty(target),hasSaved=!!target.data.version_id;
+  if(target.full&&changed)target.editing=true;
+  const locked=target.busy||target.feedbackBusy;
+  field.readOnly=!!locked;
+  if(target.full){
+   field.hidden=!target.editing;
+   target.panel.querySelector('[data-script-document]').hidden=!!target.editing;
+   target.panel.querySelector('[data-edit-script]').hidden=!!target.editing;
+   target.panel.querySelector('[data-edit-script]').disabled=!!locked;
+   target.panel.querySelector('[data-script-edit-bar]').hidden=!target.editing&&!earlier;
+   const cancel=target.panel.querySelector('[data-cancel-script]');cancel.hidden=!target.editing;cancel.disabled=!!locked;
+   target.panel.querySelector('[data-script-edit-state]').textContent=changed?'Unsaved changes':earlier?'Earlier version':'Editing script';
+   const undo=target.panel.querySelector('[data-undo-opening]');
+   if(undo){undo.hidden=!target.openingUndo||target.openingUndo.after!==target.data.version_id;undo.disabled=!!locked||changed||earlier||target.needsCompare;}
+  }
   const save=target.panel.querySelector('[data-save-script]'),copy=target.panel.querySelector('[data-copy-script]');
-  save.hidden=target.full&&!changed&&!earlier&&(hasSaved||!field.value.trim());
-  save.disabled=target.busy||target.needsCompare||!field.value.trim()||hasSaved&&!changed&&!earlier;
-  copy.disabled=target.busy||!target.full&&(!hasSaved||changed||target.needsCompare);
-  const menu=target.panel.querySelector('[data-script-history]');if(menu)menu.disabled=target.busy;
-  target.panel.querySelectorAll('[data-use-hook]').forEach(button=>button.disabled=target.busy||changed||target.needsCompare||earlier);
-  for(const selector of ['[data-script-feedback]','[data-script-reference]']){const input=target.panel.querySelector(selector);if(input)input.readOnly=!!target.busy;}
-  const feedbackCopy=target.panel.querySelector('[data-copy-script-feedback]');if(feedbackCopy)feedbackCopy.disabled=target.busy||target.feedbackBusy||!hasSaved||changed||target.needsCompare||!hasFeedback(target);
-  const feedbackHint=target.panel.querySelector('[data-feedback-hint]');if(feedbackHint)feedbackHint.textContent=changed?'Save your script changes before copying feedback.':earlier?'This feedback uses the earlier version shown above. Paste into your editing chat.':'Paste into your editing chat to revise this script.';
+  save.hidden=target.full&&!target.editing&&!earlier;
+  save.textContent=target.full?(earlier&&!changed?'Make current':'Save changes'):'Save script';
+  save.disabled=locked||target.needsCompare||!field.value.trim()||hasSaved&&!changed&&!earlier;
+  copy.disabled=locked||!target.full&&(!hasSaved||changed||target.needsCompare);
+  const menu=target.panel.querySelector('[data-script-history]');if(menu)menu.disabled=locked||target.full&&target.editing;
+  target.panel.querySelectorAll('[data-use-hook]').forEach(button=>button.disabled=!!locked||target.editing||changed||target.needsCompare||earlier);
+  for(const selector of ['[data-script-feedback]','[data-script-reference]']){const input=target.panel.querySelector(selector);if(input)input.readOnly=!!locked;}
+  const feedbackCopy=target.panel.querySelector('[data-copy-script-feedback]');if(feedbackCopy){
+   feedbackCopy.disabled=!!locked||!field.value.trim()||target.needsCompare||!hasFeedback(target);
+   feedbackCopy.textContent=changed?'Save & copy feedback':target.copiedFeedback===feedbackSignature(target)?'Copied ✓':'Copy feedback for chat';
+  }
+  const feedbackHint=target.panel.querySelector('[data-feedback-hint]');if(feedbackHint)feedbackHint.textContent=changed?'Saves your changes, then copies feedback for that version.':earlier?'This feedback uses the earlier version shown above. Paste into your editing chat.':'Paste into your editing chat to revise this script.';
   copy.className=target.full&&!changed?'primary':'secondary';
   target.panel.querySelector('[data-script-state]').textContent=changed?'Unsaved changes':earlier?'Earlier version':hasSaved?'Saved':'Draft';
   const count=field.value.trim()?field.value.trim().split(/\s+/).length:0;
@@ -48,6 +66,11 @@ window.ProjectScript=(()=>{
  function contextText(value){
   return value.split(/(https?:\/\/[^\s<>"']+)/g).map(part=>/^https?:\/\//.test(part)?'<a href="'+esc(part)+'" target="_blank" rel="noopener noreferrer">'+esc(part)+'</a>':esc(part)).join('');
  }
+ function paragraphs(text){return text.split(/\n\s*\n/).filter(Boolean).map(line=>'<p>'+esc(line)+'</p>').join('');}
+ function documentText(target,text){
+  const selected=target.hooks?.options?.find(option=>option.id===target.hooks.selected_id),opening=selected?.opening;
+  return '<div data-script-document class="script-document">'+(opening&&text.startsWith(opening)?'<div data-opening-text class="script-opening-text'+(target.highlightOpening?' opening-changed':'')+'">'+paragraphs(opening)+'</div>'+paragraphs(text.slice(opening.length).trim()):paragraphs(text))+'</div>';
+ }
  function details(target){
   const box=$('#project-script-context');if(!box)return;
   const {brief,data}=target;
@@ -58,17 +81,19 @@ window.ProjectScript=(()=>{
   box.innerHTML=notes.map(([name,value])=>'<section><h3>'+(name==='idea'?'Your idea':'References')+'</h3><p>'+contextText(value)+'</p></section>').join('')+(target.full&&later.length?'<section><h3>References added during revisions</h3>'+later.map(value=>'<p>'+contextText(value)+'</p>').join('')+'</section>':'');
  }
  function draw(target,message=''){
+  target.renderedVersion=target.data.version_id;
   const {panel,data,project,full}=target,draft=drafts.get(project.id);
   const conflict=draft&&draft.base!==data.version_id&&draft.text.trim()!==data.text.trim();
   target.needsCompare=!!conflict;
   const text=draft?.text??data.text;
   const history=data.versions.length?'<label class="script-history"><span'+(full?' class="sr-only"':'')+'>Versions</span><select data-script-history aria-label="Saved script versions">'+data.versions.map((v,i)=>'<option value="'+esc(v.id)+'" '+(v.id===data.version_id?'selected':'')+'>'+'Version '+(data.version_count-i)+(v.id===data.current_version_id?' · Current':'')+'</option>').join('')+'</select></label>':'';
   const writing='<label class="sr-only" for="project-script-text">Your script</label><textarea id="project-script-text" data-script-text rows="'+(full?1:7)+'" maxlength="50000" placeholder="'+(full?'Develop your script in chat, or start writing here…':'Paste the script you recorded…')+'">'+esc(text)+'</textarea>';
-  const actions='<div class="script-actions"><button class="primary" data-save-script>Save script</button><button class="'+(full?'primary':'secondary')+'" data-copy-script>'+(full?'Refine in chat':'Copy request for chat')+'</button></div>';
+  const actions='<div class="script-actions">'+(full?'<button class="secondary script-edit-trigger" data-edit-script><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5M4 15 16.5 2.5a2.1 2.1 0 0 1 3 3L7 18l-5 1zM3 22h18"/></svg>Edit script</button>':'<button class="primary" data-save-script>Save script</button>')+'<button class="'+(full?'primary':'secondary')+'" data-copy-script>'+(full?'Refine in chat':'Copy request for chat')+'</button></div>';
+  const editBar=full?'<div class="script-edit-bar" data-script-edit-bar hidden><span data-script-edit-state>Editing script</span><div><button class="secondary" data-cancel-script>Cancel</button><button class="primary" data-save-script>Save changes</button></div></div>':'';
   const savedSpeech=!full&&data.assembled?'<details class="assembled-script"><summary>Selected spoken script · '+esc(data.assembled.version)+'</summary><p>The words selected from your recording are kept separately.</p><pre>'+esc(data.assembled.text)+'</pre></details>':'';
   const toolbar='<div class="script-editor-head"><span data-script-state></span><span data-script-count></span>'+history+(full?actions:'')+'</div>';
   const notice='<p data-script-status role="status" '+(message?'':'hidden')+'>'+esc(message)+'</p>';
-  const body=(conflict?'<p class="project-notice">A newer script is saved. Your draft is kept below. Compare before saving.</p>':'')+toolbar+(full?notice+openings(target):'')+writing+(full?'':'<div class="script-action-row">'+actions+'</div><p class="script-help">Your assistant uses this script to choose takes and flag missing lines. Saving doesn’t start an edit.</p>')+
+  const body=(conflict?'<p class="project-notice">A newer script is saved. Your draft is kept below. Compare before saving.</p>':'')+toolbar+(full?notice+openings(target)+documentText(target,text):'')+writing+editBar+(full?'':'<div class="script-action-row">'+actions+'</div><p class="script-help">Your assistant uses this script to choose takes and flag missing lines. Saving doesn’t start an edit.</p>')+
    (full?'':notice)+'<button class="text-button" data-reload-script>Compare with saved script</button><div data-saved-comparison hidden></div>'+savedSpeech;
   panel.className=full?'scripting-workspace':'';
   panel.innerHTML=full?body+refinement(target):'<details class="project-script" '+(draft?.open?'open':'')+'><summary>Your script <span>optional</span></summary><div class="project-script-body">'+body+'</div></details>';
@@ -82,12 +107,19 @@ window.ProjectScript=(()=>{
    for(const selector of ['[data-script-feedback]','[data-script-reference]'])panel.querySelector(selector).addEventListener('input',()=>{retainFeedback(target);target.copiedFeedback=null;panel.querySelector('[data-copy-script-feedback]').textContent='Copy feedback for chat';feedbackStatus(target,'');controls(target);});
    panel.querySelector('[data-feedback-reference]').addEventListener('toggle',()=>retainFeedback(target));
    panel.querySelector('[data-copy-script-feedback]').onclick=()=>copyFeedback(target);
-   panel.querySelector('[data-other-openings]')?.addEventListener('toggle',()=>{target.openingsOpen=panel.querySelector('[data-other-openings]').open;});
+   panel.querySelector('[data-edit-script]').onclick=()=>{target.editing=true;controls(target);grow(target);const field=panel.querySelector('[data-script-text]');field.focus({preventScroll:true});field.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});retain();};
+   panel.querySelector('[data-cancel-script]').onclick=()=>cancelEdit(target);
+   const undo=panel.querySelector('[data-undo-opening]');if(undo)undo.onclick=()=>undoOpening(target);
   }
-  controls(target);grow(target);details(target);
+  controls(target);grow(target);details(target);target.highlightOpening=false;
  }
- async function save(target){
-  if(target.busy||target.needsCompare||current!==target)return;retain();
+ function cancelEdit(target){
+  if(target.busy||target.feedbackBusy)return;retainFeedback(target);
+  const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:target.data.text,base:target.data.version_id,editing:false});persist();target.editing=false;target.request=null;draw(target);
+  target.panel.querySelector('[data-edit-script]').focus({preventScroll:true});
+ }
+ async function save(target,feedback=null){
+  if(target.busy||target.needsCompare||current!==target)return false;retain();
   const text=target.panel.querySelector('[data-script-text]').value;
   target.request??={project_id:target.project.id,revision:target.data.revision,request_id:crypto.randomUUID(),text};
   target.busy=true;controls(target);status(target,'Saving script…');
@@ -95,10 +127,19 @@ window.ProjectScript=(()=>{
    const data=await fetch('/project-script',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'project-script'},body:JSON.stringify(target.request)}).then(requestReply);
    const draft=drafts.get(target.project.id);
    if(draft?.text===text){draft.text=data.text;draft.base=data.version_id;persist();}
-   target.data=data;target.request=null;
+   target.data=data;target.request=null;target.editing=false;target.openingUndo=null;target.openingNotice='';
+   if(draft)draft.editing=false;persist();
+   let feedbackConflict=false;
+   if(feedback){
+    const existing=feedbackDrafts.get(feedbackId(target));
+    feedbackConflict=!!existing&&!existing.copied&&(existing.feedback.trim()||existing.references.trim())&&(existing.feedback!==feedback.feedback||existing.references!==feedback.references);
+    if(!feedbackConflict){feedbackDrafts.set(feedbackId(target),{feedback:feedback.feedback,references:feedback.references,referenceOpen:feedback.referenceOpen});persistFeedback();}
+   }
    const route=new URLSearchParams(location.hash.slice(1));if(route.get('project')===target.project.id&&route.has('script')){if(target.full){target.pinned=false;route.delete('script');route.set('stage','script');}else route.set('script',data.version_id);route.delete('script-feedback');route.delete('feedback-revision');history.replaceState(null,'','#'+route);}
-   await loadExtras(target);if(current===target)draw(target);
-  }catch(error){if(error.status===409)target.needsCompare=true;status(target,error.message||'Couldn’t save. Your draft is kept.');}
+   await loadExtras(target);if(current===target)draw(target,feedbackConflict?'Changes saved. This version already has feedback; your other feedback stays with the previous version.':'Changes saved. Previous versions are kept.');
+   if(current===target&&typeof notify==='function')notify(feedbackConflict?'Script saved. Your earlier feedback is kept.':'Script saved. Previous versions are kept.');
+   return !feedbackConflict;
+  }catch(error){if(error.status===409)target.needsCompare=true;status(target,error.message||'Couldn’t save. Your draft is kept.');return false;}
   finally{target.busy=false;if(current===target)controls(target);}
  }
  async function compare(target){
@@ -120,7 +161,7 @@ window.ProjectScript=(()=>{
    const data=await get('/project-script?'+new URLSearchParams({project:target.project.id,version:id}));if(current!==target)return;
    const draft=drafts.get(target.project.id)||{};draft.text=data.text;draft.base=data.version_id;drafts.set(target.project.id,draft);persist();target.data=data;
    target.pinned=id!==data.current_version_id;const route=new URLSearchParams(location.hash.slice(1));if(target.pinned)route.set('script',id);else{route.delete('script');route.set('stage','script');}route.delete('script-feedback');route.delete('feedback-revision');history.replaceState(null,'','#'+route);
-   await loadExtras(target);if(current===target)draw(target,id===data.current_version_id?'':'Viewing an earlier script. Save script to make it current; all versions are kept.');
+   await loadExtras(target);if(current===target)draw(target,id===data.current_version_id?'':'Viewing an earlier script. Choose Make current to restore it; all versions are kept.');
   }catch(error){status(target,error.message);}
   finally{target.busy=false;if(current===target)controls(target);}
  }
@@ -144,6 +185,7 @@ window.ProjectScript=(()=>{
  function persistFeedback(){try{sessionStorage.setItem(feedbackKey,JSON.stringify(Object.fromEntries(feedbackDrafts)));}catch{}}
  function retainFeedback(target){
   if(!target?.full||!target.panel.isConnected)return;
+  if(target.renderedVersion!==undefined&&target.renderedVersion!==target.data.version_id)return;
   const field=target.panel.querySelector('[data-script-feedback]'),reference=target.panel.querySelector('[data-script-reference]');if(!field||!reference)return;
   const old=feedbackDraft(target),next={...old,feedback:field.value,references:reference.value,referenceOpen:target.panel.querySelector('[data-feedback-reference]').open};
   if(old.feedback!==next.feedback||old.references!==next.references){delete next.request;delete next.copied;}
@@ -167,9 +209,9 @@ window.ProjectScript=(()=>{
   }
  }
  function openings(target){
-  const options=(target.hooks?.options||[]).filter(option=>option.id!==target.hooks.selected_id);
+  const options=target.hooks?.options||[];
   if(!options.length)return '';
-  return '<details class="script-openings" data-other-openings '+(target.openingsOpen?'open':'')+'><summary>See '+options.length+' other opening'+(options.length===1?'':'s')+'</summary><div class="script-opening-options">'+options.map(option=>{const [hook,...bridge]=option.opening.split(/\n\s*\n/);return '<article class="script-opening-option"><p>'+esc(hook)+'</p>'+(bridge.length?'<details class="script-hook-lead"><summary>Preview lead-in</summary><p>'+esc(bridge.join('\n\n'))+'</p></details>':'')+'<button class="secondary" data-use-hook="'+esc(option.id)+'">Use this opening</button></article>';}).join('')+'</div><p class="script-opening-help">Your previous version stays saved.</p></details>';
+  return '<section class="script-openings" aria-labelledby="script-openings-title"><div class="script-openings-head"><h3 id="script-openings-title">Opening options</h3><div class="script-opening-notice"><span role="status">'+esc(target.openingNotice||'')+'</span><button class="text-button" data-undo-opening hidden>Undo</button></div></div><div class="script-opening-options">'+options.map((option,i)=>{const [hook,...bridge]=option.opening.split(/\n\s*\n/),selected=option.id===target.hooks.selected_id;return '<article class="script-opening-option'+(selected?' is-selected':'')+'"><button data-use-hook="'+esc(option.id)+'" aria-pressed="'+selected+'"><span class="script-opening-label">Opening '+(i+1)+'<span>'+(selected?'✓ In script':'Use this opening')+'</span></span><span class="script-opening-copy">'+esc(hook)+'</span></button>'+(bridge.length?'<details class="script-hook-lead"><summary>Preview lead-in</summary><p>'+esc(bridge.join('\n\n'))+'</p></details>':'')+'</article>';}).join('')+'</div></section>';
  }
  function refinement(target){
   const d=feedbackDraft(target),copied=target.copiedFeedback===feedbackSignature(target);
@@ -179,23 +221,44 @@ window.ProjectScript=(()=>{
   const field=target.panel.querySelector('[data-script-feedback]');field.scrollIntoView?.({block:'center',behavior:'smooth'});field.focus({preventScroll:true});
  }
  async function useHook(target,id){
-  if(current!==target||target.busy||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id)return;
-  retain();const oldVersion=target.data.version_id;
+  if(current!==target||target.busy||target.feedbackBusy||target.editing||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id||id===target.hooks.selected_id)return;
+  retain();const oldVersion=target.data.version_id,oldText=target.data.text;
   if(target.hookRequest?.option_id!==id)target.hookRequest={project_id:target.project.id,revision:target.data.revision,request_id:crypto.randomUUID(),script_version:oldVersion,hook_revision:target.hooks.revision,option_id:id};
   target.busy=true;controls(target);status(target,'Saving the new opening…');
   try{
    const data=await fetch('/script-hook',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'script-hook'},body:JSON.stringify(target.hookRequest)}).then(requestReply);
    if(current!==target)return;
-   target.hookRequest=null;target.data=data;target.hooks=data.hooks;target.openingsOpen=false;
+   target.hookRequest=null;target.data=data;target.hooks=data.hooks;target.openingUndo={text:oldText,version_id:oldVersion,after:data.version_id};target.openingNotice='Opening updated.';target.highlightOpening=true;
    const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id});persist();
    target.pinned=false;const route=new URLSearchParams(location.hash.slice(1));route.delete('script');route.set('stage','script');route.delete('script-feedback');route.delete('feedback-revision');history.replaceState(null,'','#'+route);
-   draw(target,'Opening updated. Your previous version is saved.'+(hasFeedback({...target,data:{...target.data,version_id:oldVersion}})?' Your feedback draft stays with that earlier version.':''));target.panel.scrollIntoView?.({block:'start',behavior:'smooth'});
+   draw(target,hasFeedback({...target,data:{...target.data,version_id:oldVersion}})?'Your feedback draft stays with the previous version.':'');
+   target.panel.querySelector('[data-use-hook="'+id+'"]')?.focus({preventScroll:true});
   }catch(error){status(target,error.message);if(error.status===409){target.hookRequest=null;target.needsCompare=true;}}
+  finally{target.busy=false;if(current===target)controls(target);}
+ }
+ async function undoOpening(target){
+  const undo=target.openingUndo;
+  if(current!==target||!undo||undo.after!==target.data.version_id||target.busy||target.feedbackBusy||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id)return;
+  retain();undo.request??={project_id:target.project.id,revision:target.data.revision,request_id:crypto.randomUUID(),text:undo.text};
+  target.busy=true;controls(target);status(target,'Restoring the previous opening…');
+  try{
+   const data=await fetch('/project-script',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'project-script'},body:JSON.stringify(undo.request)}).then(requestReply);
+   if(current!==target)return;
+   target.data=data;target.openingUndo=null;target.openingNotice='Previous opening restored.';target.highlightOpening=true;
+   const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id,editing:false});persist();target.editing=false;
+   await loadExtras(target);if(current===target){draw(target);target.panel.querySelector('[data-use-hook="'+target.hooks.selected_id+'"]')?.focus({preventScroll:true});}
+  }catch(error){status(target,error.message||'Couldn’t restore the opening. Your script is kept.');if(error.status===409){undo.request=null;target.needsCompare=true;}}
   finally{target.busy=false;if(current===target)controls(target);}
  }
  function feedbackSignature(target){const d=feedbackDraft(target);return JSON.stringify([target.data.version_id,d.feedback.trim(),d.references.trim()]);}
  async function copyFeedback(target){
-  if(current!==target||target.feedbackBusy||target.busy||dirty(target)||target.needsCompare||!target.data.version_id)return;
+  if(current!==target||target.feedbackBusy||target.busy||target.needsCompare)return;
+  if(dirty(target)){
+   retainFeedback(target);const feedback={...feedbackDraft(target)};if(!hasFeedback(target))return;
+   target.feedbackBusy=true;controls(target);const saved=await save(target,feedback);target.feedbackBusy=false;if(current===target)controls(target);
+   if(!saved||current!==target)return;
+  }
+  if(!target.data.version_id)return;
   retainFeedback(target);if(!hasFeedback(target))return;
   const draft=feedbackDraft(target),signature=feedbackSignature(target);
   if(!draft.request||draft.request.project_id!==target.project.id||draft.request.script_version!==target.data.version_id||draft.request.feedback!==draft.feedback.trim()||draft.request.references!==draft.references.trim())draft.request={project_id:target.project.id,script_version:target.data.version_id,request_id:crypto.randomUUID(),feedback:draft.feedback.trim(),references:draft.references.trim()};persistFeedback();
@@ -221,11 +284,11 @@ window.ProjectScript=(()=>{
   try{
    const params=new URLSearchParams(location.hash.slice(1)),query=new URLSearchParams({project:project.id});if(params.get('project')===project.id&&params.has('script'))query.set('version',params.get('script'));
    const [data,brief]=await Promise.all([get('/project-script?'+query),full?get('/script-brief?'+new URLSearchParams({project:project.id})):Promise.resolve(null)]);
-   if(token!==run||!panel.isConnected)return;const target={project,panel,data,brief,full,pinned:params.has('script'),busy:false,request:null};await loadExtras(target);if(token!==run||!panel.isConnected)return;current=target;draw(target,target.extraError||'');
+   if(token!==run||!panel.isConnected)return;const draft=drafts.get(project.id),target={project,panel,data,brief,full,editing:full&&(!data.version_id||draft?.editing||!!draft&&draft.text.trim()!==data.text.trim()),pinned:params.has('script'),busy:false,request:null};await loadExtras(target);if(token!==run||!panel.isConnected)return;current=target;draw(target,target.extraError||'');
   }catch(error){if(token===run&&panel.isConnected)panel.innerHTML='<p class="script-help">'+esc(error.message)+' Reopen Script to try again. Your draft is kept.</p>';}
  }
  async function refresh(){
-  const target=current;if(!target?.panel.isConnected||target.panel.hidden||target.panel.closest('#project-page')?.hidden||document.hidden||target.busy||dirty(target)||target.data.version_id!==target.data.current_version_id)return;
+  const target=current;if(!target?.panel.isConnected||target.panel.hidden||target.panel.closest('#project-page')?.hidden||document.hidden||target.busy||target.feedbackBusy||target.editing||dirty(target)||target.data.version_id!==target.data.current_version_id)return;
   const visibleVersion=target.data.version_id;let ownsLock=false;
   try{
    const data=await get('/project-script?'+new URLSearchParams({project:target.project.id}));
@@ -245,5 +308,5 @@ window.ProjectScript=(()=>{
   finally{if(ownsLock){target.busy=false;if(current===target)controls(target);}}
  }
  window.addEventListener('beforeunload',retain);window.addEventListener('focus',refresh);window.addEventListener('resize',()=>grow(current));setInterval(refresh,8000);
- return {mount,retain,hasDraft:()=>!!current&&dirty(current),hasPendingFeedback:()=>!!current&&current.full&&pendingFeedback(current)};
+ return {mount,retain,hasDraft:()=>!!current&&dirty(current),isEditing:()=>!!current&&current.full&&!!current.editing,hasPendingFeedback:()=>!!current&&current.full&&pendingFeedback(current)};
 })();
