@@ -124,6 +124,7 @@ window.Studio=(()=>{
   window.ProjectFeedback?.retain();window.ProjectScript?.retain();pause();request++;activeArtifact=a;
   frameIndex=Math.max(0,Math.min((a.frames||[]).length-1,index));
   const container=$('#project-artifact');
+  container.hidden=a.type==='script';
   if(sameStoryboard&&ReviewLayout.updateFrame(container,a,frameIndex)){
    window.ProjectFeedback?.render(activeProject,a,frameIndex);
    if(update)history.replaceState(null,'',projectHash(activeProject,a,frameIndex));
