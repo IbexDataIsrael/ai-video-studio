@@ -28,7 +28,7 @@ function starter(options={}){
 }
 test('starter formats retain input and show a format-specific material handoff',()=>{
  const h=starter();h.input('start-goal','Explain my idea.');h.input('start-script','The script I recorded.');
- assert.match(h.node('#project-starter').value,/Script I recorded.*\nThe script I recorded/);assert.match(h.node('#start-status').textContent,/attach your raw video/);
+ assert.match(h.node('#project-starter').value,/Script I recorded.*\nThe script I recorded/);assert.equal(h.node('#start-status').textContent,'Paste into your editing chat.');
  h.type('carousel');assert.equal(h.node('#start-script-field').hidden,true);assert.doesNotMatch(h.node('#project-starter').value,/The script I recorded/);assert.match(h.node('#start-status').textContent,/source material or outline/);assert.match(h.node('#start-goal').placeholder,/carousel/);
  h.type('video');assert.equal(h.node('#start-script').value,'The script I recorded.');assert.equal(h.node('#start-goal').value,'Explain my idea.');
 });
@@ -43,8 +43,8 @@ test('backdrop and Escape close the starter without losing its draft',()=>{
  let prevented=false;h.dialog.listeners.cancel({preventDefault(){prevented=true;}});assert.equal(h.dialog.open,false);assert.equal(prevented,true);h.api.open();assert.equal(h.node('#start-goal').value,'Keep my goal');
 });
 test('explicit copy keeps the starter open and gives the correct next step',async()=>{
- const h=starter();assert.equal(h.copies.length,0);h.input('start-goal','My video goal.');const expected=h.node('#project-starter').value;await h.copy();assert.deepEqual(h.copies,[expected]);assert.equal(h.dialog.open,true);assert.equal(h.node('#start-done').textContent,'Done');assert.match(h.node('#start-status').textContent,/Request copied.*attach your raw video/);
- h.input('start-footage','Documents/raw.mov');await h.copy();assert.match(h.copies[1],/Documents\/raw.mov/);assert.match(h.node('#start-status').textContent,/file location is included/);
+ const h=starter();assert.equal(h.copies.length,0);h.input('start-goal','My video goal.');const expected=h.node('#project-starter').value;await h.copy();assert.deepEqual(h.copies,[expected]);assert.equal(h.dialog.open,true);assert.equal(h.node('#start-done').textContent,'Done');assert.match(h.node('#start-status').textContent,/Request copied.*Paste into your editing chat/);
+ h.input('start-footage','Documents/raw.mov');await h.copy();assert.match(h.copies[1],/Documents\/raw.mov/);assert.equal(h.node('#start-status').textContent,'Request copied. Paste into your editing chat.');
 });
 test('clipboard failure reveals the same request for manual copying',async()=>{
  const h=starter({fail:true}),text=h.node('#project-starter').value;await h.copy();assert.equal(h.dialog.open,true);assert.equal(h.node('#start-preview').open,true);assert.equal(h.node('#project-starter').value,text);assert.equal(h.node('#project-starter').selected,true);assert.match(h.node('#start-status').textContent,/Select and copy/);assert.equal(h.copies.length,0);
@@ -57,7 +57,7 @@ test('keyboard format changes work and blocked storage still keeps an in-memory 
 });
 
 test('file-location disclosure is optional, remembered, and uses plain chat instructions',()=>{
- const h=starter();assert.equal(h.node('#start-location').open,false);assert.match(h.node('#start-material-help').textContent,/Attach your raw video in chat after copying/);assert.equal(h.node('#start-copy').textContent,'Copy request');assert.match(h.node('#start-status').textContent,/Paste into your editing chat and attach/);assert.equal(h.node('#start-material-help').hidden,true);
+ const h=starter();assert.equal(h.node('#start-location').open,false);assert.match(h.node('#start-material-help').textContent,/Attach your raw video in chat after copying/);assert.equal(h.node('#start-copy').textContent,'Copy request');assert.equal(h.node('#start-status').textContent,'Paste into your editing chat.');assert.equal(h.node('#start-material-help').hidden,true);
  h.node('#start-location').open=true;h.input('start-footage','Footage/raw.mov');h.api.close();const next=starter({storage:h.storage});assert.equal(next.node('#start-location').open,true);assert.match(next.node('#project-starter').value,/Footage\/raw.mov/);
 });
 test('inspiration travels with the script and stays after the spoken-cut instructions',()=>{
