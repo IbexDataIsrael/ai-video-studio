@@ -18,7 +18,7 @@ window.Studio=(()=>{
     const updated=projects.find(p=>p.id===activeProject.id);
     if(updated&&JSON.stringify(updated)===JSON.stringify(activeProject))return;
     const params=new URLSearchParams(location.hash.slice(1)),video=$('#project-artifact video');
-    if(updated&&!params.has('artifact')&&!window.ProjectFeedback?.hasDraft()&&!window.ProjectScript?.hasDraft()&&(!video||video.paused)){
+    if(updated&&!params.has('artifact')&&!window.ProjectFeedback?.hasDraft()&&!window.ProjectScript?.hasDraft()&&!window.ProjectScript?.hasPendingFeedback()&&(!video||video.paused)){
      projectPage(updated,null,0);return;
     }
     pendingUpdate=true;$('#project-update').hidden=false;

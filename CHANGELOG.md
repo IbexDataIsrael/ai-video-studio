@@ -3,7 +3,7 @@
 ## Unreleased — optional script writing
 
 - Start videos with Help me write a script or Edit my footage. The focused writing form accepts an idea, draft or video reference, with shared writing guidance and private creator preferences.
-- Optional Script section with a readable growing editor, exact saved versions, retained drafts and Copy for chat. Original idea/reference context stays in Project details; writing happens in chat, including hook alternatives.
+- Optional Script section with a readable growing editor, exact saved versions, retained drafts and Refine in chat. Compatible opening alternatives can be applied as saved versions. A visible feedback area with an optional reference copies an exact local revision request; original context stays under Your idea & references.
 - Owner controls for personal writing preferences, with source evidence, guarded saves and recoverable history.
 - Simplified footage starter: one brief, optional recorded script, unified library/link inspiration cards and an exact read-only See message preview beside Copy request. Existing browser drafts and exact references are retained.
 - No embedded AI service or analytics integration.

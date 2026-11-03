@@ -81,7 +81,7 @@ def current(project_id, version=None):
                 'version_count': len(data['versions']), 'original': original, 'assembled': assembled}
 
 
-def save(body):
+def save(body, expected_files=None):
     if (not isinstance(body, dict) or set(body) != {'project_id', 'revision', 'request_id', 'text'} or
             not all(isinstance(v, str) for v in body.values()) or not re.fullmatch(r'[a-f0-9]{64}', body['revision'])):
         raise FeedbackError('Use a valid project script request.', 400)
@@ -113,5 +113,5 @@ def save(body):
             data['versions'].append(version)
         version['request_ids'].append(body['request_id'])
         data['current'] = version_id
-        storage.commit({path: storage.json_bytes(data)}, {**body, 'text': text, 'operation': 'save-project-script'}, expected)
+        storage.commit({path: storage.json_bytes(data)}, {**body, 'text': text, 'operation': 'save-project-script'}, {**expected, **(expected_files or {})})
         return {**current(project['id']), 'saved_version_id': version_id}

@@ -11,6 +11,7 @@ import test_project_script as fixtures
 import scripting
 import project_script
 from feedback import FeedbackError
+from review_actions import ReviewError
 from serve import Handler
 
 
@@ -140,6 +141,149 @@ class ScriptingTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+
+class ScriptIterationTests(unittest.TestCase):
+    setUp = ScriptingTests.setUp
+    tearDown = ScriptingTests.tearDown
+    def hooks(self):
+        saved = project_script.save(self.fixture.body('An original opening.\n\nThe body stays the same.'))
+        options = [{'id': str(uuid.uuid4()), 'opening': opening} for opening in
+                   ['An original opening.', 'A different opening.\n\nA compatible bridge.', 'A third opening.']]
+        body = {'project_id': 'demo', 'revision': scripting.hooks_current('demo')['revision'],
+                'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                'prefix': 'An original opening.', 'options': options}
+        return saved, body
+
+    def choice(self, saved, hooks, option):
+        return {'project_id': 'demo', 'revision': project_script.current('demo')['revision'],
+                'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                'hook_revision': hooks['revision'], 'option_id': option['id']}
+
+    def feedback(self, saved, feedback='Make the opening more personal.', references=''):
+        return {'project_id': 'demo', 'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                'feedback': feedback, 'references': references}
+
+    def test_iteration_reads_never_create_owner_records(self):
+        before = {p: p.read_bytes() for p in self.fixture.root.rglob('*') if p.is_file()}
+        self.assertEqual(scripting.hooks_current('demo')['options'], [])
+        self.assertEqual(scripting.feedback_current('demo')['requests'], [])
+        self.assertEqual({p: p.read_bytes() for p in self.fixture.root.rglob('*') if p.is_file()}, before)
+
+    def test_hook_choice_creates_a_version_keeps_the_body_and_can_restore_original(self):
+        saved, body = self.hooks(); registry = self.fixture.registry.read_bytes()
+        hooks = scripting.hooks_save(body)
+        original_id = hooks['selected_id']; request = self.choice(saved, hooks, body['options'][1])
+        result = scripting.hook_apply(request)
+        self.assertEqual(result['text'], 'A different opening.\n\nA compatible bridge.\n\nThe body stays the same.')
+        self.assertEqual(project_script.current('demo', saved['version_id'])['text'], saved['text'])
+        self.assertEqual(result['hooks']['selected_id'], body['options'][1]['id'])
+        restore = {**self.choice(result, result['hooks'], {'id': original_id})}
+        self.assertEqual(scripting.hook_apply(restore)['version_id'], saved['version_id'])
+        self.assertEqual(self.fixture.registry.read_bytes(), registry)
+        self.assertEqual((self.project/'script.txt').read_text(), 'The script I recorded.\n')
+        self.assertFalse((self.project/'approval-state.json').exists())
+
+    def test_hook_retries_never_revert_a_later_script(self):
+        saved, body = self.hooks(); hooks = scripting.hooks_save(body)
+        request = self.choice(saved, hooks, body['options'][1]); scripting.hook_apply(request)
+        newer = project_script.save(self.fixture.body('A later manual revision.'))
+        self.assertTrue(scripting.hook_apply(request)['duplicate'])
+        self.assertEqual(project_script.current('demo')['version_id'], newer['version_id'])
+
+    def test_stale_hook_set_or_script_never_overwrites_work(self):
+        saved, body = self.hooks(); hooks = scripting.hooks_save(body)
+        request = self.choice(saved, hooks, body['options'][1])
+        changed = {**body, 'revision': hooks['revision'], 'request_id': str(uuid.uuid4()),
+                   'options': [body['options'][0], {'id': str(uuid.uuid4()), 'opening': 'A newer option.'}]}
+        scripting.hooks_save(changed)
+        before = (self.project/'script-state.json').read_bytes()
+        with self.assertRaises(FeedbackError): scripting.hook_apply(request)
+        self.assertEqual((self.project/'script-state.json').read_bytes(), before)
+        hooks = scripting.hooks_current('demo'); request = self.choice(saved, hooks, changed['options'][1])
+        newer = project_script.save(self.fixture.body('Changed elsewhere.'))
+        with self.assertRaises(FeedbackError): scripting.hook_apply(request)
+        self.assertEqual(project_script.current('demo')['version_id'], newer['version_id'])
+
+    def test_invalid_opening_sets_are_rejected_without_writing(self):
+        saved, body = self.hooks()
+        for invalid in [{**body, 'prefix': 'Not the actual opening'}, {**body, 'prefix': 'An original'},
+                        {**body, 'script_version': None}, {**body, 'options': [body['options'][1], body['options'][2]]},
+                        {**body, 'options': [body['options'][0], body['options'][0]]}]:
+            with self.assertRaises(FeedbackError): scripting.hooks_save(invalid)
+        self.assertFalse((self.project/'script-hooks.json').exists())
+        self.assertEqual(project_script.current('demo')['version_id'], saved['version_id'])
+
+    def test_feedback_is_exact_immutable_and_reference_only_is_sufficient(self):
+        saved = project_script.save(self.fixture.body('A saved script.'))
+        original = (self.project/'script-state.json').read_bytes(); registry = self.fixture.registry.read_bytes()
+        request = self.feedback(saved, '', 'https://example.org/clip — borrow the opening question.')
+        first = scripting.feedback_save(request); self.assertEqual(first['script_version'], saved['version_id'])
+        self.assertEqual(scripting.feedback_save(request), first)
+        self.assertEqual(len(scripting.feedback_current('demo')['requests']), 1)
+        with self.assertRaises(FeedbackError): scripting.feedback_current('demo', first['id'], 'f'*64)
+        with self.assertRaises(FeedbackError): scripting.feedback_save({**request, 'feedback': 'Different text.'})
+        self.assertEqual((self.project/'script-state.json').read_bytes(), original)
+        self.assertEqual(self.fixture.registry.read_bytes(), registry)
+        self.assertFalse((self.base/'writing-voice.json').exists())
+        self.assertFalse((self.project/'approval-state.json').exists())
+
+    def test_feedback_keeps_earlier_version_and_unavailable_ids_do_not_substitute(self):
+        saved = project_script.save(self.fixture.body('The earlier draft.'))
+        newer = project_script.save(self.fixture.body('The newer draft.'))
+        request = self.feedback(saved); row = scripting.feedback_save(request)
+        self.assertEqual(scripting.feedback_current('demo', row['id'])['script_version'], saved['version_id'])
+        self.assertEqual(project_script.current('demo')['version_id'], newer['version_id'])
+        with self.assertRaises(FeedbackError): scripting.feedback_save({**request, 'script_version': 'f'*64})
+        with self.assertRaises(FeedbackError): scripting.feedback_current('demo', str(uuid.uuid4()))
+        with self.assertRaises(FeedbackError): scripting.feedback_save(self.feedback(saved, '', ''))
+
+    def test_iteration_symlinks_and_corrupt_files_are_preserved(self):
+        saved, body = self.hooks(); outside = self.fixture.root/'outside.json'; outside.write_text('private')
+        path = self.project/'script-hooks.json'; path.symlink_to(outside)
+        with self.assertRaises(ReviewError): scripting.hooks_save(body)
+        self.assertEqual(outside.read_text(), 'private'); path.unlink()
+        path = self.project/'script-feedback.json'; path.write_text('broken owner data')
+        with self.assertRaises(ValueError): scripting.feedback_save(self.feedback(saved))
+        self.assertEqual(path.read_text(), 'broken owner data'); path.unlink(); path.symlink_to(outside)
+        with self.assertRaises(ReviewError): scripting.feedback_save(self.feedback(saved))
+        self.assertEqual(outside.read_text(), 'private')
+
+    def test_hook_file_changed_at_commit_is_not_overwritten_or_applied(self):
+        saved, body = self.hooks(); hooks = scripting.hooks_save(body)
+        request = self.choice(saved, hooks, body['options'][1]); real = scripting.storage.commit
+        path = self.project/'script-hooks.json'
+        def changed(*args):
+            path.write_bytes(path.read_bytes()+b' '); return real(*args)
+        before = (self.project/'script-state.json').read_bytes()
+        with patch.object(scripting.storage, 'commit', side_effect=changed), self.assertRaises(ReviewError):
+            scripting.hook_apply(request)
+        self.assertEqual((self.project/'script-state.json').read_bytes(), before)
+
+    def test_iteration_http_guards_and_private_files(self):
+        server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+        origin = 'http://127.0.0.1:'+str(server.server_port)
+        def request(method, path, body=None, headers=None):
+            c = http.client.HTTPConnection('127.0.0.1', server.server_port)
+            c.request(method, path, json.dumps(body) if body is not None else None, headers or {})
+            response = c.getresponse(); result = response.status, response.read(); c.close(); return result
+        try:
+            saved, body = self.hooks()
+            headers = {'Content-Type': 'application/json', 'Origin': origin, 'X-Studio-Action': 'script-hooks'}
+            self.assertEqual(request('POST', '/script-hooks', body)[0], 403)
+            self.assertEqual(request('POST', '/script-hooks', body, headers)[0], 200)
+            self.assertEqual(request('GET', '/script-hooks?project=demo&project=demo')[0], 400)
+            self.assertEqual(request('GET', '/script-hooks?project=demo', headers={'Origin':'https://example.com'})[0], 403)
+            hooks = scripting.hooks_current('demo'); headers['X-Studio-Action'] = 'script-hook'
+            self.assertEqual(request('POST', '/script-hook', self.choice(saved, hooks, body['options'][1]), headers)[0], 200)
+            headers['X-Studio-Action'] = 'script-feedback'; feedback = self.feedback(saved)
+            self.assertEqual(request('POST', '/script-feedback', feedback, headers)[0], 200)
+            self.assertEqual(request('GET', '/script-feedback?project=demo&request='+feedback['request_id'])[0], 200)
+            self.assertEqual(request('GET', '/script-feedback?project=demo&request=')[0], 400)
+            self.assertEqual(request('GET', '/script-feedback.json')[0], 404)
+        finally:
+            server.shutdown(); server.server_close(); thread.join()
 
 
 if __name__ == '__main__':
