@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),{readFile
 function library(){
  const entries=[{id:'video',title:'Original video',creator:'Creator',poster:'cover.png',media_path:'source.mp4',collection:'reference',analysis_status:'analyzed',summary:'A real reference.'}],technique={id:'type',title:'Typography',examples:[{id:'first',style_id:'video',label:'First treatment',poster:'first.png',start:0,end:2},{id:'second',style_id:'video',label:'Second treatment',poster:'second.png',start:4,end:6}]};
  const calls=[],notes=[{id:'note-id',slide:null,text:'Use restrained type.'}];let stale=false,changed=false;
- const context={window:{},exact:t=>Math.floor(t/60)+':'+(t%60).toFixed(2).padStart(5,'0').replace(/0+$/,'').replace(/\.$/,''),URLSearchParams,localStorage:{getItem:()=>null},selected:new Set(['type']),item:id=>id==='type'?technique:entries.find(e=>e.id===id),source:id=>entries.find(e=>e.id===id),isTech:e=>!!e.examples,isCarousel:()=>false,isRemoved:()=>false,example:()=>technique.examples[0],referenceUrl:(id,example)=>'http://localhost/#'+(example?'technique='+id+'&example='+example:'style='+id),fetch:async(url,options={})=>{
+ const context={window:{},exact:t=>Math.floor(t/60)+':'+(t%60).toFixed(2).padStart(5,'0').replace(/0+$/,'').replace(/\.$/,''),URL,URLSearchParams,localStorage:{getItem:()=>null},selected:new Set(['type']),item:id=>id==='type'?technique:entries.find(e=>e.id===id),source:id=>entries.find(e=>e.id===id),isTech:e=>!!e.examples,isCarousel:()=>false,isRemoved:()=>false,example:()=>technique.examples[0],referenceUrl:(id,example)=>'http://localhost/#'+(example?'technique='+id+'&example='+example:'style='+id),fetch:async(url,options={})=>{
   calls.push({url,body:options.body&&JSON.parse(options.body)});
   if(url.startsWith('/reference-notes'))return {ok:true,json:async()=>({context_revision:'source-revision',notes})};
   const rows=JSON.parse(options.body).references;
@@ -11,7 +11,7 @@ function library(){
   return {ok:true,json:async()=>({text:(rows.length===1?'Use this reference:':'Use these references:')+'\n\n'+blocks.join('\n\n')})};
  }};
  runInNewContext(readFileSync(join(__dirname,'dist/start-references.js'),'utf8'),context);
- return {api:context.window.StartReferences,calls,entries,technique,notes,stale(){stale=true;},changeNote(){changed=true;}};
+ return {context,api:context.window.StartReferences,calls,entries,technique,notes,stale(){stale=true;},changeNote(){changed=true;}};
 }
 test('project inspiration captures the exact chosen example and current saved notes',async()=>{
  const h=library(),row=await h.api.capture({reference_id:'type',example_id:'second',slide:null});
@@ -45,4 +45,35 @@ test('restoring old and current draft notes preserves their text and validates t
 
 test('a timestamp outside its chosen example is rejected before the handoff',async()=>{
  const h=library(),row=await h.api.capture({reference_id:'type',example_id:'second',slide:null});row.time=1;const calls=h.calls.length;await assert.rejects(h.api.validate([row]),/timestamp for this exact example/);assert.equal(h.calls.length,calls);
+});
+
+
+test('pasted video links retain borrowing intent without fetching or cataloguing anything',async()=>{
+ const h=library(),row=h.api.link(' https://www.example.org/watch?v=123#t=4 ','Use the opening question.');assert.equal(row.url,'https://www.example.org/watch?v=123#t=4');assert.equal(row.details.title,'example.org');assert.match(h.api.text([row]),/example.org\/watch\?v=123#t=4/);assert.match(h.api.text([row]),/For this project:\nhttps:\/\/www.example.org\/watch\?v=123#t=4: Use the opening question/);await h.api.validate([row]);assert.equal(h.calls.length,0);
+});
+test('pasted links and exact library examples validate independently in a mixed request',async()=>{
+ const h=library(),saved=await h.api.capture({reference_id:'type',example_id:'second',slide:null}),pasted=h.api.link('https://example.org/clip','Use its pacing.');saved.note='Use the diagrams.';const text=h.api.text([saved,pasted]);assert.match(text,/example=second/);assert.match(text,/https:\/\/example.org\/clip/);assert.match(text,/Second treatment: Use the diagrams/);assert.match(text,/https:\/\/example.org\/clip: Use its pacing/);await h.api.validate([saved,pasted]);assert.equal(h.calls.at(-1).body.references.length,1);assert.equal(h.calls.at(-1).body.references[0].example_id,'second');h.stale();await assert.rejects(h.api.validate([saved,pasted]),/source or notes changed/);
+});
+test('link draft restore deduplicates safely and keeps notes without trusting saved display markup',()=>{
+ const h=library(),a=h.api.link('https://example.org/clip','My specific note.');const rows=h.api.restore([a,{...a,details:{title:'<script>wrong</script>'}},h.api.link('https://example.org/other'),{kind:'link',url:'javascript:alert(1)'},{kind:'link',url:null}]);assert.equal(rows.length,2);assert.equal(rows[0].details.title,'example.org');assert.equal(rows[0].note,'My specific note.');assert.equal(h.api.targetKey(rows[0]),h.api.targetKey(a));assert.notEqual(h.api.targetKey(rows[0]),h.api.targetKey(rows[1]));
+});
+test('invalid or credential-bearing video links are rejected before any request',()=>{
+ const h=library();for(const value of ['not a link','javascript:alert(1)','file:///private/video.mp4','https://name:secret@example.org/clip'])assert.throws(()=>h.api.link(value),/link/);assert.equal(h.calls.length,0);
+});
+
+function picker(h,initial=[]){
+ const nodes=new Map();
+ const node=id=>{if(!nodes.has(id))nodes.set(id,{innerHTML:'',value:'',textContent:'',listeners:{},focus(){this.focused=true;},querySelector:selector=>node(id+' '+selector),querySelectorAll:()=>[],addEventListener(name,fn){this.listeners[name]=fn;}});return nodes.get(id);};
+ let rows=initial,linkDraft='',drafts={};h.context.selected=new Set();h.context.esc=value=>String(value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+ const dialog=node('dialog'),summary=node('dialog #start-reference-summary'),api=h.api.create({dialog,get:()=>rows,set:value=>{rows=value;},showPicker(){},getLinkDraft:()=>linkDraft,setLinkDraft:value=>{linkDraft=value;},getDrafts:()=>drafts,setDrafts:value=>{drafts=value;}});api.render();
+ return {api,summary,node,get rows(){return rows;},get linkDraft(){return linkDraft;},get drafts(){return drafts;},click(attr,value=''){const b={dataset:{[attr.replace('data-','').replace(/-([a-z])/g,(_,c)=>c.toUpperCase())]:value},hasAttribute:name=>name===attr,closest:()=>null};summary.listeners.click({target:{closest:()=>b}});},inputLink(value){node('dialog #start-reference-summary #start-video-link').value=value;summary.listeners.input({target:{id:'start-video-link',value,dataset:{}}});},note(index,value){summary.listeners.input({target:{value,dataset:{refSummaryNote:String(index)}}});}};
+}
+test('the inspiration card flow keeps link drafts, deduplicates notes and removes only its own selection',()=>{
+ const h=library(),p=picker(h);p.click('data-ref-paste');p.inputLink('not a link');p.click('data-ref-add-link');assert.equal(p.rows.length,0);assert.match(p.node('dialog #start-reference-summary .start-reference-status').textContent,/Paste a full video link/);
+ p.inputLink('https://example.org/clip');assert.equal(p.linkDraft,'https://example.org/clip');p.click('data-ref-add-link');assert.equal(p.rows.length,1);assert.equal(p.linkDraft,'');p.note(0,'Borrow the opening.');p.click('data-ref-paste');p.inputLink('https://example.org/clip');p.click('data-ref-add-link');assert.equal(p.rows.length,1);assert.equal(p.rows[0].note,'Borrow the opening.');assert.match(p.summary.innerHTML,/What would you like to borrow/);assert.doesNotMatch(p.summary.innerHTML,/start-source-options/);
+ p.click('data-ref-remove','0');assert.equal(p.rows.length,0);assert.equal(Object.keys(p.drafts).length,0);assert.equal(h.calls.length,0);
+});
+test('compact library cards preserve exact examples, timestamps and safely rendered project notes',async()=>{
+ const h=library(),row=await h.api.capture({reference_id:'type',example_id:'second',slide:null});row.note='Use <this> diagram.';row.time=4.25;const p=picker(h,[row,h.api.link('https://example.org/clip','Use its reveal.')]);assert.match(p.summary.innerHTML,/data-example-id="second"/);assert.match(p.summary.innerHTML,/Use &lt;this&gt; diagram/);assert.match(p.summary.innerHTML,/At 0:04.25/);assert.match(p.summary.innerHTML,/Reference details/);
+ p.note(0,'New diagram direction.');assert.equal(p.rows[0].time,4.25);assert.equal(p.rows[0].example_id,'second');p.click('data-ref-remove','1');assert.equal(p.rows.length,1);assert.equal(p.rows[0].reference_id,'type');assert.equal(h.calls.length,2);
 });

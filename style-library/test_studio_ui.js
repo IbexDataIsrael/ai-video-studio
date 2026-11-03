@@ -33,7 +33,7 @@ test('starter formats retain input and show a format-specific material handoff',
  h.type('video');assert.equal(h.node('#start-script').value,'The script I recorded.');assert.equal(h.node('#start-goal').value,'Explain my idea.');
 });
 test('closing and reloading keep fields, expanded details and an edited request',()=>{
- const h=starter();h.input('start-goal','A useful video');h.input('start-footage','Documents/raw.mov');h.node('#start-preview').open=true;h.input('project-starter','My custom request.');h.api.close();assert.equal(h.dialog.open,false);h.api.open();assert.equal(h.node('#project-starter').value,'My custom request.');
+ const storage=new Map([['ai-video-studio-starter-v2',JSON.stringify({start:'footage',goal:'A useful video',footage:'Documents/raw.mov',preview:true,messages:{video:'My custom request.'}})]]),h=starter({storage});h.api.close();assert.equal(h.dialog.open,false);h.api.open();assert.equal(h.node('#project-starter').value,'My custom request.');
  const reloaded=starter({storage:h.storage});assert.equal(reloaded.node('#start-goal').value,'A useful video');assert.equal(reloaded.node('#start-footage').value,'Documents/raw.mov');assert.equal(reloaded.node('#start-preview').open,true);assert.equal(reloaded.node('#project-starter').value,'My custom request.');
 });
 test('backdrop and Escape close the starter without losing its draft',()=>{
@@ -43,21 +43,21 @@ test('backdrop and Escape close the starter without losing its draft',()=>{
  let prevented=false;h.dialog.listeners.cancel({preventDefault(){prevented=true;}});assert.equal(h.dialog.open,false);assert.equal(prevented,true);h.api.open();assert.equal(h.node('#start-goal').value,'Keep my goal');
 });
 test('explicit copy keeps the starter open and gives the correct next step',async()=>{
- const h=starter();assert.equal(h.copies.length,0);h.input('project-starter','The exact edited request');await h.copy();assert.deepEqual(h.copies,['The exact edited request']);assert.equal(h.dialog.open,true);assert.equal(h.node('#start-done').textContent,'Done');assert.match(h.node('#start-status').textContent,/Request copied.*attach your raw video/);
+ const h=starter();assert.equal(h.copies.length,0);h.input('start-goal','My video goal.');const expected=h.node('#project-starter').value;await h.copy();assert.deepEqual(h.copies,[expected]);assert.equal(h.dialog.open,true);assert.equal(h.node('#start-done').textContent,'Done');assert.match(h.node('#start-status').textContent,/Request copied.*attach your raw video/);
  h.input('start-footage','Documents/raw.mov');await h.copy();assert.match(h.copies[1],/Documents\/raw.mov/);assert.match(h.node('#start-status').textContent,/file location is included/);
 });
 test('clipboard failure reveals the same request for manual copying',async()=>{
  const h=starter({fail:true}),text=h.node('#project-starter').value;await h.copy();assert.equal(h.dialog.open,true);assert.equal(h.node('#start-preview').open,true);assert.equal(h.node('#project-starter').value,text);assert.equal(h.node('#project-starter').selected,true);assert.match(h.node('#start-status').textContent,/Select and copy/);assert.equal(h.copies.length,0);
 });
 test('a late clipboard result does not claim that a changed request was copied',async()=>{
- let finish;const wait=new Promise(resolve=>finish=resolve),h=starter({wait});h.input('project-starter','First request');const pending=h.copy();await new Promise(resolve=>setImmediate(resolve));h.input('project-starter','Second request');finish();await pending;assert.deepEqual(h.copies,['First request']);assert.equal(h.node('#start-copy').textContent,'Copy request');
+ let finish;const wait=new Promise(resolve=>finish=resolve),h=starter({wait});h.input('start-goal','First request');const expected=h.node('#project-starter').value,pending=h.copy();await new Promise(resolve=>setImmediate(resolve));h.input('start-goal','Second request');finish();await pending;assert.deepEqual(h.copies,[expected]);assert.equal(h.node('#start-copy').textContent,'Copy request');
 });
 test('keyboard format changes work and blocked storage still keeps an in-memory draft',()=>{
- const h=starter({blocked:true});h.input('start-goal','Keep this without storage');let prevented=false;h.node('type-video').listeners.keydown({key:'ArrowRight',preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.equal(h.node('type-carousel').attributes['aria-checked'],'true');assert.equal(h.node('type-carousel').focused,true);h.api.close();h.api.open();assert.equal(h.node('#start-goal').value,'Keep this without storage');
+ const h=starter({blocked:true});h.input('start-goal','Keep this without storage');let prevented=false;h.node('type-video').listeners.keydown({key:'ArrowRight',preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.equal(h.node('type-carousel').attributes['aria-checked'],'true');assert.equal(h.node('type-carousel').focused,true);h.type('video');h.api.close();h.api.open();assert.equal(h.node('#start-goal').value,'Keep this without storage');
 });
 
 test('file-location disclosure is optional, remembered, and uses plain chat instructions',()=>{
- const h=starter();assert.equal(h.node('#start-location').open,false);assert.match(h.node('#start-material-help').textContent,/Attach your raw video in chat after copying/);assert.equal(h.node('#start-copy').textContent,'Copy request');assert.match(h.node('#start-status').textContent,/Click Copy request/);assert.doesNotMatch(h.node('#start-status').textContent,/editing chat/);
+ const h=starter();assert.equal(h.node('#start-location').open,false);assert.match(h.node('#start-material-help').textContent,/Attach your raw video in chat after copying/);assert.equal(h.node('#start-copy').textContent,'Copy request');assert.match(h.node('#start-status').textContent,/Paste into your editing chat and attach/);assert.equal(h.node('#start-material-help').hidden,true);
  h.node('#start-location').open=true;h.input('start-footage','Footage/raw.mov');h.api.close();const next=starter({storage:h.storage});assert.equal(next.node('#start-location').open,true);assert.match(next.node('#project-starter').value,/Footage\/raw.mov/);
 });
 test('inspiration travels with the script and stays after the spoken-cut instructions',()=>{
@@ -69,7 +69,7 @@ test('a stale reference blocks copying while preserving the whole draft',async()
 });
 
 test('choosing inspiration preserves an edited project request and replaces only its generated reference section',()=>{
- const h=starter();h.input('project-starter','My carefully edited goal.');h.inspire([{message:'Exact first reference'}]);assert.match(h.node('#project-starter').value,/^My carefully edited goal/);assert.match(h.node('#project-starter').value,/Exact first reference/);h.inspire([{message:'Exact second reference'}]);assert.match(h.node('#project-starter').value,/^My carefully edited goal/);assert.match(h.node('#project-starter').value,/Exact second reference/);assert.doesNotMatch(h.node('#project-starter').value,/Exact first reference/);
+ const storage=new Map([['ai-video-studio-starter-v2',JSON.stringify({start:'footage',messages:{video:'My carefully edited goal.'}})]]),h=starter({storage});h.inspire([{message:'Exact first reference'}]);assert.match(h.node('#project-starter').value,/^My carefully edited goal/);assert.match(h.node('#project-starter').value,/Exact first reference/);h.inspire([{message:'Exact second reference'}]);assert.match(h.node('#project-starter').value,/^My carefully edited goal/);assert.match(h.node('#project-starter').value,/Exact second reference/);assert.doesNotMatch(h.node('#project-starter').value,/Exact first reference/);
 });
 
 test('a failed reference recheck clears an earlier copied confirmation',async()=>{
@@ -84,7 +84,7 @@ test('X and Escape return through nested reference views before closing the proj
  const h=starter();h.input('start-goal','Preserve my project');h.enter('reference');assert.equal(h.node('#start-close').attributes['aria-label'],'Back to references');h.node('#start-close').listeners.click();assert.equal(h.dialog.open,true);assert.equal(h.node('#start-close').attributes['aria-label'],'Back to project');h.dialog.listeners.cancel({preventDefault(){}});assert.equal(h.dialog.open,true);assert.equal(h.node('#start-close').attributes['aria-label'],'Close project starter');h.node('#start-close').listeners.click();assert.equal(h.dialog.open,false);h.api.open();assert.equal(h.node('#start-goal').value,'Preserve my project');
 });
 test('additional details and other links have explicit optional labels',()=>{
- const h=starter();assert.match(h.dialog.innerHTML,/Details to preserve<\/span> <small>optional/);assert.match(h.dialog.innerHTML,/Other links and what you like <small>optional/);assert.doesNotMatch(h.dialog.innerHTML,/required/);assert.equal(h.node('#start-keep-label').textContent,'Details to preserve');
+ const h=starter();assert.match(h.dialog.innerHTML,/Details to preserve<\/span> <small>optional/);assert.match(h.dialog.innerHTML,/Other links and what you like<\/span> <small>optional/);assert.doesNotMatch(h.dialog.innerHTML,/required/);assert.equal(h.node('#start-keep-label').textContent,'Details to preserve');
 });
 
 test('captured Escape handles one level once even when focus has left a replaced video control',()=>{
@@ -238,4 +238,25 @@ test('hidden editing context cannot leak into or block the simple writing reques
 test('script clipboard failure reveals a manual-copy fallback only when needed',async()=>{
  const h=starter({fail:true,unselected:true});h.node('journey-idea').listeners.click();h.input('start-goal','Keep this idea through a clipboard failure.');assert.equal(h.node('#start-preview').hidden,true);await h.copy();
  assert.equal(h.node('#start-preview').hidden,false);assert.equal(h.node('#start-preview').open,true);assert.equal(h.node('#project-starter').readOnly,true);assert.equal(h.node('#project-starter').selected,true);assert.match(h.node('#project-starter').value,/Keep this idea/);assert.match(h.node('#start-status').textContent,/Select and copy/);
+});
+
+
+test('footage starts with a brief, collapsed script, unified inspiration and a read-only message',async()=>{
+ const h=starter();assert.equal(h.node('#start-goal-label').textContent,'What would you like to make?');assert.equal(h.node('#start-extras').hidden,true);assert.equal(h.node('#start-other-links').hidden,true);assert.equal(h.node('#start-script-field').open,false);assert.equal(h.node('#start-script-summary').textContent,'Add your recorded script');assert.equal(h.node('#start-inspiration-title').textContent,'Add inspiration');
+ assert.equal(h.node('#start-preview').hidden,true);assert.equal(h.node('#project-starter').readOnly,true);assert.equal(h.node('#start-see-message').hidden,false);
+ h.input('start-goal','Show my workflow and preserve the sponsor line.');const expected=h.node('#project-starter').value;
+ h.node('#start-see-message').listeners.click();assert.equal(h.node('#start-preview').hidden,false);assert.equal(h.node('#start-preview').open,true);assert.equal(h.node('#start-see-message').attributes['aria-expanded'],'true');await h.copy();assert.equal(h.copies[0],expected);
+ h.node('#start-see-message').listeners.click();assert.equal(h.node('#start-preview').hidden,true);assert.equal(h.node('#start-see-message').textContent,'See message');
+});
+test('earlier requirements are editable in the footage brief without leaking into script writing',()=>{
+ const original={start:'footage',goal:'My video.',keep:'Preserve the exact sponsor wording.',references:'https://example.org/old — borrow the opening.'},storage=new Map([['ai-video-studio-starter-v2',JSON.stringify(original)]]),h=starter({storage});
+ assert.match(h.node('#start-goal').value,/My video[\s\S]*Preserve the exact sponsor wording/);assert.equal(h.node('#start-other-links').hidden,false);assert.equal(h.node('#start-other-links-label').textContent,'Your saved links and notes');assert.equal(h.node('#start-inspiration').open,true);
+ h.input('start-goal','My updated video. Keep the disclaimer.');assert.doesNotMatch(h.node('#project-starter').value,/sponsor wording/);h.api.close();const reloaded=starter({storage});assert.equal(reloaded.node('#start-goal').value,'My updated video. Keep the disclaimer.');assert.match(reloaded.node('#project-starter').value,/example.org\/old/);
+ reloaded.node('journey-idea').listeners.click();assert.doesNotMatch(reloaded.node('#project-starter').value,/sponsor wording|Keep the disclaimer|example.org\/old/);assert.equal(JSON.parse(storage.get('ai-video-studio-starter-v2')).keep,original.keep);
+});
+test('recorded scripts open when populated and remain optional when empty after reload',()=>{
+ const h=starter();h.input('start-script','My supplied original.');h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('#start-script-field').open,true);assert.match(restored.node('#project-starter').value,/My supplied original/);assert.equal(restored.node('#start-preview').hidden,true);
+});
+test('footage clipboard fallback reveals the exact read-only handoff',async()=>{
+ const h=starter({fail:true});h.input('start-goal','My demonstration.');const expected=h.node('#project-starter').value;await h.copy();assert.equal(h.node('#project-starter').readOnly,true);assert.equal(h.node('#start-preview').hidden,false);assert.equal(h.node('#project-starter').value,expected);assert.equal(h.node('#project-starter').selected,true);
 });

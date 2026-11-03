@@ -5,7 +5,8 @@
 - Start videos with Help me write a script or Edit my footage. The focused writing form accepts an idea, draft or video reference, with shared writing guidance and private creator preferences.
 - Optional Script section with a readable growing editor, exact saved versions, retained drafts and Copy for chat. Original idea/reference context stays in Project details; writing happens in chat, including hook alternatives.
 - Owner controls for personal writing preferences, with source evidence, guarded saves and recoverable history.
-- Existing footage-first editing remains available. No embedded AI service or analytics integration.
+- Simplified footage starter: one brief, optional recorded script, unified library/link inspiration cards and an exact read-only See message preview beside Copy request. Existing browser drafts and exact references are retained.
+- No embedded AI service or analytics integration.
 
 
 ## 0.1.0-beta.6 — 2026-11-01
