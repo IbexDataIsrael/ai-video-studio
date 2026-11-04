@@ -65,7 +65,7 @@ window.Studio=(()=>{
  function guide(){
   activeProject=null;section('guide');
   const steps=[
-   ['Start with an idea—or your footage.','Develop a script from an idea, a draft or a creator reference in your editing chat. Or bring recorded footage and go straight to the spoken cut. Your script and revisions stay with the project.','You provide the footage and direction.'],
+   ['Start with an idea—or your footage.','Develop a script from an idea, a draft or a creator reference in your editing chat. Or bring recorded footage and go straight to the spoken cut. Approve the script when it’s ready, record outside the studio, then bring your raw footage to the editing chat.','You provide the footage and direction.'],
    ['Get the spoken cut right.','Your assistant compares takes, removes bad starts and dead air, and joins complete thoughts into a quick, cohesive cut. Watch this version before the graphics work, then approve the spoken cut in the project or in chat.','Already edited your speech? Skip this stage and preserve the timing.'],
    ['See the idea before the edit.','Review actual storyboard frames: the on-screen copy, your framing, reference clips, transitions and motion ideas. Give feedback until the direction feels right, then approve the storyboard.','Your storyboard stays with the project.'],
    ['Build the full edit.','Your assistant adds captions, genuine product B-roll, motion graphics, purposeful zooms and transitions, sound effects and audio cleanup. Music is optional and follows your brief.','You choose the creative direction; the assistant builds it.'],

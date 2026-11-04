@@ -14,7 +14,7 @@ from reference_preview import save as save_reference_preview, PreviewError
 from project_tools import state as project_tools_state, open_editor, ToolsError
 
 from project_script import current as script_state, save as save_script
-from scripting import brief_current, brief_save, voice_current, voice_save, hooks_current, hooks_save, hook_apply, feedback_current as script_feedback_current, feedback_save as script_feedback_save
+from scripting import brief_current, brief_save, script_ready, voice_current, voice_save, hooks_current, hooks_save, hook_apply, feedback_current as script_feedback_current, feedback_save as script_feedback_save
 
 class Handler(SimpleHTTPRequestHandler):
     def trusted(self, write=False):
@@ -37,7 +37,7 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
-        if self.path in {'/script-brief', '/writing-voice', '/script-hooks', '/script-hook', '/script-feedback'}:
+        if self.path in {'/script-brief', '/script-ready', '/writing-voice', '/script-hooks', '/script-hook', '/script-feedback'}:
             if not self.trusted(write=True): return
             if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
             if self.headers.get('X-Studio-Action') != self.path[1:]: return self.send_error(403)
@@ -46,7 +46,7 @@ class Handler(SimpleHTTPRequestHandler):
                 size = int(self.headers.get('Content-Length', '0'))
                 if not 0 < size <= 262144: return self.send_error(413)
                 body = json.loads(self.rfile.read(size))
-                action = {'/script-brief': brief_save, '/writing-voice': voice_save, '/script-hooks': hooks_save,
+                action = {'/script-brief': brief_save, '/script-ready': script_ready, '/writing-voice': voice_save, '/script-hooks': hooks_save,
                           '/script-hook': hook_apply, '/script-feedback': script_feedback_save}[self.path]
                 result = action(body)
             except json.JSONDecodeError: return self.json_error(400, 'Use a valid writing request.')

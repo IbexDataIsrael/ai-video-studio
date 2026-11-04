@@ -76,7 +76,7 @@ def write(path, data, value, revision, request_id, expected=None):
         data['versions'].append(version)
     version['request_ids'].append(request_id)
     data['current'] = identity
-    expected = {**(expected or {}), path: index.digest(path) if path.exists() else None}
+    expected = {**(expected or {}), path: None if actual == fingerprint(None) else actual}
     storage.commit({path: storage.json_bytes(data)}, {'request_id': request_id, 'operation': 'save-writing-context'}, expected)
 
 
@@ -116,6 +116,25 @@ def brief_save(body):
         expected = {original: index.digest(original), script_path: index.digest(script_path) if script_path.exists() else None}
         write(path, data, value, body['revision'], body['request_id'], expected)
         return brief_current(body['project_id'])
+
+
+def script_ready(body):
+    required = {'project_id', 'revision', 'request_id', 'script_version', 'script_revision', 'ready'}
+    if (not isinstance(body, dict) or set(body) != required or type(body['ready']) is not bool or
+            not all(isinstance(body[key], str) for key in required - {'ready'}) or
+            not re.fullmatch(r'[a-f0-9]{64}', body['script_version'])):
+        raise FeedbackError('Use a valid script approval request.', 400)
+    with index.STATE_LOCK:
+        project_id = body['project_id']
+        path, data, value, _ = brief_context(project_id)
+        _, _, script, _, _, expected, revision = project_script.context(project_id)
+        if script['current'] != body['script_version'] or revision != body['script_revision']:
+            raise FeedbackError('The saved script changed. Reopen Script to review the current version.')
+        ready = body['script_version'] if body['ready'] else None
+        if not body['ready'] and value['ready_script'] not in (None, body['script_version']):
+            raise FeedbackError('The script approval changed. Reopen Script to review it.')
+        write(path, data, {**value, 'ready_script': ready}, body['revision'], body['request_id'], expected)
+        return brief_current(project_id)
 
 
 def voice_context():

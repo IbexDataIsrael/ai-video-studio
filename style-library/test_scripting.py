@@ -35,6 +35,40 @@ class ScriptingTests(unittest.TestCase):
                 'request_id': str(uuid.uuid4()), 'idea': 'A useful idea', 'references': 'A source and what to borrow',
                 'ready_script': ready}
 
+    def test_approval_and_reopen_preserve_exact_history_context_and_other_project_files(self):
+        scripting.brief_save(self.brief())
+        saved = project_script.save(self.fixture.body('Use these exact words.'))
+        state_path = self.project/'script-state.json'
+        before = {p: p.read_bytes() for p in (state_path, self.fixture.registry, self.project/'script.txt')}
+        body = {'project_id': 'demo', 'revision': scripting.brief_current('demo')['revision'],
+                'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                'script_revision': saved['revision'], 'ready': True}
+        approved = scripting.script_ready(body)
+        self.assertTrue(approved['ready'])
+        self.assertEqual(approved['idea'], 'A useful idea')
+        self.assertEqual(approved['references'], 'A source and what to borrow')
+        reopened = scripting.script_ready({**body, 'ready': False, 'revision': approved['revision'], 'request_id': str(uuid.uuid4())})
+        self.assertFalse(reopened['ready'])
+        self.assertFalse(scripting.script_ready(body)['ready'])
+        history = json.loads((self.project/'script-brief.json').read_text())
+        self.assertTrue(any(row['value']['ready_script'] == saved['version_id'] for row in history['versions']))
+        self.assertEqual({p: p.read_bytes() for p in before}, before)
+        self.assertFalse((self.project/'approval-state.json').exists())
+
+    def test_approval_rejects_stale_context_and_script(self):
+        saved = project_script.save(self.fixture.body('First draft.'))
+        body = {'project_id': 'demo', 'revision': scripting.brief_current('demo')['revision'],
+                'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                'script_revision': saved['revision'], 'ready': True}
+        scripting.brief_save(self.brief())
+        with self.assertRaises(FeedbackError):
+            scripting.script_ready(body)
+        fresh = {**body, 'revision': scripting.brief_current('demo')['revision']}
+        project_script.save(self.fixture.body('Second draft.'))
+        with self.assertRaises(FeedbackError):
+            scripting.script_ready(fresh)
+        self.assertIsNone(scripting.brief_current('demo')['ready_script'])
+
     def test_first_read_is_empty_and_never_seeds_owner_files(self):
         before = {p: p.read_bytes() for p in self.fixture.root.rglob('*') if p.is_file()}
         self.assertEqual(scripting.voice_current()['preferences'], [])
@@ -137,6 +171,15 @@ class ScriptingTests(unittest.TestCase):
             self.assertEqual(request('GET', '/script-brief?project=demo&project=demo')[0], 400)
             headers['X-Studio-Action'] = 'script-brief'
             self.assertEqual(request('POST', '/script-brief', self.brief(), headers)[0], 200)
+            saved = project_script.save(self.fixture.body('Approve this exact text.'))
+            approval = {'project_id': 'demo', 'revision': scripting.brief_current('demo')['revision'],
+                        'request_id': str(uuid.uuid4()), 'script_version': saved['version_id'],
+                        'script_revision': saved['revision'], 'ready': True}
+            self.assertEqual(request('POST', '/script-ready', approval, headers)[0], 403)
+            headers['X-Studio-Action'] = 'script-ready'
+            self.assertEqual(request('POST', '/script-ready', approval, headers)[0], 200)
+            self.assertTrue(scripting.brief_current('demo')['ready'])
+
         finally:
             server.shutdown()
             server.server_close()

@@ -172,9 +172,15 @@ function scriptEditor(options={}){
  const original={...saved},savedTexts=new Map([[saved.version_id,saved.text]]);
  const feedbackRequests=[];let selectedHook='current';
  const hooks=()=>({revision:'h1',selected_id:selectedHook,options:selectedHook?options.hooks||[]:[]});
- const brief={idea:'The creator’s original idea.',references:'https://example.org/clip — the opening question.',ready:true,revision:'b1'};
+ let brief={idea:'The creator’s original idea.',references:'https://example.org/clip — the opening question.',ready_script:null,revision:'b1',...options.brief};
  const context={window:{addEventListener:(name,fn)=>handlers[name]=fn},document:{hidden:false},$:node,esc:escape,location:{hash:'#project=test&stage=script',href:'http://localhost:6000/'},URL,URLSearchParams,crypto:{randomUUID:()=>require('node:crypto').randomUUID()},history:{replaceState(){}},setInterval:fn=>handlers.refresh=fn,sessionStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},navigator:{clipboard:{writeText:async text=>{if(options.clipboardWait)await options.clipboardWait;if(options.failCopy)throw Error('Clipboard unavailable');copies.push(text);}}},fetch:async(url,init)=>{
   calls.push({url,init});
+  if(url==='/script-ready'){
+   const body=JSON.parse(init.body);
+   if(body.revision!==brief.revision||body.script_version!==saved.current_version_id||body.script_revision!==saved.revision)return {ok:false,status:409,json:async()=>({error:'The saved script changed.'})};
+   brief={...brief,revision:brief.revision+'x',ready_script:body.ready?body.script_version:null};
+   return {ok:true,json:async()=>({...brief,ready:body.ready})};
+  }
   if(url.startsWith('/script-hooks')){if(options.hooksWait)await options.hooksWait;return {ok:true,json:async()=>hooks()};}
   if(url.startsWith('/script-feedback')){
    if(init?.method==='POST'){
@@ -191,17 +197,17 @@ function scriptEditor(options={}){
    const known=[...savedTexts].find(([,value])=>value===text),id=known?.[0]||'bcdef'[savedTexts.size-1].repeat(64);savedTexts.set(id,text);
    saved={...saved,text,revision:'r'+(calls.filter(c=>c.init?.method==='POST').length+1),version_id:id,current_version_id:id,versions:[...savedTexts.keys()].reverse().map(id=>({id})),version_count:savedTexts.size,hooks:hooks()};
   }
-  const requested=new URL(url,'http://localhost').searchParams.get('version');const value=url.startsWith('/script-brief')?brief:{...saved,...options.versionData?.[requested]};
+  const requested=new URL(url,'http://localhost').searchParams.get('version');const value=url.startsWith('/script-brief')?{...brief,ready:brief.ready_script===saved.current_version_id}:{...saved,...options.versionData?.[requested]};
   return {ok:true,json:async()=>value};
  }};
  runInNewContext(readFileSync(join(__dirname,'dist/project-script-ui.js'),'utf8'),context);
  const panel=node('#project-script-panel');
- return {api:context.window.ProjectScript,panel,node,copies,calls,storage,handlers,context,feedbackRequests,updateSaved:delta=>{saved={...saved,...delta};},async mount(full=true){await context.window.ProjectScript.mount({id:'test',title:'Example',format:'video'},{type:full?'script':'video'});},field:()=>panel.querySelector('[data-script-text]'),button:name=>panel.querySelector('[data-'+name+']'),input(text){const field=this.field();field.value=text;field.listeners.input();}};
+ return {api:context.window.ProjectScript,panel,node,copies,calls,storage,handlers,context,feedbackRequests,updateSaved:delta=>{saved={...saved,...delta};},updateBrief:delta=>{brief={...brief,...delta};},async mount(full=true){await context.window.ProjectScript.mount({id:'test',title:'Example',format:'video',stage:options.stage||'script'},{type:full?'script':'video'});},field:()=>panel.querySelector('[data-script-text]'),button:name=>panel.querySelector('[data-'+name+']'),input(text){const field=this.field();field.value=text;field.listeners.input();}};
 }
 
 test('Script keeps context under Project details and retains an unsaved draft through reload',async()=>{
  const h=scriptEditor();await h.mount();
- assert.doesNotMatch(h.panel.innerHTML,/Idea & references|Save context|Ready to record|FROM THOUGHT|Your writing preferences|data-script-idea/);
+ assert.doesNotMatch(h.panel.innerHTML,/Idea & references|Save context|FROM THOUGHT|Your writing preferences|data-script-idea/);
  assert.match(h.node('#project-script-context').innerHTML,/The creator’s original idea/);assert.match(h.node('#project-script-context').innerHTML,/https:\/\/example.org\/clip/);
  assert.equal(h.button('save-script').hidden,true);assert.equal(h.button('reload-script').hidden,true);assert.equal(h.field().style.height,'742px');
  h.input('Keep this unsaved revision.');assert.equal(h.button('save-script').hidden,false);assert.equal(h.button('copy-script-feedback').disabled,true);
@@ -282,7 +288,7 @@ test('footage clipboard fallback reveals the exact read-only handoff',async()=>{
 
 
 test('Script keeps all opening choices visible and marks the chosen opening without scrolling away',async()=>{
- const options={hooks:[{id:'current',opening:'Current draft.'},{id:'other',opening:'Another opening.'},{id:'third',opening:'A third opening.'}],variantText:'Another opening.\n\nThe same body.'},h=scriptEditor(options);await h.mount();assert.match(h.panel.innerHTML,/Opening options/);assert.equal(h.panel.querySelectorAll('[data-use-hook]').length,3);assert.match(h.panel.innerHTML,/data-use-hook="current" aria-pressed="true"/);assert.doesNotMatch(h.panel.innerHTML,/data-other-openings/);
+ const options={hooks:[{id:'current',opening:'Current draft.'},{id:'other',opening:'Another opening.'},{id:'third',opening:'A third opening.'}],variantText:'Another opening.\n\nThe same body.'},h=scriptEditor(options);await h.mount();assert.match(h.panel.innerHTML,/Hook options/);assert.equal(h.panel.querySelectorAll('[data-use-hook]').length,3);assert.match(h.panel.innerHTML,/data-use-hook="current" aria-pressed="true"/);assert.doesNotMatch(h.panel.innerHTML,/data-other-openings/);
  await h.panel.querySelector('[data-use-hook="other"]').onclick();assert.equal(h.field().value,options.variantText);const request=JSON.parse(h.calls.find(c=>c.url==='/script-hook').init.body);assert.equal(request.script_version,'a'.repeat(64));assert.equal(request.hook_revision,'h1');assert.equal(request.option_id,'other');assert.match(h.panel.innerHTML,/Opening updated/);assert.match(h.panel.innerHTML,/data-use-hook="other" aria-pressed="true"/);assert.match(h.panel.innerHTML,/opening-changed/);assert.equal(h.button('undo-opening').hidden,false);assert.equal(h.panel.scrolled,undefined);assert.equal(h.panel.querySelector('[data-use-hook="other"]').focused,true);
 });
 test('unsaved scripts block hook changes while offering Save & copy feedback',async()=>{
@@ -347,4 +353,63 @@ test('initial routing waits for deferred studio modules even when local assets r
  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,{value:'',hidden:true,open:false,addEventListener(){},close(){},pause(){}});return nodes.get(selector);};
  const context={window:{addEventListener(){}},document:{readyState:'interactive',querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events[name]=fn},localStorage:{getItem:()=>null},location:{protocol:'http:',hash:'#project=example'},fetch:async url=>{calls.push(url);return {ok:url==='/catalog.json',json:async()=>({entries:[],techniques:[]})};}};
  runInNewContext(readFileSync(join(__dirname,'dist/app.js'),'utf8'),context);assert.deepEqual(calls,[]);context.window.Studio={route:()=>{routes++;return true;}};await events.DOMContentLoaded();assert.deepEqual(calls,['/site-settings.json','/catalog.json']);assert.equal(routes,1);
+});
+
+
+test('script approval saves the exact version and reveals a separate recording handoff with retained hooks and feedback',async()=>{
+ const h=scriptEditor({hooks:[{id:'current',opening:'Current draft.'},{id:'other',opening:'Another hook.\n\nA bridge.'}]});
+ await h.mount();
+ assert.equal(h.button('record-script').hidden,true);
+ h.button('script-feedback').value='A note for later.';h.button('script-feedback').listeners.input();
+ await h.button('approve-script').onclick();
+ const a='a'.repeat(64),request=h.calls.find(c=>c.url==='/script-ready');
+ assert.equal(JSON.parse(request.init.body).script_version,a);
+ assert.equal(JSON.parse(request.init.body).script_revision,'r1');
+ assert.equal(h.copies.length,0);
+ assert.equal(h.button('script-state').textContent,'Script approved ✓');
+ assert.equal(h.button('approve-row').hidden,true);
+ assert.equal(h.button('script-refinement').hidden,true);
+ assert.equal(h.button('record-script').hidden,false);
+ assert.match(h.panel.innerHTML,/<details class="script-openings script-hooks-approved"><summary>Hook options/);
+ assert.match(h.panel.innerHTML,/Another hook[\s\S]*A bridge/);
+ assert.equal(h.panel.querySelectorAll('[data-use-hook]').length,0);
+ await h.button('copy-recording').onclick();
+ assert.match(h.copies[0],new RegExp('script='+a));
+ assert.match(h.copies[0],/raw footage I attach/);
+ assert.match(h.copies[0],/spoken cut for review before storyboarding/);
+ await h.mount();
+ assert.equal(h.button('record-script').hidden,false);
+ await h.button('reopen-script').onclick();
+ assert.equal(h.button('record-script').hidden,true);
+ assert.equal(h.button('script-refinement').hidden,false);
+ assert.equal(h.button('script-feedback').value,'A note for later.');
+ assert.equal(h.panel.querySelectorAll('[data-use-hook]').length,2);
+ assert.equal(h.field().value,'Current draft.');
+});
+
+test('dirty or stale script versions cannot approve, and an obsolete approval cannot copy a handoff',async()=>{
+ const h=scriptEditor();await h.mount();h.input('Uncommitted words.');
+ assert.equal(h.button('script-decision').hidden,true);
+ await h.button('approve-script').onclick();
+ assert.equal(h.calls.some(c=>c.url==='/script-ready'),false);
+ await h.button('cancel-script').onclick();
+ h.updateSaved({revision:'r2'});
+ await h.button('approve-script').onclick();
+ assert.match(h.button('ready-status').textContent,/changed/);
+ await h.handlers.refresh();
+ await h.button('approve-script').onclick();
+ assert.equal(h.button('record-script').hidden,false);
+ h.updateBrief({ready_script:null,revision:'b2'});
+ await h.button('copy-recording').onclick();
+ assert.equal(h.copies.length,0);
+ assert.match(h.button('ready-status').textContent,/approval changed/);
+});
+
+test('a clean reader remount adopts a saved revision without turning the previous script into an unsaved draft',async()=>{
+ const h=scriptEditor();await h.mount();h.api.retain();
+ const b='b'.repeat(64);h.updateSaved({text:'The new revision.',version_id:b,current_version_id:b,revision:'r2',versions:[{id:b},{id:'a'.repeat(64)}],version_count:2});
+ await h.mount();
+ assert.equal(h.field().value,'The new revision.');
+ assert.equal(h.api.hasDraft(),false);
+ assert.equal(h.button('script-state').textContent,'Saved');
 });

@@ -11,7 +11,7 @@ window.ProjectScript=(()=>{
   if(current.renderedVersion!==undefined&&current.renderedVersion!==current.data.version_id)return;
   const field=current.panel.querySelector('[data-script-text]');if(!field)return;
   // Keep earlier tab-only context drafts recoverable, even though context is now read-only here.
-  const d={...drafts.get(current.project.id),text:field.value,editing:current.editing,open:current.panel.querySelector('details')?.open??true,base:current.data.version_id};
+  const d={...drafts.get(current.project.id),text:field.value,dirty:dirty(current),editing:current.editing,open:current.panel.querySelector('details')?.open??true,base:current.data.version_id};
   drafts.set(current.project.id,d);persist();retainFeedback(current);
  }
  function dirty(target){
@@ -22,6 +22,13 @@ window.ProjectScript=(()=>{
   const field=target?.panel.querySelector('[data-script-text]');if(!target?.full||!field)return;
   field.style.height='auto';field.style.height=(field.scrollHeight+2)+'px';
  }
+ function readyStage(target){return target.full&&target.project.stage==='script';}
+ function approved(target){
+  return readyStage(target)&&!!target.data.version_id&&target.data.version_id===target.data.current_version_id&&target.brief?.ready_script===target.data.version_id;
+ }
+ function canSetReady(target){
+  return readyStage(target)&&!!target.data.version_id&&target.data.version_id===target.data.current_version_id&&!target.editing&&!dirty(target)&&!target.needsCompare&&!target.busy&&!target.feedbackBusy;
+ }
  function controls(target){
   const field=target.panel.querySelector('[data-script-text]');if(!field)return;
   const earlier=target.data.version_id!==target.data.current_version_id,changed=dirty(target),hasSaved=!!target.data.version_id;
@@ -29,9 +36,17 @@ window.ProjectScript=(()=>{
   const locked=target.busy||target.feedbackBusy;
   field.readOnly=!!locked;
   if(target.full){
+   const isApproved=approved(target),decision=target.panel.querySelector('[data-script-decision]'),approve=target.panel.querySelector('[data-approve-script]'),record=target.panel.querySelector('[data-record-script]');
+   if(decision){
+    decision.hidden=!hasSaved||earlier||target.editing;
+    target.panel.querySelector('[data-approve-row]').hidden=isApproved;approve.disabled=!canSetReady(target);
+    record.hidden=!isApproved;
+    for(const selector of ['[data-copy-recording]','[data-reopen-script]'])target.panel.querySelector(selector).disabled=!canSetReady(target);
+   }
+   target.panel.querySelector('[data-script-refinement]').hidden=isApproved&&!target.editing;
    field.hidden=!target.editing;
    target.panel.querySelector('[data-script-document]').hidden=!!target.editing;
-   target.panel.querySelector('[data-edit-script]').hidden=!!target.editing;
+   target.panel.querySelector('[data-edit-script]').hidden=!!target.editing||isApproved;
    target.panel.querySelector('[data-edit-script]').disabled=!!locked;
    target.panel.querySelector('[data-script-edit-bar]').hidden=!target.editing&&!earlier;
    const cancel=target.panel.querySelector('[data-cancel-script]');cancel.hidden=!target.editing;cancel.disabled=!!locked;
@@ -43,9 +58,10 @@ window.ProjectScript=(()=>{
   save.hidden=target.full&&!target.editing&&!earlier;
   save.textContent=target.full?(earlier&&!changed?'Make current':'Save changes'):'Save script';
   save.disabled=locked||target.needsCompare||!field.value.trim()||hasSaved&&!changed&&!earlier;
+  copy.hidden=approved(target);
   copy.disabled=locked||!target.full&&(!hasSaved||changed||target.needsCompare);
   const menu=target.panel.querySelector('[data-script-history]');if(menu)menu.disabled=locked||target.full&&target.editing;
-  target.panel.querySelectorAll('[data-use-hook]').forEach(button=>button.disabled=!!locked||target.editing||changed||target.needsCompare||earlier);
+  target.panel.querySelectorAll('[data-use-hook]').forEach(button=>button.disabled=!!locked||approved(target)||target.editing||changed||target.needsCompare||earlier);
   for(const selector of ['[data-script-feedback]','[data-script-reference]']){const input=target.panel.querySelector(selector);if(input)input.readOnly=!!locked;}
   const feedbackCopy=target.panel.querySelector('[data-copy-script-feedback]');if(feedbackCopy){
    feedbackCopy.disabled=!!locked||!field.value.trim()||target.needsCompare||!hasFeedback(target);
@@ -53,7 +69,7 @@ window.ProjectScript=(()=>{
   }
   const feedbackHint=target.panel.querySelector('[data-feedback-hint]');if(feedbackHint)feedbackHint.textContent=changed?'Saves your changes, then copies feedback for that version.':earlier?'This feedback uses the earlier version shown above. Paste into your editing chat.':'Paste into your editing chat to revise this script.';
   copy.className=target.full&&!changed?'primary':'secondary';
-  target.panel.querySelector('[data-script-state]').textContent=changed?'Unsaved changes':earlier?'Earlier version':hasSaved?'Saved':'Draft';
+  target.panel.querySelector('[data-script-state]').textContent=changed?'Unsaved changes':earlier?'Earlier version':approved(target)?'Script approved ✓':hasSaved?'Saved':'Draft';
   const count=field.value.trim()?field.value.trim().split(/\s+/).length:0;
   target.panel.querySelector('[data-script-count]').textContent=count+' word'+(count===1?'':'s');
   const compare=target.panel.querySelector('[data-reload-script]');
@@ -96,7 +112,7 @@ window.ProjectScript=(()=>{
   const body=(conflict?'<p class="project-notice">A newer script is saved. Your draft is kept below. Compare before saving.</p>':'')+toolbar+(full?notice+openings(target)+documentText(target,text):'')+writing+editBar+(full?'':'<div class="script-action-row">'+actions+'</div><p class="script-help">Your assistant uses this script to choose takes and flag missing lines. Saving doesn’t start an edit.</p>')+
    (full?'':notice)+'<button class="text-button" data-reload-script>Compare with saved script</button><div data-saved-comparison hidden></div>'+savedSpeech;
   panel.className=full?'scripting-workspace':'';
-  panel.innerHTML=full?body+refinement(target):'<details class="project-script" '+(draft?.open?'open':'')+'><summary>Your script <span>optional</span></summary><div class="project-script-body">'+body+'</div></details>';
+  panel.innerHTML=full?body+decisionCard(target)+refinement(target):'<details class="project-script" '+(draft?.open?'open':'')+'><summary>Your script <span>optional</span></summary><div class="project-script-body">'+body+'</div></details>';
   panel.querySelector('[data-script-text]').addEventListener('input',()=>{retain();target.request=null;target.panel.querySelector('[data-copy-script]').textContent=full?'Refine in chat':'Copy request for chat';status(target,'');grow(target);controls(target);});
   panel.querySelector('[data-save-script]').onclick=()=>save(target);
   panel.querySelector('[data-copy-script]').onclick=()=>full?refine(target):copy(target);
@@ -109,14 +125,19 @@ window.ProjectScript=(()=>{
    panel.querySelector('[data-copy-script-feedback]').onclick=()=>copyFeedback(target);
    panel.querySelector('[data-edit-script]').onclick=()=>{target.editing=true;controls(target);grow(target);const field=panel.querySelector('[data-script-text]');field.focus({preventScroll:true});field.scrollIntoView?.({block:'start',behavior:window.matchMedia?.('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});retain();};
    panel.querySelector('[data-cancel-script]').onclick=()=>cancelEdit(target);
+   if(readyStage(target)){
+    panel.querySelector('[data-approve-script]').onclick=()=>setReady(target,true);
+    panel.querySelector('[data-reopen-script]').onclick=()=>setReady(target,false);
+    panel.querySelector('[data-copy-recording]').onclick=()=>copyRecording(target);
+   }
    const undo=panel.querySelector('[data-undo-opening]');if(undo)undo.onclick=()=>undoOpening(target);
   }
   controls(target);grow(target);details(target);target.highlightOpening=false;
  }
  function cancelEdit(target){
   if(target.busy||target.feedbackBusy)return;retainFeedback(target);
-  const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:target.data.text,base:target.data.version_id,editing:false});persist();target.editing=false;target.request=null;draw(target);
-  target.panel.querySelector('[data-edit-script]').focus({preventScroll:true});
+  const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:target.data.text,base:target.data.version_id,editing:false,dirty:false});persist();target.editing=false;target.request=null;draw(target);
+  target.panel.querySelector(approved(target)?'[data-copy-recording]':'[data-edit-script]').focus({preventScroll:true});
  }
  async function save(target,feedback=null){
   if(target.busy||target.needsCompare||current!==target)return false;retain();
@@ -128,7 +149,7 @@ window.ProjectScript=(()=>{
    const draft=drafts.get(target.project.id);
    if(draft?.text===text){draft.text=data.text;draft.base=data.version_id;persist();}
    target.data=data;target.request=null;target.editing=false;target.openingUndo=null;target.openingNotice='';
-   if(draft)draft.editing=false;persist();
+   if(draft?.text===data.text){draft.editing=false;draft.dirty=false;}persist();
    let feedbackConflict=false;
    if(feedback){
     const existing=feedbackDrafts.get(feedbackId(target));
@@ -148,7 +169,7 @@ window.ProjectScript=(()=>{
    const data=await get('/project-script?'+new URLSearchParams({project:target.project.id}));if(current!==target)return;
    const box=target.panel.querySelector('[data-saved-comparison]');box.hidden=false;
    box.innerHTML='<h3>Current saved script</h3><pre>'+esc(data.text||'No script saved yet.')+'</pre><button class="secondary" data-use-saved>Use saved script</button><p>Your draft stays in the editor until you choose to replace it.</p>';
-   box.querySelector('[data-use-saved]').onclick=async()=>{retain();target.busy=true;controls(target);try{const draft=drafts.get(target.project.id);draft.text=data.text;draft.base=data.version_id;persist();target.data=data;await loadExtras(target);if(current===target)draw(target);}finally{target.busy=false;if(current===target)controls(target);}};
+   box.querySelector('[data-use-saved]').onclick=async()=>{retain();target.busy=true;controls(target);try{const draft=drafts.get(target.project.id);draft.text=data.text;draft.base=data.version_id;draft.dirty=false;persist();target.data=data;await loadExtras(target);if(current===target)draw(target);}finally{target.busy=false;if(current===target)controls(target);}};
    // Rebase only the revision after showing both versions; saving the kept draft remains explicit.
    target.data={...target.data,revision:data.revision,current_version_id:data.current_version_id,versions:data.versions};target.request=null;target.needsCompare=false;controls(target);
   }catch(error){status(target,error.message);}
@@ -159,7 +180,7 @@ window.ProjectScript=(()=>{
   target.busy=true;controls(target);
   try{
    const data=await get('/project-script?'+new URLSearchParams({project:target.project.id,version:id}));if(current!==target)return;
-   const draft=drafts.get(target.project.id)||{};draft.text=data.text;draft.base=data.version_id;drafts.set(target.project.id,draft);persist();target.data=data;
+   const draft=drafts.get(target.project.id)||{};draft.text=data.text;draft.base=data.version_id;draft.dirty=false;drafts.set(target.project.id,draft);persist();target.data=data;
    target.pinned=id!==data.current_version_id;const route=new URLSearchParams(location.hash.slice(1));if(target.pinned)route.set('script',id);else{route.delete('script');route.set('stage','script');}route.delete('script-feedback');route.delete('feedback-revision');history.replaceState(null,'','#'+route);
    await loadExtras(target);if(current===target)draw(target,id===data.current_version_id?'':'Viewing an earlier script. Choose Make current to restore it; all versions are kept.');
   }catch(error){status(target,error.message);}
@@ -211,17 +232,66 @@ window.ProjectScript=(()=>{
  function openings(target){
   const options=target.hooks?.options||[];
   if(!options.length)return '';
-  return '<section class="script-openings" aria-labelledby="script-openings-title"><div class="script-openings-head"><h3 id="script-openings-title">Opening options</h3><div class="script-opening-notice"><span role="status">'+esc(target.openingNotice||'')+'</span><button class="text-button" data-undo-opening hidden>Undo</button></div></div><div class="script-opening-options">'+options.map((option,i)=>{const [hook,...bridge]=option.opening.split(/\n\s*\n/),selected=option.id===target.hooks.selected_id;return '<article class="script-opening-option'+(selected?' is-selected':'')+'"><button data-use-hook="'+esc(option.id)+'" aria-pressed="'+selected+'"><span class="script-opening-label">Opening '+(i+1)+'<span>'+(selected?'✓ In script':'Use this opening')+'</span></span><span class="script-opening-copy">'+esc(hook)+'</span></button>'+(bridge.length?'<details class="script-hook-lead"><summary>Preview lead-in</summary><p>'+esc(bridge.join('\n\n'))+'</p></details>':'')+'</article>';}).join('')+'</div></section>';
+  const isApproved=approved(target);
+  const cards='<div class="script-opening-options">'+options.map((option,i)=>{
+   const [hook,...bridge]=option.opening.split(/\n\s*\n/),selected=option.id===target.hooks.selected_id;
+   const label='<span class="script-opening-label">Hook '+(i+1)+'<span>'+(selected?'✓ In script':isApproved?'':'Use this hook')+'</span></span><span class="script-opening-copy">'+esc(hook)+'</span>';
+   const choice=isApproved?'<div class="script-hook-reference">'+label+'</div>':'<button data-use-hook="'+esc(option.id)+'" aria-pressed="'+selected+'">'+label+'</button>';
+   return '<article class="script-opening-option'+(selected?' is-selected':'')+'">'+choice+(bridge.length?'<details class="script-hook-lead"><summary>Preview lead-in</summary><p>'+esc(bridge.join('\n\n'))+'</p></details>':'')+'</article>';
+  }).join('')+'</div>';
+  return isApproved?'<details class="script-openings script-hooks-approved"><summary>Hook options <span>'+options.length+' saved</span></summary>'+cards+'</details>':
+   '<section class="script-openings" aria-labelledby="script-openings-title"><div class="script-openings-head"><h3 id="script-openings-title">Hook options</h3><div class="script-opening-notice"><span role="status">'+esc(target.openingNotice||'')+'</span><button class="text-button" data-undo-opening hidden>Undo</button></div></div>'+cards+'</section>';
+ }
+ function decisionCard(target){
+  if(!readyStage(target))return '';
+  return '<section class="script-decision" data-script-decision><div class="script-approve-row" data-approve-row><p>Next: record your video</p><button class="primary" data-approve-script>Approve script</button></div><div class="script-record" data-record-script hidden><h3>Ready to record</h3><p>Record your video outside the studio. When you’re done, paste the request into your editing chat and attach the raw footage to start the spoken cut.</p><div class="script-record-actions"><button class="primary" data-copy-recording>Copy request for chat</button><button class="text-button" data-reopen-script>Make changes</button></div></div><p data-ready-status role="status" hidden></p></section>';
+ }
+ function readyStatus(target,message){
+  if(current!==target)return;
+  const node=target.panel.querySelector('[data-ready-status]');node.textContent=message;node.hidden=!message;
+ }
+ async function setReady(target,ready){
+  if(current!==target||!canSetReady(target)||ready===approved(target))return;
+  retain();
+  const body={project_id:target.project.id,revision:target.brief.revision,script_version:target.data.version_id,script_revision:target.data.revision,ready};
+  const signature=JSON.stringify(body);
+  if(target.readyRequest?.signature!==signature)target.readyRequest={signature,body:{...body,request_id:crypto.randomUUID()}};
+  target.busy=true;controls(target);readyStatus(target,ready?'Approving script…':'Reopening script…');
+  try{
+   const brief=await fetch('/script-ready',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'script-ready'},body:JSON.stringify(target.readyRequest.body)}).then(requestReply);
+   if(current!==target)return;
+   target.brief=brief;target.readyRequest=null;target.openingUndo=null;target.openingNotice='';
+   draw(target);
+   target.busy=false;controls(target);
+   readyStatus(target,approved(target)?'Script approved.':'Script reopened. Your saved versions are kept.');
+   const next=target.panel.querySelector(approved(target)?'[data-copy-recording]':'[data-approve-script]');
+   next.focus({preventScroll:true});next.scrollIntoView?.({block:'nearest'});
+  }catch(error){if(error.status===409)target.readyRequest=null;readyStatus(target,error.message||'Couldn’t save the decision. Your script is kept.');}
+  finally{target.busy=false;if(current===target)controls(target);}
+ }
+ async function copyRecording(target){
+  if(current!==target||!canSetReady(target)||!approved(target))return;
+  target.busy=true;controls(target);readyStatus(target,'');
+  try{
+   const brief=await get('/script-brief?'+new URLSearchParams({project:target.project.id}));
+   if(current!==target)return;
+   if(!brief.ready||brief.ready_script!==target.data.version_id)throw Error('The script approval changed. Reopen Script before copying a recording request.');
+   const url=new URL('./',location.href);url.hash=new URLSearchParams({project:target.project.id,script:target.data.version_id}).toString();
+   const message='I’ve recorded the approved script for '+target.project.title+'. Use the raw footage I attach (or the local file location I provide) to build the spoken cut.\n'+url.href+'\n\nRead docs/SCRIPTING.md and the project brief. Verify this exact script is still approved before proceeding. Use it as the take-selection guide, preserve natural delivery, and flag any missing or changed lines. Save the spoken cut for review before storyboarding. If the footage is missing, ask me for it.';
+   try{await navigator.clipboard.writeText(message);if(current===target)readyStatus(target,'Copied. Paste into your editing chat and attach the raw footage.');}
+   catch{if(current===target){$('#link-text').value=message;$('#link-dialog').showModal();$('#link-text').focus();$('#link-text').select();}}
+  }catch(error){readyStatus(target,error.message||'Couldn’t prepare the recording request.');}
+  finally{target.busy=false;if(current===target)controls(target);}
  }
  function refinement(target){
   const d=feedbackDraft(target),copied=target.copiedFeedback===feedbackSignature(target);
-  return '<section class="script-refinement" aria-labelledby="script-feedback-label"><label id="script-feedback-label" for="script-feedback-text">What would you like to change?</label><textarea id="script-feedback-text" data-script-feedback rows="3" maxlength="10000" placeholder="Give me a stronger hook, make it shorter, or make it sound more like me…">'+esc(d.feedback)+'</textarea><details class="script-feedback-reference" data-feedback-reference '+(d.referenceOpen||d.references?'open':'')+'><summary>Add a reference <small>optional</small></summary><label for="script-feedback-reference">Reference video and what you like</label><textarea id="script-feedback-reference" data-script-reference rows="2" maxlength="10000" placeholder="Paste a link and describe what you’d like to borrow—its opening question, storytelling approach, pacing…">'+esc(d.references)+'</textarea></details><div class="script-refinement-actions"><p data-feedback-hint></p><button class="primary" data-copy-script-feedback>'+(copied?'Copied ✓':'Copy feedback for chat')+'</button></div><p data-script-feedback-status role="status" '+(copied?'':'hidden')+'>'+(copied?'Copied—paste into your editing chat.':'')+'</p></section>';
+  return '<section class="script-refinement" data-script-refinement aria-labelledby="script-feedback-label"><label id="script-feedback-label" for="script-feedback-text">What would you like to change?</label><textarea id="script-feedback-text" data-script-feedback rows="3" maxlength="10000" placeholder="Give me a stronger hook, make it shorter, or make it sound more like me…">'+esc(d.feedback)+'</textarea><details class="script-feedback-reference" data-feedback-reference '+(d.referenceOpen||d.references?'open':'')+'><summary>Add a reference <small>optional</small></summary><label for="script-feedback-reference">Reference video and what you like</label><textarea id="script-feedback-reference" data-script-reference rows="2" maxlength="10000" placeholder="Paste a link and describe what you’d like to borrow—its opening question, storytelling approach, pacing…">'+esc(d.references)+'</textarea></details><div class="script-refinement-actions"><p data-feedback-hint></p><button class="primary" data-copy-script-feedback>'+(copied?'Copied ✓':'Copy feedback for chat')+'</button></div><p data-script-feedback-status role="status" '+(copied?'':'hidden')+'>'+(copied?'Copied—paste into your editing chat.':'')+'</p></section>';
  }
  function refine(target){
   const field=target.panel.querySelector('[data-script-feedback]');field.scrollIntoView?.({block:'center',behavior:'smooth'});field.focus({preventScroll:true});
  }
  async function useHook(target,id){
-  if(current!==target||target.busy||target.feedbackBusy||target.editing||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id||id===target.hooks.selected_id)return;
+  if(current!==target||approved(target)||target.busy||target.feedbackBusy||target.editing||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id||id===target.hooks.selected_id)return;
   retain();const oldVersion=target.data.version_id,oldText=target.data.text;
   if(target.hookRequest?.option_id!==id)target.hookRequest={project_id:target.project.id,revision:target.data.revision,request_id:crypto.randomUUID(),script_version:oldVersion,hook_revision:target.hooks.revision,option_id:id};
   target.busy=true;controls(target);status(target,'Saving the new opening…');
@@ -229,7 +299,7 @@ window.ProjectScript=(()=>{
    const data=await fetch('/script-hook',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'script-hook'},body:JSON.stringify(target.hookRequest)}).then(requestReply);
    if(current!==target)return;
    target.hookRequest=null;target.data=data;target.hooks=data.hooks;target.openingUndo={text:oldText,version_id:oldVersion,after:data.version_id};target.openingNotice='Opening updated.';target.highlightOpening=true;
-   const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id});persist();
+   const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id,dirty:false});persist();
    target.pinned=false;const route=new URLSearchParams(location.hash.slice(1));route.delete('script');route.set('stage','script');route.delete('script-feedback');route.delete('feedback-revision');history.replaceState(null,'','#'+route);
    draw(target,hasFeedback({...target,data:{...target.data,version_id:oldVersion}})?'Your feedback draft stays with the previous version.':'');
    target.panel.querySelector('[data-use-hook="'+id+'"]')?.focus({preventScroll:true});
@@ -238,21 +308,21 @@ window.ProjectScript=(()=>{
  }
  async function undoOpening(target){
   const undo=target.openingUndo;
-  if(current!==target||!undo||undo.after!==target.data.version_id||target.busy||target.feedbackBusy||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id)return;
+  if(current!==target||approved(target)||!undo||undo.after!==target.data.version_id||target.busy||target.feedbackBusy||dirty(target)||target.needsCompare||target.data.version_id!==target.data.current_version_id)return;
   retain();undo.request??={project_id:target.project.id,revision:target.data.revision,request_id:crypto.randomUUID(),text:undo.text};
   target.busy=true;controls(target);status(target,'Restoring the previous opening…');
   try{
    const data=await fetch('/project-script',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'project-script'},body:JSON.stringify(undo.request)}).then(requestReply);
    if(current!==target)return;
    target.data=data;target.openingUndo=null;target.openingNotice='Previous opening restored.';target.highlightOpening=true;
-   const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id,editing:false});persist();target.editing=false;
+   const d=drafts.get(target.project.id)||{};drafts.set(target.project.id,{...d,text:data.text,base:data.version_id,editing:false,dirty:false});persist();target.editing=false;
    await loadExtras(target);if(current===target){draw(target);target.panel.querySelector('[data-use-hook="'+target.hooks.selected_id+'"]')?.focus({preventScroll:true});}
   }catch(error){status(target,error.message||'Couldn’t restore the opening. Your script is kept.');if(error.status===409){undo.request=null;target.needsCompare=true;}}
   finally{target.busy=false;if(current===target)controls(target);}
  }
  function feedbackSignature(target){const d=feedbackDraft(target);return JSON.stringify([target.data.version_id,d.feedback.trim(),d.references.trim()]);}
  async function copyFeedback(target){
-  if(current!==target||target.feedbackBusy||target.busy||target.needsCompare)return;
+  if(current!==target||approved(target)&&!dirty(target)||target.feedbackBusy||target.busy||target.needsCompare)return;
   if(dirty(target)){
    retainFeedback(target);const feedback={...feedbackDraft(target)};if(!hasFeedback(target))return;
    target.feedbackBusy=true;controls(target);const saved=await save(target,feedback);target.feedbackBusy=false;if(current===target)controls(target);
@@ -284,7 +354,12 @@ window.ProjectScript=(()=>{
   try{
    const params=new URLSearchParams(location.hash.slice(1)),query=new URLSearchParams({project:project.id});if(params.get('project')===project.id&&params.has('script'))query.set('version',params.get('script'));
    const [data,brief]=await Promise.all([get('/project-script?'+query),full?get('/script-brief?'+new URLSearchParams({project:project.id})):Promise.resolve(null)]);
-   if(token!==run||!panel.isConnected)return;const draft=drafts.get(project.id),target={project,panel,data,brief,full,editing:full&&(!data.version_id||draft?.editing||!!draft&&draft.text.trim()!==data.text.trim()),pinned:params.has('script'),busy:false,request:null};await loadExtras(target);if(token!==run||!panel.isConnected)return;current=target;draw(target,target.extraError||'');
+   if(token!==run||!panel.isConnected)return;
+   let draft=drafts.get(project.id);
+   if(draft?.dirty===false&&draft.base!==data.version_id){
+    draft={...draft,text:data.text,base:data.version_id,editing:false};drafts.set(project.id,draft);persist();
+   }
+   const target={project,panel,data,brief,full,editing:full&&(!data.version_id||draft?.editing||!!draft&&draft.text.trim()!==data.text.trim()),pinned:params.has('script'),busy:false,request:null};await loadExtras(target);if(token!==run||!panel.isConnected)return;current=target;draw(target,target.extraError||'');
   }catch(error){if(token===run&&panel.isConnected)panel.innerHTML='<p class="script-help">'+esc(error.message)+' Reopen Script to try again. Your draft is kept.</p>';}
  }
  async function refresh(){
@@ -293,17 +368,17 @@ window.ProjectScript=(()=>{
   try{
    const data=await get('/project-script?'+new URLSearchParams({project:target.project.id}));
    const brief=target.full?await get('/script-brief?'+new URLSearchParams({project:target.project.id})):null;
-   if(current!==target||target.busy||dirty(target)||target.data.version_id!==visibleVersion)return;
+   if(current!==target||target.busy||target.feedbackBusy||target.editing||dirty(target)||target.data.version_id!==visibleVersion)return;
    if(data.revision===target.data.revision&&brief?.revision===target.brief?.revision){
     const oldHooks=target.hooks?.revision,oldFeedback=JSON.stringify(target.feedback);await loadExtras(target);
-    if(current===target&&!dirty(target)&&(oldHooks!==target.hooks?.revision||oldFeedback!==JSON.stringify(target.feedback))){retainFeedback(target);draw(target);}return;
+    if(current===target&&!target.busy&&!target.editing&&target.data.version_id===visibleVersion&&!dirty(target)&&(oldHooks!==target.hooks?.revision||oldFeedback!==JSON.stringify(target.feedback))){retainFeedback(target);draw(target);}return;
    }
    retainFeedback(target);
    if(data.version_id!==target.data.version_id&&(target.pinned||pendingFeedback(target))){
     target.data={...target.data,revision:data.revision,current_version_id:data.current_version_id,versions:data.versions,version_count:data.version_count};await loadExtras(target);if(current===target)draw(target,target.pinned?'A newer script is saved. You’re viewing this exact saved version; choose the latest from Versions to continue.':'A newer script is saved. Your feedback stays with this version; choose the latest from Versions when you’re ready.');return;
    }
    target.busy=true;ownsLock=true;controls(target);
-   const draft=drafts.get(target.project.id);if(draft)drafts.set(target.project.id,{...draft,text:data.text,base:data.version_id});persist();target.data=data;target.brief=brief;await loadExtras(target);if(current===target)draw(target);
+   const draft=drafts.get(target.project.id);if(draft)drafts.set(target.project.id,{...draft,text:data.text,base:data.version_id,dirty:false});persist();target.data=data;target.brief=brief;await loadExtras(target);if(current===target)draw(target);
   }catch{/* Kept draft and explicit comparison remain available. */}
   finally{if(ownsLock){target.busy=false;if(current===target)controls(target);}}
  }
