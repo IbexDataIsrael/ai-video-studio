@@ -244,7 +244,7 @@ window.ProjectScript=(()=>{
  }
  function decisionCard(target){
   if(!readyStage(target))return '';
-  return '<section class="script-decision" data-script-decision><div class="script-approve-row" data-approve-row><p>Next: record your video</p><button class="primary" data-approve-script>Approve script</button></div><div class="script-record" data-record-script hidden><h3>Ready to record</h3><p>Record your video outside the studio. When you’re done, paste the request into your editing chat and attach the raw footage to start the spoken cut.</p><div class="script-record-actions"><button class="primary" data-copy-recording>Copy request for chat</button><button class="text-button" data-reopen-script>Make changes</button></div></div><p data-ready-status role="status" hidden></p></section>';
+  return '<section class="script-decision" data-script-decision><div class="script-approve-row" data-approve-row><p>Next: record your video</p><button class="primary" data-approve-script>Approve script</button></div><div class="script-record" data-record-script hidden><h3>Ready to record</h3><p>Record your video outside the studio. When you’re done, click <strong>Copy prompt for chat</strong>, paste it into your editing chat, and attach your raw footage.</p><div class="script-record-actions"><button class="primary" data-copy-recording>Copy prompt for chat</button><button class="text-button" data-reopen-script>Make changes</button></div></div><p data-ready-status role="status" hidden></p></section>';
  }
  function readyStatus(target,message){
   if(current!==target)return;
@@ -276,9 +276,9 @@ window.ProjectScript=(()=>{
    const brief=await get('/script-brief?'+new URLSearchParams({project:target.project.id}));
    if(current!==target)return;
    if(!brief.ready||brief.ready_script!==target.data.version_id)throw Error('The script approval changed. Reopen Script before copying a recording request.');
-   const url=new URL('./',location.href);url.hash=new URLSearchParams({project:target.project.id,script:target.data.version_id}).toString();
-   const message='I’ve recorded the approved script for '+target.project.title+'. Use the raw footage I attach (or the local file location I provide) to build the spoken cut.\n'+url.href+'\n\nRead docs/SCRIPTING.md and the project brief. Verify this exact script is still approved before proceeding. Use it as the take-selection guide, preserve natural delivery, and flag any missing or changed lines. Save the spoken cut for review before storyboarding. If the footage is missing, ask me for it.';
-   try{await navigator.clipboard.writeText(message);if(current===target)readyStatus(target,'Copied. Paste into your editing chat and attach the raw footage.');}
+   const url=new URL('./',location.href);url.hash=new URLSearchParams({project:target.project.id,script:target.data.version_id,handoff:'spoken-cut'}).toString();
+   const message='Use my approved script to turn this footage into a spoken cut. Share it with me for review before storyboarding.\n\n'+url.href;
+   try{await navigator.clipboard.writeText(message);if(current===target)readyStatus(target,'Copied. Paste into your editing chat and attach your raw footage.');}
    catch{if(current===target){$('#link-text').value=message;$('#link-dialog').showModal();$('#link-text').focus();$('#link-text').select();}}
   }catch(error){readyStatus(target,error.message||'Couldn’t prepare the recording request.');}
   finally{target.busy=false;if(current===target)controls(target);}

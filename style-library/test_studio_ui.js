@@ -374,9 +374,10 @@ test('script approval saves the exact version and reveals a separate recording h
  assert.match(h.panel.innerHTML,/Another hook[\s\S]*A bridge/);
  assert.equal(h.panel.querySelectorAll('[data-use-hook]').length,0);
  await h.button('copy-recording').onclick();
- assert.match(h.copies[0],new RegExp('script='+a));
- assert.match(h.copies[0],/raw footage I attach/);
- assert.match(h.copies[0],/spoken cut for review before storyboarding/);
+ const [intent,link]=h.copies[0].split('\n\n');
+ assert.equal(intent,'Use my approved script to turn this footage into a spoken cut. Share it with me for review before storyboarding.');
+ assert.deepEqual(Object.fromEntries(new URLSearchParams(new URL(link).hash.slice(1))),{project:'test',script:a,handoff:'spoken-cut'});
+ assert.match(h.button('ready-status').textContent,/Copied. Paste into your editing chat and attach your raw footage/);
  await h.mount();
  assert.equal(h.button('record-script').hidden,false);
  await h.button('reopen-script').onclick();
