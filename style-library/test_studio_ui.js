@@ -8,7 +8,7 @@ function menu(){
 test('version menu stays open inside and dismisses on an outside click',()=>{const h=menu();h.handlers.click({target:h.inside});assert.equal(h.picker.open,true);h.handlers.click({target:h.outside});assert.equal(h.picker.open,false);});
 test('Escape closes the version menu and returns focus to its summary',()=>{const h=menu();let prevented=false;h.handlers.keydown({key:'Escape',preventDefault(){prevented=true;},stopPropagation(){}});assert.equal(h.picker.open,false);assert.equal(h.summary.focused,true);assert.equal(prevented,true);});
 function starter(options={}){
- const nodes=new Map(),storage=options.storage||new Map(),copies=[],documentHandlers={},windowHandlers={};
+ const nodes=new Map(),storage=options.storage||new Map(),copies=[],requests=[],documentHandlers={},windowHandlers={};
  const node=key=>{
   if(!nodes.has(key))nodes.set(key,{value:'',textContent:'',hidden:false,disabled:false,open:false,isConnected:true,listeners:{},attributes:{},dataset:{},classList:{toggle(){}},
    addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(name,value){this.attributes[name]=value;},focus(){this.focused=true;},select(){this.selected=true;},
@@ -20,12 +20,58 @@ function starter(options={}){
  const journeys=['idea','footage'].map(start=>{const button=node('journey-'+start);button.dataset.startJourney=start;return button;});
  const document={body:{append(){}},activeElement:node('opener'),createElement:()=>node('dialog'),querySelector:node,addEventListener:(type,fn)=>documentHandlers[type]=fn};
  let referenceConfig,depth=0;const referenceAPI={restore:rows=>Array.isArray(rows)?rows:[],targetKey:r=>JSON.stringify([r.reference_id,r.example_id||null,r.slide||null]),text:rows=>rows.map(r=>r.message).join('\n'),validate:async rows=>{if(options.validationWait)await options.validationWait;if(options.referenceError&&rows.length)throw Error(options.referenceError);},create:config=>{referenceConfig=config;return {busy:false,hide(){depth=0;config.showPicker(false);},back(){if(!depth)return false;depth--;config.level(depth?'library':'project');return true;},render(){}};}};
- const context={document,window:{StartReferences:referenceAPI,Studio:{currentSection:'projects'},addEventListener:(type,fn)=>windowHandlers[type]=fn},sessionStorage:{getItem:key=>{if(options.blocked)throw Error();return storage.get(key)||null;},setItem:(key,value)=>{if(options.blocked)throw Error();storage.set(key,value);}},navigator:{clipboard:{writeText:async text=>{if(options.wait)await options.wait;if(options.fail)throw Error('No clipboard');copies.push(text);}}}};
+ const context={document,URLSearchParams,location:{hash:'#projects'},crypto:{randomUUID:require('node:crypto').randomUUID},fetch:async url=>{requests.push(url);return {ok:true,json:async()=>options.scriptState||{}};},window:{StartReferences:referenceAPI,Studio:{currentSection:'projects'},addEventListener:(type,fn)=>windowHandlers[type]=fn},sessionStorage:{getItem:key=>{if(options.blocked)throw Error();return storage.get(key)||null;},setItem:(key,value)=>{if(options.blocked)throw Error();storage.set(key,value);}},navigator:{clipboard:{writeText:async text=>{if(options.wait)await options.wait;if(options.fail)throw Error('No clipboard');copies.push(text);}}}};
  runInNewContext(readFileSync(join(__dirname,'dist/start-ui.js'),'utf8'),context);
  const api=context.window.StudioStart,dialog=api.mount();api.open();
  if(!options.unselected&&!journeys.some(button=>button.attributes['aria-checked']==='true'))node('journey-footage').listeners.click();
- return {node,api,dialog,copies,storage,windowHandlers,documentHandlers,inspire:rows=>referenceConfig.set(rows),enter:layer=>{depth=layer==='reference'?2:1;referenceConfig.level(layer);},input(id,value){node('#'+id).value=value;return node('#guided-start').listeners.input({target:{id,value,dataset:{}}});},type:type=>node('type-'+type).listeners.click(),copy:()=>node('#start-copy').listeners.click()};
+ return {node,api,dialog,copies,requests,location:context.location,storage,windowHandlers,documentHandlers,inspire:rows=>referenceConfig.set(rows),enter:layer=>{depth=layer==='reference'?2:1;referenceConfig.level(layer);},input(id,value){node('#'+id).value=value;return node('#guided-start').listeners.input({target:{id,value,dataset:{}}});},type:type=>node('type-'+type).listeners.click(),copy:()=>node('#start-copy').listeners.click()};
 }
+function copiedStarterId(message){
+ return /Studio starter request ID: ([0-9a-f-]{36})/.exec(message)?.[1];
+}
+test('only the matched project with a saved script completes the starter; Open draft is explicit',async()=>{
+ const options={},h=starter(options);h.node('journey-idea').listeners.click();h.input('start-goal','A real idea.');
+ await h.copy();const id=copiedStarterId(h.copies[0]);assert.ok(id);
+ await h.copy();assert.equal(copiedStarterId(h.copies[1]),id);
+ const match={id:'right-draft',format:'video',title:'The right draft',starter_request_id:id};
+ await h.api.checkArrival([{...match,id:'wrong-draft',starter_request_id:'unrelated'}]);
+ assert.equal(h.requests.length,0);
+ await h.api.checkArrival([match,{...match,id:'duplicate'}]);
+ assert.equal(h.requests.length,0);
+ options.scriptState={project_id:match.id,version_id:null};
+ await h.api.checkArrival([match]);
+ assert.equal(h.node('#start-copy').textContent,'Request copied ✓');
+ options.scriptState={...options.scriptState,version_id:'a'.repeat(64)};
+ await h.api.checkArrival([match]);
+ assert.equal(h.node('#start-copy').textContent,'Open draft');
+ assert.equal(h.node('#start-status').textContent,'Your script is ready: The right draft');
+ assert.equal(h.location.hash,'#projects');assert.equal(h.dialog.open,true);
+ await h.copy();
+ assert.equal(h.dialog.open,false);
+ assert.equal(h.location.hash,'project=right-draft&stage=script');
+ assert.equal(h.node('#starter-arrival').hidden,true);
+});
+test('a ready script waits on Projects without replacing edits to the starter, including after reload',async()=>{
+ const h=starter();h.node('journey-idea').listeners.click();h.input('start-goal','First idea.');await h.copy();
+ const id=copiedStarterId(h.copies[0]);assert.ok(id);
+ h.input('start-goal','A different idea I am still writing.');h.api.close();
+ const reloaded=starter({storage:h.storage,scriptState:{project_id:'saved-first',version_id:'b'.repeat(64)}});
+ await reloaded.api.checkArrival([{id:'saved-first',format:'video',title:'First idea',starter_request_id:id}]);
+ assert.equal(reloaded.node('#start-copy').textContent,'Copy request');
+ assert.equal(reloaded.node('#start-goal').value,'A different idea I am still writing.');
+ assert.equal(reloaded.node('#starter-arrival').hidden,false);
+ reloaded.api.close();
+ reloaded.documentHandlers.click({target:{closest:selector=>selector==='[data-open-starter-draft]'?{}:null},preventDefault(){}});
+ assert.equal(reloaded.location.hash,'project=saved-first&stage=script');
+ reloaded.api.open();assert.equal(reloaded.node('#start-goal').value,'A different idea I am still writing.');
+ await reloaded.copy();assert.notEqual(copiedStarterId(reloaded.copies[0]),id);
+});
+test('the manual clipboard fallback carries the same exact starter ID',async()=>{
+ const h=starter({fail:true});h.node('journey-idea').listeners.click();h.input('start-goal','An idea to copy manually.');
+ await h.copy();const message=h.node('#project-starter').value,id=copiedStarterId(message);
+ assert.ok(id);assert.equal(h.node('#start-preview').hidden,false);assert.equal(h.node('#project-starter').selected,true);
+ await h.copy();assert.equal(h.node('#project-starter').value,message);
+});
 test('starter formats retain input and show a format-specific material handoff',()=>{
  const h=starter();h.input('start-goal','Explain my idea.');h.input('start-script','The script I recorded.');
  assert.match(h.node('#project-starter').value,/Script I recorded.*\nThe script I recorded/);assert.equal(h.node('#start-status').textContent,'Paste into your editing chat.');

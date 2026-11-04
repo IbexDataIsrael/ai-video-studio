@@ -2,7 +2,9 @@
 window.StudioStart=(()=>{
  const key='ai-video-studio-starter-v2',types=['video','carousel','presentation'],names={video:'Video',carousel:'Carousel',presentation:'Presentation'};
  const fields=['goal','footage','script','keep','references','scriptreference'];
- let draft={type:'video',start:null,scriptOpen:false,referenceOpen:false,scriptreference:'',goal:'',footage:'',script:'',keep:'',references:'',messages:{},extras:false,preview:false,location:false,inspirationOpen:false,inspiration:[],inspirationDrafts:{},linkDraft:'',editingGoal:null},dialog=null,opener=null,copiedText=null,copying=false,references=null;
+ const requestId=/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+ let draft={type:'video',start:null,scriptOpen:false,referenceOpen:false,scriptreference:'',goal:'',footage:'',script:'',keep:'',references:'',messages:{},extras:false,preview:false,location:false,inspirationOpen:false,inspiration:[],inspirationDrafts:{},linkDraft:'',editingGoal:null,handoff:null},dialog=null,opener=null,copiedText=null,copying=false,references=null;
+ let arrival=null,checking=null;
  try{
   const saved=JSON.parse(sessionStorage.getItem(key)||'null');
   if(saved&&typeof saved==='object'){
@@ -12,6 +14,7 @@ window.StudioStart=(()=>{
    draft.scriptOpen=saved.scriptOpen===true;draft.referenceOpen=saved.referenceOpen===true;
    if(typeof saved.editingGoal==='string')draft.editingGoal=saved.editingGoal.slice(0,22000);if(typeof saved.linkDraft==='string')draft.linkDraft=saved.linkDraft.slice(0,10000);
    for(const field of fields)if(typeof saved[field]==='string')draft[field]=saved[field].slice(0,field==='script'?50000:10000);
+   if(typeof saved.handoff?.id==='string'&&requestId.test(saved.handoff.id))draft.handoff={id:saved.handoff.id,current:saved.handoff.current===true};
    for(const type of [...types,'video-idea'])if(typeof saved.messages?.[type]==='string')draft.messages[type]=saved.messages[type].slice(0,100000);
    draft.extras=saved.extras===true;draft.preview=saved.preview===true;draft.location=saved.location===true||!!draft.footage;draft.inspirationOpen=saved.inspirationOpen===true;draft.inspiration=window.StartReferences.restore(saved.inspiration);draft.inspirationDrafts=Object.fromEntries(window.StartReferences.restore(Object.values(saved.inspirationDrafts||{})).map(r=>[window.StartReferences.targetKey(r),r]));
   }
@@ -24,7 +27,12 @@ window.StudioStart=(()=>{
  function writing(){return draft.type==='video'&&draft.start==='idea';}
  function footage(){return draft.type==='video'&&draft.start==='footage';}
  function editingGoal(){return draft.editingGoal??[draft.goal.trim(),draft.keep.trim()?'Details to preserve:\n'+draft.keep.trim():''].filter(Boolean).join('\n\n');}
- function readFields(){for(const field of fields){if(field==='goal'&&footage())draft.editingGoal=node('start-goal').value;else draft[field]=node('start-'+field).value;}}
+ const writingInputs=()=>JSON.stringify([draft.goal.trim(),draft.script.trim(),draft.scriptreference.trim()]);
+ function readFields(){
+  const before=draft.handoff?.current?writingInputs():null;
+  for(const field of fields){if(field==='goal'&&footage())draft.editingGoal=node('start-goal').value;else draft[field]=node('start-'+field).value;}
+  if(before!==null&&before!==writingInputs())draft.handoff.current=false;
+ }
  function unchosen(){return draft.type==='video'&&!draft.start;}
  function canCopy(){return !unchosen()&&(!writing()||['goal','script','scriptreference'].some(field=>draft[field].trim()))&&!!node('project-starter').value.trim();}
  function request(){
@@ -43,9 +51,47 @@ window.StudioStart=(()=>{
   return copied?'Request copied. Paste it into chat and add your source material or outline.':'Click Copy request, then paste it into chat and add your source material or outline.';
  }
  function copyState(message=null){
-  const copied=copiedText===node('project-starter').value;
-  node('start-copy').hidden=unchosen();node('start-copy').disabled=copying||references?.busy||!canCopy();node('start-copy').textContent=copying?'Preparing…':copied?'Request copied ✓':'Copy request';
-  node('start-done').textContent=copied?'Done':'Close';node('start-status').textContent=message||guidance(copied);
+  const copied=copiedText===node('project-starter').value,ready=readyForForm();
+  node('start-copy').hidden=unchosen();node('start-copy').disabled=copying||references?.busy||(!ready&&!canCopy());node('start-copy').textContent=ready?'Open draft':copying?'Preparing…':copied?'Request copied ✓':'Copy request';
+  node('start-done').textContent=copied?'Done':'Close';node('start-status').textContent=ready?'Your script is ready: '+arrival.title:message||guidance(copied);
+ }
+ function readyForForm(){return !!arrival&&writing()&&draft.handoff?.current&&arrival.request===draft.handoff.id;}
+ function renderArrival(){
+  const notice=document.querySelector('#starter-arrival');
+  if(!notice)return;
+  notice.hidden=!arrival||arrival.request!==draft.handoff?.id;
+  document.querySelector('#starter-arrival-title').textContent=notice.hidden?'':arrival.title;
+ }
+ async function checkArrival(projects){
+  const id=draft.handoff?.id;
+  const candidates=id?projects.filter(p=>p.starter_request_id===id&&p.format==='video'):[];
+  const project=candidates.length===1?candidates[0]:null;
+  if(arrival&&(!project||arrival.request!==id||arrival.id!==project.id)){
+   arrival=null;renderArrival();if(dialog?.open)copyState();
+  }
+  if(!project){checking=null;return;}
+  if(arrival){
+   if(arrival.title!==project.title){arrival.title=project.title;renderArrival();if(dialog?.open&&readyForForm())copyState();}
+   return;
+  }
+  if(checking?.request===id&&checking.id===project.id)return;
+  const attempt={request:id,id:project.id};
+  checking=attempt;
+  try{
+   const response=await fetch('/project-script?'+new URLSearchParams({project:project.id}),{cache:'no-store'});
+   if(!response.ok)return;
+   const script=await response.json();
+   if(checking!==attempt||draft.handoff?.id!==id||script.project_id!==project.id||!/^[a-f0-9]{64}$/.test(script.version_id||''))return;
+   arrival={...attempt,title:project.title};
+   renderArrival();if(dialog?.open&&readyForForm())copyState();
+  }catch{/* A later refresh can pick up the draft after a transient failure. */}
+  finally{if(checking===attempt)checking=null;}
+ }
+ function openDraft(){
+  if(!arrival||arrival.request!==draft.handoff?.id)return;
+  const id=arrival.id;
+  close();draft.handoff=null;arrival=null;checking=null;persist();renderArrival();
+  location.hash=new URLSearchParams({project:id,stage:'script'}).toString();
  }
  function render(){
   for(const field of fields)node('start-'+field).value=draft[field];
@@ -83,12 +129,17 @@ window.StudioStart=(()=>{
  }
  function close(){if(dialog?.open){remember();references?.hide(false);dialog.close();}}
  async function copy(){
-  if(copying||references?.busy||!canCopy())return;const text=node('project-starter').value;if(!text.trim())return;
+  if(copying||references?.busy||!canCopy())return;const isWriting=writing(),text=node('project-starter').value;if(!text.trim())return;
   copying=true;copiedText=null;copyState();
   try{await window.StartReferences.validate(writing()?[]:draft.inspiration);if(!dialog.open||node('project-starter').value!==text){copying=false;copyState();return;}}catch(error){copying=false;copyState(error.message+' Remove the affected reference and choose it again. Your project draft is kept.');return;}
-  try{await navigator.clipboard.writeText(text);copiedText=text;}
+  let message=text;
+  if(isWriting){
+   if(!draft.handoff?.current){draft.handoff={id:crypto.randomUUID(),current:true};arrival=null;checking=null;persist();renderArrival();}
+   message=request()+'\n\nStudio starter request ID: '+draft.handoff.id+'. Save this exact value as starter_request_id in studio-entry.json before registering (see docs/SCRIPTING.md).';
+  }
+  try{await navigator.clipboard.writeText(message);copiedText=text;}
   catch{
-   if(dialog.open&&node('project-starter').value===text){draft.preview=true;node('start-preview').hidden=false;node('start-preview').open=true;persist();node('project-starter').focus();node('project-starter').select();copying=false;copyState('Automatic copying wasn’t available. Select and copy the request below, then paste it into chat.');return;}
+   if(dialog.open&&node('project-starter').value===text){draft.preview=true;node('project-starter').value=message;node('start-preview').hidden=false;node('start-preview').open=true;persist();node('project-starter').focus();node('project-starter').select();copying=false;copyState('Automatic copying wasn’t available. Select and copy the request below, then paste it into chat.');return;}
   }finally{copying=false;}
   copyState();
  }
@@ -125,7 +176,7 @@ window.StudioStart=(()=>{
   for(const id of ['start-extras','start-preview','start-location','start-inspiration','start-script-field','start-script-reference-field'])node(id).addEventListener('toggle',()=>{remember();if(id==='start-preview'&&footage()){node('start-preview').hidden=!draft.preview;node('start-see-message').setAttribute('aria-expanded',String(draft.preview));node('start-see-message').textContent=draft.preview?'Hide message':'See message';}});
   const backOrClose=()=>{if(!references.back())close();};
   node('start-see-message').addEventListener('click',()=>{remember();draft.preview=!draft.preview;persist();node('start-preview').hidden=!draft.preview;node('start-preview').open=draft.preview;node('start-see-message').setAttribute('aria-expanded',String(draft.preview));node('start-see-message').textContent=draft.preview?'Hide message':'See message';if(draft.preview)node('start-preview').scrollIntoView?.({block:'nearest',behavior:'smooth'});});
-  node('start-copy').addEventListener('click',copy);node('start-close').addEventListener('click',backOrClose);node('start-done').addEventListener('click',close);
+  node('start-copy').addEventListener('click',()=>readyForForm()?openDraft():copy());node('start-close').addEventListener('click',backOrClose);node('start-done').addEventListener('click',close);
   dialog.addEventListener('cancel',event=>{event.preventDefault();backOrClose();});
   document.addEventListener('keydown',event=>{
    if(event.key!=='Escape'||!dialog.open||document.fullscreenElement)return;
@@ -138,7 +189,10 @@ window.StudioStart=(()=>{
   render();return dialog;
  }
  function open(button=null){mount();references.hide(false);opener=button||document.activeElement;render();if(!dialog.open)dialog.showModal();node('start-project-title').focus();}
- document.addEventListener('click',event=>{const button=event.target.closest('[data-start-project]');if(button){event.preventDefault();open(button);}});
+ document.addEventListener('click',event=>{
+  if(event.target.closest('[data-open-starter-draft]')){event.preventDefault();openDraft();return;}
+  const button=event.target.closest('[data-start-project]');if(button){event.preventDefault();open(button);}
+ });
  window.addEventListener('hashchange',close);
- return {mount,open,close};
+ return {mount,open,close,checkArrival,renderArrival};
 })();

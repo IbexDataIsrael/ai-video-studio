@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import uuid
 from unittest.mock import patch
 import library
 import project_index as index
@@ -66,6 +67,20 @@ class RegisterOrderTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'already exists'):
             register.register('project', self.descriptor('middle', 'Middle, revised'))
         self.assertEqual(self.registry.read_bytes(), before)
+
+    def test_one_script_request_can_only_be_registered_to_one_project(self):
+        request_id = str(uuid.uuid4())
+        first = self.descriptor('draft-one', 'First draft')
+        first.write_text(json.dumps({**json.loads(first.read_text()), 'starter_request_id': request_id}))
+        register.register('project', first)
+        other = self.descriptor('draft-two', 'Other draft')
+        other.write_text(json.dumps({**json.loads(other.read_text()), 'starter_request_id': request_id}))
+        before = self.registry.read_bytes()
+        with self.assertRaisesRegex(ValueError, 'already has a project'):
+            register.register('project', other)
+        self.assertEqual(self.registry.read_bytes(), before)
+        register.register('project', self.descriptor('draft-one', 'Updated draft'), replace=True)
+        self.assertEqual(self.projects()[0]['starter_request_id'], request_id)
 
     def test_new_references_still_append(self):
         catalog = self.base / 'catalog.json'

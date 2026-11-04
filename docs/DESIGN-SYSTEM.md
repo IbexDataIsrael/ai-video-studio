@@ -87,3 +87,8 @@ Keep the opening choices integrated with the document, including the selected ch
 ## Script approval and recording handoff — November 4
 
 Place Approve script at the end of the current saved script for an idea-first project. After approval, keep the script readable, mark the exact version approved and put Hook options in a compact disclosure that retains all alternatives and lead-ins. Ready to record explains that recording happens outside the studio, then names Copy prompt for chat before asking the creator to paste and attach raw footage. The copied text states the intended cut and review, with a version-pinned studio link. Keep the receiving instructions in HANDOFF.md. Copy prompt for chat is the primary action; Make changes reopens the script and preserves history. The approved state hides writing controls and retains feedback drafts. Keep the copy action on one line on narrow screens. Do not add a recording tab or advance to a spoken cut before it exists.
+
+
+### Starter draft arrival
+
+When a copied writing request returns a saved script, show “Your script is ready” with the project name and **Open draft**. Use the existing modal footer if it still holds that request; show the action on Projects as well. Keep the user’s current page, text and playback in place until they choose Open draft. Match by the exact request ID and confirm a saved script before showing the action.

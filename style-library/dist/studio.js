@@ -6,7 +6,7 @@ window.Studio=(()=>{
  const stageChoices=new Map();
  async function loadProjects(){
   if(indexPending)return indexPending;
-  indexPending=(async()=>{const r=await fetch('/projects.json',{cache:'no-store'});if(!r.ok)throw Error('The studio could not load the latest projects.');const result=await r.json();projects=result.projects;loaded=true;failed=false;lastRefresh=Date.now();return projects;})();
+  indexPending=(async()=>{const r=await fetch('/projects.json',{cache:'no-store'});if(!r.ok)throw Error('The studio could not load the latest projects.');const result=await r.json();projects=result.projects;loaded=true;failed=false;lastRefresh=Date.now();void window.StudioStart?.checkArrival?.(projects);return projects;})();
   try{return await indexPending;}finally{indexPending=null;}
  }
  async function checkUpdates(force=false){
@@ -58,8 +58,10 @@ window.Studio=(()=>{
   const attention=projects.filter(p=>p.stale||p.state==='review'||p.review_action==='reopened');
   const resume=attention[0]||projects[0];
   $('#projects-page').innerHTML=`<section class="home-heading"><div><p class="eyebrow">YOUR CREATIVE HOME</p><h1>${projects.length?'Welcome back.':'Your first video starts here.'}</h1><p>${projects.length?'Your work, your next decision, all in one place.':'Create in your editing chat. Review every version here.'}</p></div><button class="primary" data-start-project>Start a project</button></section>
+   <aside class="starter-arrival" id="starter-arrival" hidden><p aria-live="polite"><strong>Your script is ready</strong><span id="starter-arrival-title"></span></p><button class="primary" data-open-starter-draft>Open draft</button></aside>
    ${resume?`<a class="resume-project" href="${projectHash(resume)}"><div>${resume.cover?`<img src="${h(resume.cover)}" alt="">`:''}</div><section><p class="eyebrow">${attention.length?'READY FOR YOUR ATTENTION':'PICK UP WHERE YOU LEFT OFF'}</p><h2>${h(resume.title)}</h2><p>${h(resume.next_step||resume.summary)}</p><strong>${attention.length?'Review project':'Open project'} →</strong></section><span class="project-state ${h(resume.state)}">${h(stateLabel(resume))}</span></a>`:`<div class="first-project"><h2>Bring an idea. We’ll help you shape it.</h2><p>Start with footage, a script, or a few references. A short guided prompt helps you bring the right context to your editing chat.</p><button class="plain-link" data-start-project>Start a project →</button><a href="#videos" class="plain-link">Find inspiration →</a></div>`}
    <section class="project-list"><div class="project-list-head"><h2>Your projects</h2><p id="project-results" aria-live="polite"></p></div><div class="project-toolbar"><div class="project-filters" role="group" aria-label="Filter projects"><button data-project-filter="all" aria-pressed="${filter==='all'}">All projects</button><button data-project-filter="review" aria-pressed="${filter==='review'}">To review</button><button data-project-filter="approved" aria-pressed="${filter==='approved'}">Approved & final</button><button data-project-filter="presentation" aria-pressed="${filter==='presentation'}">Presentations</button></div><input id="project-search" type="search" placeholder="Find a project…" aria-label="Search projects" value="${h(query)}"></div>${failed?'<p class="project-notice" role="alert">The project list couldn’t load. Refresh the studio to try again; your files are still saved.</p>':''}<div id="project-grid" class="project-grid"></div><div id="project-empty" class="empty" hidden><em>${!projects.length?'Your studio is ready for its first project.':'No projects match.'}</em><p>${!projects.length?'Your assistant adds your work here as you create in chat.':'Try another name or filter.'}</p></div></section>`;
+  window.StudioStart?.renderArrival?.();
   if(!loaded&&!failed)$('#project-results').textContent='Loading…';else renderCards();
  }
  function guide(){

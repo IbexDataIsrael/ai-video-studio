@@ -48,6 +48,15 @@ def register(kind, manifest, replace=False):
         source=library.source_key(item['source_url']) if item.get('source_url') else None
         if source and any(e['id']!=item['id'] and e.get('source_url') and library.source_key(e['source_url'])==source for e in data[key]):raise ValueError('That original source is already registered')
     existing=next((i for i,x in enumerate(data[key]) if x['id']==item['id']),None)
+    if kind=='project':
+        previous=data[key][existing].get('starter_request_id') if existing is not None else None
+        if previous:
+            item.setdefault('starter_request_id',previous)
+            if item['starter_request_id']!=previous:
+                raise ValueError('Keep the existing script starter request ID')
+        request=index.starter_request(item)
+        if request and any(row.get('starter_request_id')==request and row['id']!=item['id'] for row in data[key]):
+            raise ValueError('This script starter request already has a project. Continue there.')
     if existing is not None:
         if not replace:raise ValueError('ID already exists. Read its decisions, then use --replace intentionally.')
         if data[key][existing].get('review_decision') or data[key][existing].get('approval'):
