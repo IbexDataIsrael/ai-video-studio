@@ -20,6 +20,10 @@ Publication, repository settings changes and messages to others need appropriate
 
 ## Required checks before each release
 
+CI runs once per pull-request update, plus pushes to main and numbered v* tags. Manual dispatch is available for verification. Superseded runs of the same PR are canceled; event/ref-specific concurrency keeps release tags and main independent. The required release-gate still fails unless every matrix job and audit passes. Check the exact current PR head before merging; an intentionally superseded run is not evidence for its replacement.
+
+The standard-library/UI matrix uses Linux and macOS Intel on Python 3.11/3.13. macos-15-intel avoids the Apple Silicon hosted pool's observed runner-acquisition failures; it does not prove Apple Silicon media compatibility. Complete the separate Apple Silicon setup/render pilot locally and retain its actual evidence. Revisit the runner pin before its documented retirement or if hosted availability changes. Do not turn a canceled/incomplete job into a successful gate or weaken audits to merge an update.
+
 - **Version:** package.json is the canonical release version. Match package-lock.json, the interface studio-version meta tag and release notes. README, INSTALL_PROMPT, SETUP and PILOT stay version-free: the starter prompt installs the newest published release (betas included), and README and INSTALL_PROMPT must carry the identical prompt. Never hardcode a tag there. Remove local-preview wording from a published build. Run `python3 scripts/check_release.py`.
 - **Source/privacy:** review every path in release-files.txt and the actual Git tree, including new files. Exporter scanning is an additional guard, not a substitute for review. Owner projects, catalogs, removed-reference metadata, reference notes, previews, accounts, environments, logs and journals must be absent. Third-party font/dependency notices stay included.
 - **Tests:** run Python unit tests, all Node UI tests, JS syntax and registry validators. Tests that write or approve use temporary fixtures. Run supported Python/OS checks in CI; do not mistake them for full media-platform support.
