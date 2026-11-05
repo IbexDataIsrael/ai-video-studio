@@ -67,3 +67,5 @@ Codex’s [AGENTS.md guidance](https://learn.chatgpt.com/docs/agent-configuratio
 ## Updating an existing studio
 
 Keep working in its existing folder. Use the Updates page and docs/UPDATING.md. Do not extract a starter ZIP over the entire folder or replace populated registries with the empty examples. Your projects, reference videos, techniques, notes and settings must survive the update.
+
+When rerunning full setup, this installation’s running HyperFrames previews pause media installation before dependency changes. Save/close those previews and rerun; other installations are left alone. See docs/UPDATING.md for the existing-studio path and source checkpoints. Studio-only setup remains available independently.

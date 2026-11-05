@@ -14,7 +14,7 @@ This file is the shared release procedure for new Codex and Claude Code chats. A
 3. Run the checks below. GitHub's required checks must pass for the exact PR head before merging. Protect main against unreviewed direct pushes, force pushes and deletion. A solo maintainer need not require an unavailable second human reviewer.
 4. Merge the reviewed PR after publication authorization. Do not fold unrelated dependency proposals into a feature release. A renderer upgrade requires separate setup/render verification.
 5. Publish a new numbered tag and GitHub Release at the tested merged commit, with a reviewed source ZIP, checksum manifest, changes, upgrade instructions and known limits. Never overwrite a previous release/tag. A merge alone does not publish a release.
-6. Verify the public tag/tree/assets and anonymous installation after publication. Confirm the new tag is the newest entry on the Releases page, which is what the version-free starter prompt installs. Retain the previous release and local checkpoint for rollback.
+6. Verify the public tag/tree/assets and anonymous installation after publication. Confirm the new tag is the newest published release by published_at and numeric version, which is what the version-free starter prompt requests; do not infer this from raw API list position. Retain the previous release and local checkpoint for rollback.
 
 Publication, repository settings changes and messages to others need appropriate user authorization. Authorization to release application code does not authorize publication of creative media or sending team messages.
 
