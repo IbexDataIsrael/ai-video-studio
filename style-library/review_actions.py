@@ -13,7 +13,7 @@ import math
 import shutil
 import subprocess
 import project_index as index
-from library import BASE
+from library import BASE, project_reference_candidates
 
 CATALOG = BASE / 'catalog.json'
 JOURNALS = BASE / 'runtime' / 'review-actions'
@@ -223,6 +223,13 @@ def final_reference(project, artifact, event, changes, expected):
     entry = next((e for e in data['entries'] if e['id'] == reference_id), None)
     if entry is not None and entry.get('project_id', project['id']) != project['id']:
         raise ReviewError('The saved library source belongs to another project. Ask your assistant to check it.')
+    if entry is None and not reference_id:
+        matches = project_reference_candidates(project, data)
+        if len(matches) > 1:
+            raise ReviewError('More than one library entry matches this checkpoint. Ask your assistant to reconcile them.')
+        if matches:
+            entry = matches[0]
+            project['reference_id'] = entry['id']
     if entry is None:
         seed = project.get('reference_entry')
         if not isinstance(seed, dict) or not index.TOKEN.fullmatch(seed.get('id', '')):
@@ -269,6 +276,8 @@ def final_reference(project, artifact, event, changes, expected):
         if entry.get('media_path') != media_path:
             raise ReviewError('The library video differs from this checkpoint. Ask your assistant to reconcile it.')
         actual_hash = next(f['sha256'] for f in event['files'] if f['path'] == artifact['path'])
+        if entry.get('source_sha256') is not None and entry['source_sha256'] != actual_hash:
+            raise ReviewError('The saved library video hash differs from this checkpoint. Ask your assistant to reconcile it.')
         for technique in data.get('techniques', []):
             for example in technique.get('examples', []):
                 if example.get('style_id') == entry['id'] and (

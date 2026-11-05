@@ -1,4 +1,15 @@
-# Current release validation — 0.1.0-beta.7 (2026-11-05)
+# Current release validation — 0.1.0-beta.8 (2026-11-05)
+
+- Registration records original added dates for new undated references, preserves saved dates and links on replacement, and connects exact own-video/project matches in either registration order. Registry/catalog updates use optimistic guards and a recoverable transaction. Final approval recovers one unambiguous missing link, preserving the existing record and original added date; recorded hashes, explicit links, source identity, removed markers and ambiguity checks remain enforced.
+- 173 Python and 103 Node UI tests pass locally. New cases cover both arrival orders, timestamp/link retention, unknown legacy dates, invalid input, transactional rollback, concurrent writes, exact approval recovery and idempotency, ambiguity/foreign/version/path/hash/removed/archive refusals, UI-intake date persistence and rendered Newest/Oldest/Name ordering independent of approval time. Test writes use disposable fixtures. JavaScript syntax and source/empty-seed checks pass.
+- A 122-file preflight export passed full fresh Apple Silicon setup, including optional transcription dependencies, empty collections/memory, a synthetic 2.4-second assembly and 5-second motion render with a visually inspected decoded frame. All 173 Python and 103 UI tests passed in that copy, and all files matched the source manifest. Package/browser caches on this Mac were reused. npm and both Python lock audits found no known vulnerabilities. No dependencies, renderer or media changed.
+- Populated beta.7 Git and ZIP upgrade/rollback rehearsals preserved all 22 existing owner files in each fixture, including legacy writing memory. The install check detected the planted README customization, which was retained. New registration after upgrading saved a date and retained it on replacement; scripting/memory records remained readable in another process. Source rollback kept newer owner data. Upgrades do not rewrite older catalogs or fabricate missing creation dates. Required CI and exact committed-tree checks remain publication gates.
+
+Independent-user/fresh-assistant, physical-device, other-platform media and real-media listening/performance pilots remain beta coverage. See docs/PILOT.md. Numbered GitHub tags/releases are authoritative for publication.
+
+---
+
+# Previous release validation — 0.1.0-beta.7 (2026-11-05)
 
 - Optional idea-first script writing, immutable drafts, compatible hook choices, direct edits, exact feedback handoffs, script approval and raw-footage handoff. Writing memory retains supported lessons and actual wording/feedback; new chats read relevant saved context. A compact shared reference provides flexible editorial guidance. No embedded model, analytics, dependency or renderer changes.
 - Local Python 3.13 checks pass: 165 Python tests and 102 Node UI tests, all JavaScript syntax, registry validators, source scanning and empty starter seeds. npm audit and pip-audit of the core and optional speech locks report no known vulnerabilities. Guarded HTTP actions, stale-version refusal, idempotent retries, evidence preservation, Forget/Undo and clipboard failure are covered with disposable fixtures.

@@ -8,11 +8,13 @@ import re
 import sys
 import tempfile
 import os
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'style-library'))
 import library
 import project_index as index
+import review_actions as storage
 from security import registered_file, MEDIA, NOTES
 
 def atomic(path, data):
@@ -22,6 +24,21 @@ def atomic(path, data):
     os.replace(name,path)
 
 def register(kind, manifest, replace=False):
+    with index.STATE_LOCK:
+        storage.check_storage()
+        for journal in storage.JOURNALS.glob('*/transaction.json'):
+            if json.loads(journal.read_text()).get('state') == 'prepared':
+                raise ValueError('An earlier save needs recovery before registering work.')
+        return register_locked(kind, manifest, replace)
+
+def register_locked(kind, manifest, replace):
+    snapshots = {}
+    for path in [index.REGISTRY, storage.CATALOG]:
+        if path.is_symlink() or path.resolve() != path.absolute():
+            raise ValueError('Registry must not be a symlink')
+        snapshots[path.resolve()] = path.read_bytes() if path.exists() else None
+    projects = json.loads(snapshots[index.REGISTRY.resolve()]) if snapshots[index.REGISTRY.resolve()] is not None else {'schema_version': 1, 'projects': []}
+    catalog = json.loads(snapshots[storage.CATALOG.resolve()]) if snapshots[storage.CATALOG.resolve()] is not None else {'schema_version': 4, 'entries': [], 'techniques': []}
     item=json.loads(Path(manifest).read_text())
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',item['id']):raise ValueError('Use a readable lowercase ID')
     if kind=='project':
@@ -33,7 +50,7 @@ def register(kind, manifest, replace=False):
         if item['primary_artifact'] not in {a['id'] for a in item['artifacts']}:raise ValueError('Unknown primary checkpoint')
         item['synced_on']=datetime.now(timezone.utc).date().isoformat()
         item.setdefault('input_note','Source files, exact versions and decisions are saved with this project.')
-        data=index.registry();target=index.REGISTRY;key='projects'
+        data=projects;target=index.REGISTRY;key='projects'
     else:
         required={'title','subtitle','version','collection','creator','creator_id','summary','tags','palette','traits','keep','avoid','moments','notes','poster','evidence'}
         if required-set(item):raise ValueError('Reference descriptor missing: '+', '.join(sorted(required-set(item))))
@@ -44,7 +61,7 @@ def register(kind, manifest, replace=False):
         if not poster.is_relative_to((ROOT/'style-library/dist/assets').resolve()) or not poster.is_file():raise ValueError('Create a genuine poster under dist/assets first')
         if item.get('delivery_status')=='final':raise ValueError('Register as review_pending; final requires an actual user decision')
         item['review_status']='review_pending' if item['collection']=='mine' else 'reference'
-        data=library.catalog();target=ROOT/'style-library/catalog.json';key='entries'
+        data=catalog;target=storage.CATALOG;key='entries'
         source=library.source_key(item['source_url']) if item.get('source_url') else None
         if source and any(e['id']!=item['id'] and e.get('source_url') and library.source_key(e['source_url'])==source for e in data[key]):raise ValueError('That original source is already registered')
     existing=next((i for i,x in enumerate(data[key]) if x['id']==item['id']),None)
@@ -57,6 +74,27 @@ def register(kind, manifest, replace=False):
         request=index.starter_request(item)
         if request and any(row.get('starter_request_id')==request and row['id']!=item['id'] for row in data[key]):
             raise ValueError('This script starter request already has a project. Continue there.')
+        previous_reference = data[key][existing].get('reference_id') if existing is not None else None
+        if previous_reference:
+            item.setdefault('reference_id', previous_reference)
+        if not item.get('reference_id'):
+            matches = library.project_reference_candidates(item, catalog)
+            if len(matches) > 1:raise ValueError('More than one library entry matches this checkpoint. Reconcile them before registration.')
+            if matches:item['reference_id'] = matches[0]['id']
+    else:
+        previous = data[key][existing] if existing is not None else None
+        date_fields = ['created_at', 'added_at', 'added_on']
+        if previous is not None:
+            for field in date_fields:
+                if field in previous:item[field] = previous[field]
+                elif any(previous.get(key) for key in date_fields):item.pop(field, None)
+        elif not any(item.get(field) for field in date_fields):
+            item['created_at'] = datetime.now(timezone.utc).isoformat()
+        else:
+            for field in date_fields:
+                if item.get(field):
+                    try:datetime.fromisoformat(item[field].replace('Z', '+00:00'))
+                    except (AttributeError, TypeError, ValueError):raise ValueError('Use an ISO date for the reference creation date.')
     if existing is not None:
         if not replace:raise ValueError('ID already exists. Read its decisions, then use --replace intentionally.')
         if data[key][existing].get('review_decision') or data[key][existing].get('approval'):
@@ -65,14 +103,23 @@ def register(kind, manifest, replace=False):
     # The Projects home lists projects.json in order, so a new project goes first.
     elif kind=='project':data[key].insert(0,item)
     else:data[key].append(item)
-    if target.is_symlink():raise ValueError('Registry must not be a symlink')
+    changes = {target.resolve(): storage.json_bytes(data)}
+    if kind == 'reference' and item['collection'] == 'mine':
+        project = next((p for p in projects['projects'] if p['id'] == item.get('project_id')), None)
+        if project and not project.get('reference_id'):
+            matches = library.project_reference_candidates(project, catalog)
+            if len(matches) > 1:raise ValueError('More than one library entry matches this checkpoint. Reconcile them before registration.')
+            if matches:
+                project['reference_id'] = matches[0]['id']
+                changes[index.REGISTRY.resolve()] = storage.json_bytes(projects)
     if target.exists():
         backup=ROOT/'style-library/runtime/registration-backups'/f'{target.stem}-{hashlib.sha256(target.read_bytes()).hexdigest()}.json'
         if not backup.exists():atomic(backup,json.loads(target.read_text()))
-    atomic(target,data)
+    expected = {path: hashlib.sha256(raw).hexdigest() if raw is not None else None for path, raw in snapshots.items()}
+    storage.commit(changes, {'request_id': str(uuid.uuid4()), 'operation': 'register-'+kind, 'id': item['id']}, expected)
     return item['id']
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('kind',choices=['project','reference']);parser.add_argument('manifest',type=Path);parser.add_argument('--replace',action='store_true');args=parser.parse_args()
     try:print(register(args.kind,args.manifest,args.replace))
-    except (ValueError,KeyError,OSError) as e:parser.exit(1,str(e)+'\n')
+    except (ValueError,KeyError,OSError,storage.ReviewError) as e:parser.exit(1,str(e)+'\n')

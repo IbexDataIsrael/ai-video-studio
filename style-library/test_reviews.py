@@ -106,6 +106,37 @@ class ReviewTests(unittest.TestCase):
         self.assertEqual(after['entries'][0]['delivery_status'],'final')
         self.assertEqual((self.project/'review.mp4').read_bytes(),b'current video fixture')
 
+    def test_final_recovers_one_exact_project_reference_without_duplicate_or_date_reset(self):
+        self.p.pop('reference_id');self.save()
+        data=json.loads(self.catalog.read_text())
+        data['entries'][0].update(project_id='demo',created_at='2026-10-01T10:00:00Z')
+        self.catalog.write_text(json.dumps(data));body=self.body()
+        result=reviews.apply_decision(body)
+        self.assertEqual(result['projects'][0]['reference_id'],'demo-video')
+        self.assertEqual(result['projects'][0]['state'],'final')
+        saved=json.loads(self.catalog.read_text())
+        self.assertEqual(len(saved['entries']),1)
+        self.assertEqual(saved['entries'][0]['created_at'],'2026-10-01T10:00:00Z')
+        self.assertEqual(saved['entries'][0]['traits'],self.entry['traits'])
+        self.assertEqual(saved['entries'][0]['moments'],self.entry['moments'])
+        self.assertTrue(reviews.apply_decision(body)['duplicate'])
+
+    def test_missing_reference_link_never_recovers_ambiguous_or_mismatched_sources(self):
+        for extra in [{'project_id':'other'}, {'version':'V99'}, {'media_path':'projects/demo/old.mp4'}, {'asset_type':'carousel'},
+                      {'source_sha256':'0'*64}, {'archived_from':'other'}, {'removed':True}, {'ambiguous':True}, {'explicit':True}]:
+            with self.subTest(extra=extra):
+                self.p.pop('reference_id',None)
+                if extra.get('explicit'):self.p['reference_id']='missing-explicit-link'
+                self.save()
+                entry={**self.entry,'project_id':'demo',**{k:v for k,v in extra.items() if k not in ['removed','ambiguous','explicit']}}
+                data={'entries':[entry],'techniques':[]}
+                if extra.get('removed'):data['removed_references']={'demo-video':{'removed_at':'2026-10-27T12:00:00Z'}}
+                if extra.get('ambiguous'):data['entries'].append({**entry,'id':'second-match'})
+                self.catalog.write_text(json.dumps(data));before={p:p.read_bytes() for p in [self.registry,self.catalog,self.project/'STATUS.md']}
+                with self.assertRaises(reviews.ReviewError):reviews.apply_decision(self.body())
+                self.assertFalse((self.project/'approval-state.json').exists())
+                self.assertEqual({p:p.read_bytes() for p in before},before)
+
     def test_reopen_preserves_final_reference_and_history(self):
         reviews.apply_decision(self.body())
         result = reviews.apply_decision(self.body('reopen'))

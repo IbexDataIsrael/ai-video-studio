@@ -18,6 +18,17 @@ class Quiet(Handler):
     def log_message(self,*args):pass
 
 class ReferenceTests(unittest.TestCase):
+    def test_ui_reference_creation_date_survives_duplicate_intake_and_edits(self):
+        from datetime import datetime
+        saved=intake.save(self.body)
+        entry=self.data()['entries'][0];created=entry['created_at']
+        self.assertIsNotNone(datetime.fromisoformat(created).tzinfo)
+        intake.save(self.body)
+        state=intake.current(saved['id'])
+        intake.save({'action':'edit','id':saved['id'],'revision':state['revision'],'title':'Updated','creator':'Demo Creator','note':'Keep the opening.'})
+        self.assertEqual(len(self.data()['entries']),1)
+        self.assertEqual(self.data()['entries'][0]['created_at'],created)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name).resolve();self.base=self.root/'style-library';self.base.mkdir()
         self.catalog=self.base/'catalog.json';self.catalog.write_text(json.dumps({'schema_version':4,'entries':[],'techniques':[]}))

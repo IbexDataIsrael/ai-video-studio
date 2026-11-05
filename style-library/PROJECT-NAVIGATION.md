@@ -40,3 +40,10 @@ POST /feedback-note accepts edit/delete/restore with the note's optimistic revis
 Storyboard scene changes update media and scene notes in place, retain the filmstrip and overview/disclosure state, keep per-scene drafts, and replace the hash without scrolling the page to the review header. Stage and version changes retain their existing navigation behavior.
 
 The scene strip belongs to the preview column, before scene details/feedback on narrow screens. Saved notes have an independently scrollable region, leaving the composer and note count visible. Keep each version’s note reading position; reveal newly saved/edited notes at the top. Automatically reveal a selected thumbnail horizontally on scene change, exact-link arrival and return from overview; never scroll the page to do so.
+
+
+## Library registration dates and links
+
+Use scripts/register.py reference for a new inspected library entry. New entries receive a real UTC creation timestamp when no saved date was supplied. Replacements retain existing created_at/added_at/added_on fields and do not synthesize a date for legacy records. Projects and own-video entries link in either registration order only when explicit project ID, current version and video path match exactly one active, unarchived entry. The reference and project link are committed together with optimistic registry guards and recovery copies.
+
+Final approval can recover that same unambiguous missing link, preserving the original added date and existing library record. It does not guess from titles/IDs or override an explicit reference link. Mismatched, ambiguous, removed and archived candidates are not automatically selected. Source hashes, exact files, technique snapshots and approval guards still apply. Recover older dates only from reliable evidence and preserve day-level precision where that is all that is known.

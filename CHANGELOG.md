@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.8 — Library registration and approval — 2026-11-05
+
+- Assistant/CLI reference registration automatically records a creation date for new undated entries and preserves existing dates on replacement. Older undated entries stay unknown; their dates are not fabricated during upgrades or approval.
+- Registering a project and its own video reference in either order stores the exact link. The reference and project link save together with conflict guards and recoverable writes.
+- Final approval reconnects one missing link when project ID, current version and media path match exactly. It retains the existing library entry, original added date, analysis and media. Ambiguous, removed, archived, foreign, wrong-version/path and hash-mismatched candidates remain blocked.
+- Newest added continues to mean original added date. Approval does not move an existing entry by changing its date. No dependency, renderer or owner-data migration.
+
+Follow docs/UPDATING.md in your existing installation. Preserve all owner data and local customizations.
+
 ## 0.1.0-beta.7 — Script writing — 2026-11-05
 
 - Start videos with Help me write a script or Edit my footage. The focused writing form accepts an idea, draft or video reference, with shared writing guidance and private writing memory.

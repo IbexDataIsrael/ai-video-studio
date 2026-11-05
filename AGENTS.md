@@ -27,6 +27,8 @@ For software changes or publication, read docs/RELEASE.md; for an installed stud
 
 ## Studio and reference upkeep
 
+Register new inspected library entries through scripts/register.py reference. It records the added date and links an exact own-video project match, preserving saved dates and links on replacement. Use this shared path instead of manually inserting new catalog records. Older undated entries retain unknown dates unless reliable evidence supports a correction. Final approval recovers an unambiguous missing link without guessing from titles or silently replacing sources.
+
 Read docs/HANDOFF.md and style-library/PROJECT-NAVIGATION.md. After saving production decisions, register current files/checkpoints and source-note hashes. Registration does not approve anything. Never refresh stale fingerprints without reading changed notes.
 
 A pasted library URL resolves #style, #technique/example or #project/artifact/frame against this workspace's registries; inspect the actual referenced media and notes. Localhost links do not upload or share files with another computer. The + selects only in this browser; Copy for chat copies the exact library link and its saved borrowing notes; Review selected references combines sources and notes. Preserve the exact chosen example. General receiving instructions belong here, not in long copied boilerplate.

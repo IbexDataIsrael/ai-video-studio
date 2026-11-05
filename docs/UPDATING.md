@@ -42,3 +42,8 @@ Optional script openings and copied revision feedback add project-local script-h
 
 
 Writing memory adds optional examples and forgotten_at fields to existing entries in style-library/writing-voice.json. Legacy entries keep their IDs, text, source and complete version history. Fresh installations start empty. Forget retains a record for explicit Undo while excluding it from active recall. Preserve these optional fields on updates. Rollback to a version predating these fields requires memory-compatible helpers to read enriched records. Keep the newer owner data intact.
+
+
+### Beta.7 → beta.8 — library dates and approval links
+
+This source-only fix adds automatic dates and exact linking to registration, plus guarded recovery of a missing link during final approval. No catalog rewrite or date migration runs during setup/update. Existing created_at/added_at/added_on values, undated records, reference IDs, removed markers, technique snapshots, approvals, histories and media are retained. Backfill an old date only from reliable saved evidence, retaining its known precision. Approval time is not an added date. New registration journals use the existing recoverable transaction format. Source rollback retains all owner data and newly saved links/dates.
