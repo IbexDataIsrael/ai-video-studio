@@ -11,7 +11,7 @@ import venv
 
 ROOT = Path(__file__).resolve().parents[1]
 PY = ROOT / '.venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
-ENV = {**os.environ, 'HYPERFRAMES_NO_UPDATE_CHECK': '1', 'HYPERFRAMES_NO_TELEMETRY': '1'}
+ENV = {**os.environ, 'HYPERFRAMES_NO_UPDATE_CHECK': '1', 'HYPERFRAMES_NO_TELEMETRY': '1', 'HYPERFRAMES_SKIP_SKILLS': '1'}
 
 def run(args):
     subprocess.run([str(a) for a in args], cwd=ROOT, env=ENV, check=True)
@@ -32,6 +32,25 @@ def node_supported():
         version = tuple(int(part) for part in result.stdout.strip().lstrip('v').split('.'))
         return len(version) == 3 and version >= (22, 12, 0)
     except (OSError, ValueError, subprocess.SubprocessError): return False
+
+def guard_renderer_update():
+    """Never replace dependencies underneath this installation's live editors."""
+    cli = ROOT/'node_modules/hyperframes/bin/hyperframes.mjs'
+    if not cli.is_file(): return
+    try:
+        result = subprocess.run(['node', str(cli), 'preview', '--list', '--json'],
+                                cwd=ROOT, env=ENV, capture_output=True, text=True,
+                                timeout=20, check=True)
+        data = json.loads(result.stdout)
+        sessions = data['result']['sessions']
+        if data.get('ok') is not True or not isinstance(sessions, list): raise ValueError()
+        for session in sessions:
+            directory = session['projectDir']
+            if not isinstance(directory, str) or not Path(directory).is_absolute(): raise ValueError()
+            if Path(directory).resolve().is_relative_to(ROOT.resolve()):
+                raise SystemExit('This studio has running HyperFrames previews. Media setup stopped before changing dependencies or projects. Save your work and close those previews, then rerun setup. See docs/UPDATING.md.')
+    except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError):
+        raise SystemExit('Could not verify running HyperFrames previews. Media setup stopped before changing dependencies or projects. Ask your assistant to inspect this installation before retrying. See docs/UPDATING.md.')
 
 def capability_report():
     tools = {t: bool(shutil.which(t)) for t in ['node', 'npm', 'ffmpeg', 'ffprobe']}
@@ -73,6 +92,7 @@ def main():
         if missing: raise SystemExit('Install these prerequisites first: '+', '.join(missing)+'. See SETUP.md; no global installs were attempted.')
         if not node_supported():
             raise SystemExit('Node 22.12.0 or newer is required by the pinned renderer. See SETUP.md.')
+        guard_renderer_update()
         if not PY.exists(): venv.EnvBuilder(with_pip=True).create(ROOT/'.venv')
         run([PY,'-m','pip','install','--require-hashes','-r','requirements.lock.txt'])
         if args.transcription:

@@ -1,5 +1,9 @@
 # Validation and known limits
 
+## Beta.11 — Existing-install media preflight — 2026-11-05
+
+Media setup checks the existing local renderer’s JSON preview inventory before venv/package installation. Owned sessions and unverifiable results stop safely, foreign installations are left alone, and fresh/studio-only paths remain independent. Regression cases verify refusal before owner/dependency writes, foreign-preview scope and malformed/unavailable inventory. 179 Python and 103 UI tests pass. An actual disposable existing installation with a live preview refused full setup without changing package/source/owner files, then passed preflight after that preview closed. Read-only checks also detected this private studio’s live previews, and both the old 0.8.144 and new 0.9.16 inventory schemas were verified. Renderer/dependency pins are unchanged from beta.9/10; their rendering/editor/upgrade evidence below remains applicable. A fresh beta.11 source ZIP passed full media setup/render, 179 Python/103 UI tests and all 122 source hashes. Populated beta.10 Git/ZIP updates and source/renderer rollback each preserved 22 owner files plus local customizations and newer script/memory records. The shared guide requires recoverable authored-source checkpoints and disposable verification, and warns against previewing accepted original compositions during an update.
+
 ## Beta.10 — Notice correction — 2026-11-05
 
 Only version labels and the HyperFrames attribution notice change from beta.9. HyperFrames still declares Apache-2.0. Executable source and all dependency pins/lock entries are identical after excluding the root release version fields; the beta.9 renderer/editor/upgrade evidence below remains applicable. The fresh install, source-manifest and hosted checks for the new release are verified separately. No owner-data rewrite or creative re-render is required.

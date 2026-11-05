@@ -30,6 +30,30 @@ class NodeVersionTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit,'22.12.0'):setup.main()
             self.assertEqual(list(root.iterdir()),[])
 
+class RendererUpdateTests(unittest.TestCase):
+    def test_active_owned_preview_stops_full_setup_before_install_or_writes(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);cli=root/'node_modules/hyperframes/bin/hyperframes.mjs';cli.parent.mkdir(parents=True);cli.write_text('retained CLI')
+            owner=root/'projects/demo/index.html';owner.parent.mkdir(parents=True);owner.write_text('accepted composition')
+            before={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+            listing={'ok':True,'result':{'sessions':[{'projectDir':str(root/'projects/demo'),'state':'running'}]}}
+            with patch.object(setup,'ROOT',root),patch.object(sys,'argv',['setup']),patch.object(setup.shutil,'which',return_value='/tool'),patch.object(setup,'node_supported',return_value=True),patch.object(setup.subprocess,'run',return_value=setup.subprocess.CompletedProcess([],0,stdout=json.dumps(listing))),patch.object(setup,'run',side_effect=AssertionError('No dependency install during active preview')):
+                with self.assertRaisesRegex(SystemExit,'running HyperFrames previews'):setup.main()
+            self.assertEqual(before,{str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()})
+    def test_foreign_preview_does_not_block_this_installation(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)/'studio';cli=root/'node_modules/hyperframes/bin/hyperframes.mjs';cli.parent.mkdir(parents=True);cli.write_text('CLI')
+            listing={'ok':True,'result':{'sessions':[{'projectDir':str(Path(folder)/'other-studio/projects/demo'),'state':'running'}]}}
+            with patch.object(setup,'ROOT',root),patch.object(setup.subprocess,'run',return_value=setup.subprocess.CompletedProcess([],0,stdout=json.dumps(listing))):setup.guard_renderer_update()
+    def test_unavailable_or_malformed_preview_inventory_stops_safely(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);cli=root/'node_modules/hyperframes/bin/hyperframes.mjs';cli.parent.mkdir(parents=True);cli.write_text('CLI')
+            for stdout in ['not JSON','{"ok":false,"result":{"sessions":[]}}','{"ok":true,"result":{}}']:
+                with self.subTest(stdout=stdout),patch.object(setup,'ROOT',root),patch.object(setup.subprocess,'run',return_value=setup.subprocess.CompletedProcess([],0,stdout=stdout)):
+                    with self.assertRaisesRegex(SystemExit,'Could not verify'):setup.guard_renderer_update()
+            with patch.object(setup,'ROOT',root),patch.object(setup.subprocess,'run',side_effect=OSError('unavailable')):
+                with self.assertRaisesRegex(SystemExit,'Could not verify'):setup.guard_renderer_update()
+
 class CapabilityTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)

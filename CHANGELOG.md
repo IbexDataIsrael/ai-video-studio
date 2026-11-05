@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0-beta.11 — Safer existing-studio updates — 2026-11-05
+
+- Before media setup installs anything, inspect the pinned renderer’s running preview inventory and stop safely if this installation owns an active preview or the inventory cannot be verified. Other installations are left running. Fresh installs and studio-only mode need no preview check.
+- Explain the existing-install update path, recoverable composition-source checkpoints, active-editor handling and disposable verification in the shared update guide. Do not automatically restart a preview on an accepted original composition. HyperFrames 0.9.16, its security override and other dependency pins remain unchanged.
+
 ## 0.1.0-beta.10 — Renderer notice correction — 2026-11-05
 
 - Make the HyperFrames dependency notice version-free after the renderer upgrade; its Apache-2.0 license is unchanged. Retains the tested 0.9.16 renderer, Undici 7.30.2 security override, Node requirement and CI reliability changes from beta.9. No application logic, dependency pin or owner-data change.

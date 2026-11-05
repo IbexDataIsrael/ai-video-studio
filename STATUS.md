@@ -1,6 +1,6 @@
-# AI Video Studio — 0.1.0-beta.10
+# AI Video Studio — 0.1.0-beta.11
 
-Beta.10 corrects the third-party dependency notice after beta.9; the renderer, dependency pins, application logic and owner-data behavior are unchanged.
+Beta.11 adds a media-setup preflight that refuses dependency replacement while this installation has live HyperFrames previews, or when that inventory cannot be verified. Other installations and studio-only mode are unaffected. The existing renderer and pins are retained.
 
 Prepared: 2026-11-05. HyperFrames 0.8.144 → 0.9.16 with a scoped Undici 7.30.2 override. The renderer and its browser tooling require Node 22.12.0 or newer; setup checks the full minimum before installing. GSAP and Python locks are unchanged. The local render wrapper retains no-update/no-telemetry behavior.
 
