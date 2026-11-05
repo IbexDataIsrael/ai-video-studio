@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-beta.9 — Renderer upgrade and CI reliability — 2026-11-05
+
+- Upgrade the pinned local HyperFrames renderer from 0.8.144 to 0.9.16, with a scoped Undici 7.30.2 override for the upstream HTTP dependency security fixes. GSAP and Python dependency pins stay unchanged.
+- Full media setup requires Node 22.12.0 or newer and rejects older versions before installation. Studio-only setup still needs no Node or renderer packages.
+- CI runs once per PR update, retains main/release-tag checks and manual dispatch, cancels superseded PR runs and uses the supported macOS Intel pool. The full Linux/macOS Python matrix, audits and release gate remain. Apple Silicon setup/render validation stays a separate release pilot.
+- Existing projects, media, saved reviews, editing working copies, libraries, scripts and writing memory are retained. Saved videos are not re-rendered by an application update.
+
+Follow docs/UPDATING.md from the published release and preserve local customizations.
+
 ## 0.1.0-beta.8 — Library registration and approval — 2026-11-05
 
 - Assistant/CLI reference registration automatically records a creation date for new undated entries and preserves existing dates on replacement. Older undated entries stay unknown; their dates are not fabricated during upgrades or approval.

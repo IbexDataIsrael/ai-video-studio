@@ -15,6 +15,21 @@ smoke=importlib.util.module_from_spec(spec);spec.loader.exec_module(smoke)
 setup_spec=importlib.util.spec_from_file_location('studio_setup',path.with_name('setup.py'))
 setup=importlib.util.module_from_spec(setup_spec);setup_spec.loader.exec_module(setup)
 
+class NodeVersionTests(unittest.TestCase):
+    def test_renderer_node_requirement(self):
+        for version, supported in [('v20.19.0',False),('v22.0.0',False),('v22.11.0',False),('v22.12.0',True),('v22.22.0',True),('v24.0.0',True),('unavailable',False)]:
+            with self.subTest(version=version), patch.object(setup.shutil,'which',return_value='/node'), patch.object(setup.subprocess,'run',return_value=setup.subprocess.CompletedProcess(['node'],0,stdout=version)):
+                self.assertEqual(setup.node_supported(),supported)
+    def test_missing_or_failed_node_check_is_not_ready(self):
+        with patch.object(setup.shutil,'which',return_value=None):self.assertFalse(setup.node_supported())
+        with patch.object(setup.shutil,'which',return_value='/node'),patch.object(setup.subprocess,'run',side_effect=OSError('unavailable')):self.assertFalse(setup.node_supported())
+    def test_old_node_stops_full_setup_before_any_install_or_owner_write(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            with patch.object(setup,'ROOT',root),patch.object(sys,'argv',['setup']),patch.object(setup.shutil,'which',return_value='/tool'),patch.object(setup,'node_supported',return_value=False),patch.object(setup,'run',side_effect=AssertionError('No install before prerequisites pass')):
+                with self.assertRaisesRegex(SystemExit,'22.12.0'):setup.main()
+            self.assertEqual(list(root.iterdir()),[])
+
 class CapabilityTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)

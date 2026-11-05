@@ -1,10 +1,10 @@
 {
   "name": "ai-video-studio",
-  "version": "0.1.0-beta.8",
+  "version": "0.1.0-beta.9",
   "private": true,
   "description": "A local home for AI-assisted video edits, storyboards and creative references.",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "studio": "python3 style-library/start.py",
@@ -15,7 +15,12 @@
   },
   "dependencies": {
     "gsap": "3.14.2",
-    "hyperframes": "0.8.144"
+    "hyperframes": "0.9.16"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "overrides": {
+    "hyperframes": {
+      "undici": "7.30.2"
+    }
+  }
 }
