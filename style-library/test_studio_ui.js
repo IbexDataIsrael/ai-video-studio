@@ -1,4 +1,24 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{readFileSync}=require('node:fs'),{join}=require('node:path'),{runInNewContext}=require('node:vm');
+test('library sorting uses original added dates, with stable undated entries and independent approval times',()=>{
+ const app=readFileSync(join(__dirname,'dist/app.js'),'utf8'),start=app.indexOf('function render(){'),end=app.indexOf('\nfunction setView(',start);
+ assert.ok(start>=0&&end>start);
+ const entries=[
+  {id:'older',title:'Alpha',created_at:'2026-11-01T10:00:00Z',approval:{at:'2026-11-05T10:00:00Z'}},
+  {id:'undated-one',title:'Delta'},
+  {id:'newer',title:'Beta',created_at:'2026-11-04T10:00:00Z'},
+  {id:'undated-two',title:'Gamma'}
+ ].map(e=>({subtitle:'',creator:'Owner',summary:'',tags:[],traits:{},...e}));
+ const nodes=new Map(),node=key=>{if(!nodes.has(key))nodes.set(key,{value:'all'});return nodes.get(key);};
+ node('#search').value='';node('#library-sort').value='newest';
+ const context={$:node,view:'videos',collection:'mine',entries,techniques:[],viewEntries:()=>entries,matchesSource:()=>true,
+  renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
+ runInNewContext(app.slice(start,end),context);context.render();
+ assert.equal(node('#gallery').innerHTML,'[newer][older][undated-one][undated-two]');
+ node('#library-sort').value='oldest';context.render();
+ assert.equal(node('#gallery').innerHTML,'[older][newer][undated-one][undated-two]');
+ node('#library-sort').value='name';context.render();
+ assert.equal(node('#gallery').innerHTML,'[older][newer][undated-one][undated-two]');
+});
 function menu(){
  const handlers={},summary={focused:false,focus(){this.focused=true;}},inside={},outside={};
  const picker={open:true,contains:target=>target===inside,querySelector:()=>summary};

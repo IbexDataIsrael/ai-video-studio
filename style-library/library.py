@@ -39,6 +39,20 @@ def catalog():
     path = BASE / 'catalog.json'
     return json.loads(path.read_text()) if path.exists() else {'schema_version': 4, 'entries': [], 'techniques': []}
 
+def project_reference_candidates(project, data):
+    """Exact active video sources only; titles and coincidentally matching IDs are not evidence."""
+    artifact = next((a for a in project.get('artifacts', []) if a.get('id') == project.get('primary_artifact')), None)
+    if not artifact or artifact.get('type') != 'video' or not artifact.get('version') or not artifact.get('path'):
+        return []
+    media = str(Path('projects') / project['id'] / artifact['path'])
+    removed = data.get('removed_references', {})
+    return [entry for entry in data.get('entries', []) if
+            isinstance(entry.get('id'), str) and re.fullmatch(r'[a-z0-9][a-z0-9-]*', entry['id']) and
+            entry.get('collection') == 'mine' and entry.get('asset_type', 'video') == 'video' and
+            entry.get('project_id') == project['id'] and
+            entry.get('version') == artifact['version'] and entry.get('media_path') == media and
+            not entry.get('archived_from') and entry['id'] not in removed]
+
 def entry_map():
     return {e['id']: e for e in catalog()['entries']}
 
