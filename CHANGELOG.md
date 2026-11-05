@@ -1,13 +1,19 @@
 # Changelog
 
-## Unreleased — optional script writing
+## 0.1.0-beta.7 — Script writing — 2026-11-05
 
-- Start videos with Help me write a script or Edit my footage. The focused writing form accepts an idea, draft or video reference, with shared writing guidance and private creator preferences.
+- Start videos with Help me write a script or Edit my footage. The focused writing form accepts an idea, draft or video reference, with shared writing guidance and private writing memory.
 - Optional Script section with a readable growing editor, exact saved versions, retained drafts and Refine in chat. Integrated opening choices show the current selection, highlight changed words and offer Undo while preserving saved versions. Edit script exposes Save changes/Cancel, and Save & copy feedback saves manual edits before copying the exact revision request. A visible feedback area with an optional reference copies an exact local revision request; original context stays under Your idea & references.
 - Approve the current script before recording. Hook options stay available, and the approved view provides a copyable handoff for raw footage and the spoken cut.
-- Owner controls for personal writing preferences, with source evidence, guarded saves and recoverable history.
+- Writing memory retains supported lessons with actual wording, feedback and source context. Readable notes offer Correct in chat and Forget with Undo. New chats recall relevant examples, while each fresh installation starts empty.
 - Simplified footage starter: one brief, optional recorded script, unified library/link inspiration cards and an exact read-only See message preview beside Copy request. Existing browser drafts and exact references are retained.
-- No embedded AI service or analytics integration.
+- A compact shared scriptwriting reference provides flexible principles and an optional storytelling framework. Writing and refinement continue in the editing chat.
+- Copied starters have exact request IDs so the matching saved script can be opened without losing an in-progress form.
+- No embedded AI service, analytics integration, dependency or renderer changes.
+
+### Upgrading from beta.6
+
+Use Updates in your existing studio and follow docs/UPDATING.md. Apply reviewed source only; preserve projects, media, catalogs/techniques, scripts and their histories, briefs, hooks, feedback, settings, writing memory and local customizations. Scripting records are optional and created only by explicit saves. Earlier footage-first projects continue normally.
 
 
 ## 0.1.0-beta.6 — 2026-11-01

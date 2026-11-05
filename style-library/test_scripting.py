@@ -30,6 +30,97 @@ class ScriptingTests(unittest.TestCase):
         return {'revision': state['revision'], 'request_id': str(uuid.uuid4()),
                 'preferences': [{'id': str(uuid.uuid4()), 'text': text, 'source': 'Explicit owner feedback on a script revision.'}]}
 
+    def remember(self, memory=None):
+        memory = memory or {'id': str(uuid.uuid4()), 'text': 'Use short, direct transitions.',
+                            'source': 'Explicit feedback in this chat.'}
+        return {'revision': scripting.voice_current()['revision'], 'request_id': str(uuid.uuid4()), 'memory': memory}
+
+    def example(self, **values):
+        return {'id': str(uuid.uuid4()), 'before': 'Longer wording.', 'after': 'Short wording.',
+                'feedback': 'This is shorter but it is still not great.', 'context': 'Shortening a spoken transition.', **values}
+
+    def test_writing_memory_remembers_exact_evidence_and_recall_keeps_qualified_feedback(self):
+        body = self.remember()
+        body['memory']['examples'] = [self.example()]
+        saved = scripting.voice_remember(body)
+        recalled = scripting.voice_recall('Shortening a spoken transition')
+        self.assertEqual(recalled['examples'][0]['feedback'], body['memory']['examples'][0]['feedback'])
+        self.assertEqual(recalled['preferences'][0]['text'], body['memory']['text'])
+        self.assertEqual(scripting.voice_memory_current(body['memory']['id'], saved['revision'])['memory'], saved['preferences'][0])
+        scripting.voice_remember(self.remember())
+        with self.assertRaises(FeedbackError):
+            scripting.voice_memory_current(body['memory']['id'], saved['revision'])
+        self.assertEqual(scripting.voice_remember(body), scripting.voice_current())
+
+    def test_memory_examples_accumulate_without_replacing_earlier_choices_or_legacy_notes(self):
+        legacy = self.voice()
+        scripting.voice_save(legacy)
+        note = {**legacy['preferences'][0], 'examples': [self.example()]}
+        first = self.remember(note)
+        scripting.voice_remember(first)
+        second = self.remember({**note, 'examples': [self.example(context='Personal story pacing.')]})
+        scripting.voice_remember(second)
+        self.assertEqual(len(scripting.voice_current()['preferences'][0]['examples']), 2)
+        self.assertEqual(scripting.voice_remember(second), scripting.voice_current())
+        old_caller = {**legacy, 'revision': scripting.voice_current()['revision'], 'request_id': str(uuid.uuid4())}
+        scripting.voice_save(old_caller)
+        self.assertEqual(len(scripting.voice_current()['preferences'][0]['examples']), 2)
+        self.assertEqual(scripting.voice_save(old_caller), scripting.voice_current())
+
+    def test_forget_survives_reload_and_legacy_saves_and_undo_restores_the_same_examples(self):
+        body = self.remember()
+        body['memory']['examples'] = [self.example()]
+        saved = scripting.voice_remember(body)
+        action = {'revision': saved['revision'], 'request_id': str(uuid.uuid4()),
+                  'memory_id': body['memory']['id'], 'forgotten': True}
+        forgotten = scripting.voice_forget(action)
+        self.assertEqual(forgotten['preferences'], [])
+        self.assertEqual(scripting.voice_recall()['examples'], [])
+        self.assertIn(body['memory']['id'], forgotten['forgotten_ids'])
+        with self.assertRaises(FeedbackError):
+            scripting.voice_remember(self.remember(body['memory']))
+        with self.assertRaises(FeedbackError):
+            scripting.voice_save({'revision': forgotten['revision'], 'request_id': str(uuid.uuid4()),
+                                   'preferences': [body['memory']]})
+        scripting.voice_remember(self.remember())
+        self.assertEqual(scripting.voice_forget(action), scripting.voice_current())
+        undo = {**action, 'revision': scripting.voice_current()['revision'], 'request_id': str(uuid.uuid4()), 'forgotten': False}
+        restored = scripting.voice_forget(undo)
+        self.assertEqual(next(p for p in restored['preferences'] if p['id'] == body['memory']['id']), body['memory'])
+        self.assertEqual(scripting.voice_forget(undo), restored)
+        state = json.loads((self.base/'writing-voice.json').read_text())
+        self.assertTrue(any(p.get('forgotten_at') for v in state['versions'] for p in v['value']))
+
+    def test_memory_source_script_validation_and_conflicting_writes_preserve_the_winner(self):
+        before = project_script.save(self.fixture.body('Longer wording.'))
+        after = project_script.save(self.fixture.body('Short wording.'))
+        example = self.example(project_id='demo', before_version=before['version_id'], after_version=after['version_id'])
+        body = self.remember()
+        body['memory']['examples'] = [example]
+        scripting.voice_remember(body)
+        bad = self.remember({**body['memory'], 'examples': [{**example, 'after': 'Made up wording.'}]})
+        with self.assertRaises(FeedbackError):
+            scripting.voice_remember(bad)
+        stale = self.remember()
+        winner = scripting.voice_remember(self.remember())
+        with self.assertRaises(FeedbackError):
+            scripting.voice_remember(stale)
+        self.assertEqual(scripting.voice_current(), winner)
+        self.assertEqual(project_script.current('demo')['text'], 'Short wording.')
+
+    def test_fresh_memory_recall_never_creates_owner_files_and_ranks_relevant_examples(self):
+        self.assertEqual(scripting.voice_recall()['examples'], [])
+        self.assertFalse((self.base/'writing-voice.json').exists())
+        a = self.remember()
+        a['memory']['examples'] = [self.example(context='Apartment tours and rental lists.')]
+        scripting.voice_remember(a)
+        b = self.remember()
+        b['memory']['examples'] = [self.example(context='Cooking dinner and baking a cake.')]
+        scripting.voice_remember(b)
+        self.assertEqual(scripting.voice_recall('Apartment rental tours', limit=1)['examples'][0]['memory_id'], a['memory']['id'])
+        with self.assertRaises(FeedbackError):
+            scripting.voice_recall(limit=-1)
+
     def brief(self, ready=None):
         return {'project_id': 'demo', 'revision': scripting.brief_current('demo')['revision'],
                 'request_id': str(uuid.uuid4()), 'idea': 'A useful idea', 'references': 'A source and what to borrow',
@@ -166,6 +257,18 @@ class ScriptingTests(unittest.TestCase):
             headers = {'Content-Type': 'application/json', 'Origin': origin, 'X-Studio-Action': 'writing-voice'}
             self.assertEqual(request('POST', '/writing-voice', body)[0], 403)
             self.assertEqual(request('POST', '/writing-voice', body, headers)[0], 200)
+            state = scripting.voice_current()
+            memory = {**state['preferences'][0], 'text': 'Keep the useful detail.'}
+            remember = {'revision': state['revision'], 'request_id': str(uuid.uuid4()), 'memory': memory}
+            self.assertEqual(request('POST', '/writing-memory', remember, headers)[0], 403)
+            headers['X-Studio-Action'] = 'writing-memory'
+            self.assertEqual(request('POST', '/writing-memory', remember, headers)[0], 200)
+            forget = {'revision': scripting.voice_current()['revision'], 'request_id': str(uuid.uuid4()),
+                      'memory_id': memory['id'], 'forgotten': True}
+            self.assertEqual(request('POST', '/writing-memory-forget', forget)[0], 403)
+            headers['X-Studio-Action'] = 'writing-memory-forget'
+            self.assertEqual(request('POST', '/writing-memory-forget', forget, headers)[0], 200)
+            self.assertEqual(scripting.voice_current()['preferences'], [])
             self.assertEqual(request('GET', '/writing-voice.json')[0], 404)
             self.assertEqual(request('GET', '/script-brief?project=demo')[0], 200)
             self.assertEqual(request('GET', '/script-brief?project=demo&project=demo')[0], 400)

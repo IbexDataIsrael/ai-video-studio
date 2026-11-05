@@ -172,9 +172,10 @@ test('automatic filmstrip reveal scrolls only horizontally and respects the over
 test('idea-first request uses writing context and does not require recorded footage',async()=>{
  const h=starter();h.node('journey-idea').listeners.click();h.input('start-goal','Explain the idea.');h.input('start-script','An opening draft.');h.input('start-references','A reference and what I like.');h.input('start-scriptreference','A video opening I want to adapt.');
  const message=h.node('#project-starter').value;
- assert.match(message,/SCRIPTING-BASELINE.md/);assert.match(message,/local writing preferences/);assert.match(message,/Initial script draft/);assert.doesNotMatch(message,/A reference and what I like/);assert.match(message,/A video opening I want to adapt/);
+ assert.equal(message,'Help me write a script for a new video in this studio. Follow docs/SCRIPTING.md.\n\nIdea and audience: Explain the idea.\n\nInitial script draft:\nAn opening draft.\n\nScript reference and what I like: A video opening I want to adapt.');
  assert.doesNotMatch(message,/attach my raw video|Script I recorded|spoken cut first/);assert.equal(h.node('#start-location').hidden,true);
  await h.copy();assert.match(h.node('#start-status').textContent,/develop your script/);
+ const id=copiedStarterId(h.copies[0]);assert.ok(id);assert.equal(h.copies[0],message+'\n\nStudio starter request ID: '+id);
  h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('journey-idea').attributes['aria-checked'],'true');assert.match(restored.node('#project-starter').value,/An opening draft/);
 });
 test('journey switches retain legacy request text without hidden overrides in the writing path',()=>{
@@ -294,7 +295,7 @@ test('a fresh video starter reveals fields only after an explicit, keyboard-acce
 
 test('an idea, a draft, or a reference can each start script writing without filling the other fields',async()=>{
  for(const [id,value] of [['start-goal','Show how this feature works.'],['start-script','My existing opening draft.'],['start-scriptreference','https://example.org/video — borrow its opening question.']]){
-  const h=starter({unselected:true});h.node('journey-idea').listeners.click();h.input(id,value);assert.equal(h.node('#start-copy').disabled,false);await h.copy();assert.equal(h.copies.length,1);assert.ok(h.copies[0].includes(value));assert.match(h.copies[0],/few distinct hook options/);assert.doesNotMatch(h.copies[0],/attach my raw video/);
+  const h=starter({unselected:true});h.node('journey-idea').listeners.click();h.input(id,value);assert.equal(h.node('#start-copy').disabled,false);await h.copy();assert.equal(h.copies.length,1);assert.ok(h.copies[0].includes(value));assert.match(h.copies[0],/Follow docs\/SCRIPTING\.md/);assert.ok(copiedStarterId(h.copies[0]));assert.doesNotMatch(h.copies[0],/attach my raw video/);
   h.api.close();const restored=starter({storage:h.storage});assert.equal(restored.node('#'+id).value,value);assert.equal(restored.node('journey-idea').attributes['aria-checked'],'true');
  }
 });
@@ -459,4 +460,108 @@ test('a clean reader remount adopts a saved revision without turning the previou
  assert.equal(h.field().value,'The new revision.');
  assert.equal(h.api.hasDraft(),false);
  assert.equal(h.button('script-state').textContent,'Saved');
+});
+
+function writingMemory(options = {}) {
+ const nodes = new Map(), copies = [], requests = [], documentHandlers = {};
+ const example = { id: 'example', before: 'A long explanation.', after: 'A short explanation.', feedback: 'Shorter, but still not great.', context: 'Spoken line revision.' };
+ let state = { revision: '1'.repeat(64), forgotten_ids: [], preferences: [{ id: 'memory', text: '<Keep it direct>', source: 'Explicit feedback.', examples: [example] }] };
+ const original = structuredClone(state.preferences[0]);
+ const receipts = new Map();
+ let loseReply = options.loseReply;
+ const node = key => {
+  if (!nodes.has(key)) nodes.set(key, {
+   hidden: false, value: '', textContent: '', innerHTML: '', open: false, isConnected: true, listeners: {},
+   setAttribute() {}, addEventListener(name, handler) { this.listeners[name] = handler; },
+   querySelector: selector => node(selector), querySelectorAll: () => [],
+   showModal() { this.open = true; }, close() { this.open = false; this.listeners.close?.(); },
+   focus() { this.focused = true; }, select() { this.selected = true; }
+  });
+  return nodes.get(key);
+ };
+ const context = {
+  window: {}, URL, URLSearchParams, location: { href: 'http://127.0.0.1:9999/#projects' },
+  crypto: require('node:crypto'), esc: value => String(value).replaceAll('<', '&lt;').replaceAll('>', '&gt;'),
+  document: { createElement: () => node('dialog'), body: { append() {} }, addEventListener: (name, handler) => { documentHandlers[name] = handler; } },
+  navigator: { clipboard: { async writeText(text) { if (options.clipboardFailure) throw Error('Unavailable'); copies.push(text); } } },
+  fetch: async (url, request) => {
+   requests.push({ url, body: request?.body ? JSON.parse(request.body) : null });
+   if (request?.body) {
+    const body = JSON.parse(request.body);
+    if (!receipts.has(body.request_id)) {
+     if (body.revision !== state.revision) return { ok: false, json: async () => ({ error: 'Writing memory changed.' }) };
+     state = { ...state, revision: String(Number(state.revision[0]) + 1).repeat(64),
+      preferences: body.forgotten ? [] : [structuredClone(original)], forgotten_ids: body.forgotten ? ['memory'] : [] };
+     receipts.set(body.request_id, true);
+     if (loseReply) { loseReply = false; throw Error('Connection lost'); }
+    }
+   }
+   return { ok: true, json: async () => structuredClone(state) };
+  }
+ };
+ runInNewContext(readFileSync(join(__dirname, 'dist/writing-voice-ui.js'), 'utf8'), context);
+ const flush = () => new Promise(resolve => setImmediate(resolve));
+ return {
+  node, copies, requests, context,
+  open: () => context.window.WritingVoice.open(node('opener')),
+  async click(selector, dataset) {
+   node('dialog').listeners.click({ target: { closest: key => key === selector ? { dataset } : null } });
+   await flush(); await flush();
+  },
+  async undo() { node('[data-undo-voice]').onclick(); await flush(); await flush(); },
+  async retry() { node('[data-retry-voice]').onclick(); await flush(); await flush(); },
+  changeElsewhere() { state.revision = '9'.repeat(64); },
+  get state() { return state; }
+ };
+}
+
+test('writing memory shows readable notes and exact feedback instead of a preference form', async () => {
+ const h = writingMemory(); await h.open();
+ assert.match(h.node('dialog').innerHTML, /Writing memory/);
+ assert.doesNotMatch(h.node('dialog').innerHTML, /Save preferences|Add a preference|data-voice-text/);
+ const content = h.node('[data-voice-list]').innerHTML;
+ assert.match(content, /&lt;Keep it direct&gt;/);
+ assert.match(content, /A long explanation/); assert.match(content, /Shorter, but still not great/);
+ assert.match(content, /Correct in chat/); assert.equal(h.copies.length, 0);
+});
+
+test('forget saves immediately and undo restores the same memory with its evidence', async () => {
+ const h = writingMemory(); await h.open();
+ await h.click('[data-forget-memory]', { forgetMemory: 'memory' });
+ assert.equal(h.state.preferences.length, 0); assert.equal(h.node('[data-undo-voice]').hidden, false);
+ await h.open(); assert.match(h.node('[data-voice-list]').innerHTML, /It starts with your first script/);
+ await h.undo(); assert.equal(h.state.preferences[0].examples[0].feedback, 'Shorter, but still not great.');
+ assert.equal(h.node('[data-undo-voice]').hidden, true);
+ h.node('[data-done-voice]').onclick(); assert.equal(h.node('dialog').open, false);
+});
+
+test('retrying a lost forget response reuses its request identity', async () => {
+ const h = writingMemory({ loseReply: true }); await h.open();
+ await h.click('[data-forget-memory]', { forgetMemory: 'memory' });
+ assert.equal(h.node('[data-retry-voice]').hidden, false);
+ await h.retry();
+ const posts = h.requests.filter(row => row.body);
+ assert.deepEqual(posts[0].body, posts[1].body);
+ assert.equal(h.state.preferences.length, 0); assert.equal(h.node('[data-undo-voice]').hidden, false);
+});
+
+test('a conflicting memory action requires a fresh read and keeps the winning memory', async () => {
+ const h = writingMemory(); await h.open(); h.changeElsewhere();
+ await h.click('[data-forget-memory]', { forgetMemory: 'memory' });
+ assert.equal(h.state.preferences.length, 1);
+ assert.match(h.node('[data-voice-status]').textContent, /changed/);
+ await h.open();
+ await h.click('[data-forget-memory]', { forgetMemory: 'memory' });
+ assert.equal(h.state.preferences.length, 0);
+});
+
+test('correct in chat pins the memory and revision and provides manual copying when needed', async () => {
+ const h = writingMemory(); await h.open();
+ await h.click('[data-correct-memory]', { correctMemory: 'memory' });
+ assert.match(h.copies[0], /writing-memory=memory&memory-revision=111/);
+ assert.match(h.copies[0], /<Keep it direct>/); assert.equal(h.requests.filter(row => row.body).length, 0);
+ const manual = writingMemory({ clipboardFailure: true }); await manual.open();
+ await manual.click('[data-correct-memory]', { correctMemory: 'memory' });
+ assert.equal(manual.node('[data-memory-copy]').hidden, false);
+ assert.equal(manual.node('[data-memory-copy]').selected, true);
 });

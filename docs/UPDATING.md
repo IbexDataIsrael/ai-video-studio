@@ -34,6 +34,11 @@ Beta.4 → beta.5 adds scripts/check_install.py, a served-file check in library 
 Beta.5 → beta.6 changes scripts/register.py so a newly registered project is inserted first in projects.json; --replace keeps a record's position and reference registrations still append. There is no interface, dependency, renderer or owner-data change, and existing projects.json order is not rewritten during the update.
 
 
+### Beta.6 → beta.7 — optional script writing
+
 The optional scripting feature adds shared writing guidance, an optional Script section, per-project script-brief.json and local style-library/writing-voice.json. Both owner records start absent/empty and are created only by a save. Setup must never seed over them. Preserve their complete histories with script-state.json when upgrading or rolling back source. Writing memory is private; it is not a template to copy from the maintainer.
 
 Optional script openings and copied revision feedback add project-local script-hooks.json and script-feedback.json only when explicitly saved/copied. They start absent; preserve all versions, request IDs and content revisions on upgrades/rollback. Older code does not display these records but must not remove them.
+
+
+Writing memory adds optional examples and forgotten_at fields to existing entries in style-library/writing-voice.json. Legacy entries keep their IDs, text, source and complete version history. Fresh installations start empty. Forget retains a record for explicit Undo while excluding it from active recall. Preserve these optional fields on updates. Rollback to a version predating these fields requires memory-compatible helpers to read enriched records. Keep the newer owner data intact.

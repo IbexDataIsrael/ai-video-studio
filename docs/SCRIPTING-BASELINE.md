@@ -1,65 +1,45 @@
-# Short-form script guidance
+# Short-form scriptwriting reference
 
-Shared editorial guidance · version 1. The current creator request and project context take precedence.
+This is the core shared editorial reference for writing scripts in Studio. Use the creator’s brief, reference intent, facts, and personal writing memory to choose what fits.
 
-Help the creator make a video worth starting, continuing and finishing. Find the interesting idea and express it clearly in their voice. Use the principles below to make specific editorial choices, not to generate a mandatory checklist for the user.
+A good opening gives the viewer a specific reason to stay. The rest of the video keeps giving them something for staying.
 
-## Follow the creator's direction
+## Principles to draw on
 
-The current request and verified facts come first. Preserve an accepted angle, hook or script during targeted refinements.
+- **Curiosity and contrast.** Find the gap between what the viewer expects and what the creator can show. Make the subject clear and leave a specific question worth answering. A recognizable problem or an unexpected result can do this.
+- **Speed to value.** Give the viewer an early detail, answer, or result worth hearing. The next line should advance the opening. Share something useful while a bigger question stays open.
+- **Value density.** Cut repeated promises, unnecessary setup, and transitions that delay the point. Keep examples, pauses, and personality that help the thought land. Each line should contribute curiosity, understanding, evidence, progression, feeling, or a relevant action.
+- **Clarity.** Use familiar words and active verbs. When an idea is unfamiliar, make it concrete with a short example or a visible result. Keep the strongest accurate wording easy to say aloud.
+- **Anticipation.** Give the viewer enough information to wonder what happens next, then deliver. A rehook can come from an answer that raises a new question or a development that changes the stakes.
+- **Rhythm and emotion.** Vary sentence length and write for how the creator speaks. Let a specific detail or decision carry the feeling. Read the draft aloud and revise the parts that stumble.
 
-When the creator supplies a reference, their stated borrowing intent sets the direction and takes precedence over this generic guidance. Inspect the actual source; ask for a usable video or transcript if inaccessible. Understand how it creates interest before adapting its structure, pacing or reveal. Use the creator's own experience and evidence; do not automatically carry over the source's wording or claims.
+## One framework to try
 
-Use known voice preferences where relevant; the project can establish a different tone.
+This structure suits a video with an early reward and a later revelation that adds something meaningful.
 
-## Principles that sharpen the script
-
-**Find the audience's reason to care.** Start from a recognizable desire, frustration or question. A specialist topic can have an accessible opening: "Why your kitchen videos look orange" gives viewers an entry into a technical explanation of white balance. Broaden the entry point when reach is the goal, while keeping the substance specific. A narrow topic can be right for a specialist audience; maximum audience size is not always the objective.
-
-**Create a specific question, often through contrast.** Compare what the viewer expects with what the story actually shows: a surprising cause, an unexpected result or a different reason for doing something. Identify the question the opening creates and where the script answers it. Contradiction is optional; curiosity can also come from an unresolved outcome or personal dilemma. Do not invent a contrarian claim or withhold an obvious answer to stretch the video.
-
-**Give a relevant reason to believe.** When the claim needs support, use firsthand experience, a demonstrable result, a comparison or an identified source. Visual proof can do this while the spoken story moves forward. A relevant observation may be stronger than a résumé. Never manufacture credentials, research or results. Keep metrics and time windows precise. This is the purpose of an early credibility beat, not a requirement for the second sentence.
-
-**Get to a concrete reward quickly.** Remove introductions that delay the useful or interesting part. Demonstrate a result, reveal a useful detail or make the promised experience tangible early. A setup can earn its place by creating necessary context or anticipation. Do not force value into the third line or announce "here are three things" when a demonstration would be clearer.
-
-**Make the substance worth keeping.** For educational content, look for a useful detail beyond familiar advice: a specific action, decision, example or explanation the viewer can apply. It need not be an unprecedented discovery. For a personal story or entertainment, value may be recognition, amusement or emotional meaning. Cut repeated explanations, but retain lines that contribute personality, trust or a satisfying conclusion.
-
-**Connect beats through consequences and complications.** Ask why each development changes what happens next. "But," "so" and "because" can reveal that relationship; adding those words alone does not create a story. A fictional repair example: "The bookcase fit, but the door wouldn't open. So I made the shelves shallower." Each beat changes the situation. A rehook should introduce a real question or development, not repeat the opening with louder wording.
-
-**Make the language felt and speakable.** Choose the emotional pull that belongs to the story: relief, recognition, amusement, surprise, concern or anticipation. Concrete details usually express it better than abstract hype. Vary sentence length, use familiar words and read aloud. Preserve a joke, pause or human aside when it helps the thought land. Concision means removing words that do no work, not removing every moment of personality.
-
-## Choose a hook that fits
-
-Consider a result, demonstration, surprising fact, personal experience, question, announcement, contrasting expectation or negative hook.
-
-A negative hook can name a frustrating habit, mistake, cost or obstacle. Be specific and support the claim; avoid invented problems, exaggerated consequences or attacks for attention.
-
-Choose what fits this story. Spoken and on-screen hooks can complement each other.
-
-Use a word bank as an optional wording pass after the premise is sound. Consider whether a stronger word adds the intended feeling and sounds natural for this creator. "A boring habit" can suggest an unexpected benefit; "a ridiculous workaround" can express frustration. Keep it only if the underlying story supports it. Emotional force should come from meaning, not a quota of provocative words.
-
-## Flexible storytelling functions
-
-Use any that help. Combine, reorder or omit them; this is not a required sequence.
-
-| Function | Useful purpose |
+| Beat | What it can give the viewer |
 | --- | --- |
-| Hook | Establish a clear, compelling reason to watch. |
-| Rehook | Introduce a relevant question, sharpen the stakes or reveal a new implication. |
-| Proof | Show a genuine result, example, source or firsthand experience. |
-| Build | Develop the idea through an understandable progression. |
-| Escalate | Reveal a genuinely bigger implication or surprise when one exists. |
-| Payoff | Fulfill the opening's promise with a useful or satisfying result. |
-| CTA | Offer one relevant next action when the goal calls for it. |
+| Hook | A clear subject and a reason to stop. |
+| Lock-in | A new detail, consequence, or promise that makes staying worthwhile. |
+| Setup and first payoff | Enough context to understand the first useful answer, example, or result. |
+| Rehook and escalation | A development that opens another question or expands what the first answer means. |
+| Second payoff | The answer or revelation that rewards that continued attention. |
+| CTA | One relevant next action, when the creator wants one. |
 
-A demonstration can open with proof; a personal story may build through small details. Do not manufacture a second revelation or add a rehook to fill a slot.
+Combine, reorder, or skip beats to fit the material. A quick reaction can land with one payoff. A list can give each item its own reward. A conversational story can offer recognition or an honest unresolved thought. Let the idea determine the length.
 
-There is no default runtime, sentence count, number of payoffs or attention-reset interval. Respect the requested length. Let the idea determine how much room it needs.
+## Two examples from the reference reels
 
-## Apply this lightly in chat
+**A list with an early reward and a later promise.** The three-books reel opens by comparing the books’ value with the speaker’s Stanford MBA. By 0:07, he has singled out the last book as one he wishes he’d found sooner. Around 0:09, he gives the first title and the specific jobs it helps with. The last book, around 0:53, addresses the problem of scaling beyond the founder’s own time. The first item earns attention while the later promise stays open. [Watch the three-books reel](https://www.instagram.com/reel/DZ0ZsxyviKC/)
 
-Start from the supplied idea, draft, source or footage. Ask only about missing information that materially changes the script. When the opening is still being chosen, offer a few distinct hook directions in chat, usually three, with a brief recommendation. Explore different reasons to watch rather than small word swaps. Let the creator choose or refine one before developing that direction; when a complete draft is requested, include it without forcing a separate selection step. When saving a draft whose opening is still being explored, save the compatible alternatives through scripting.hooks_save as described in SCRIPTING.md; chat text or a working Markdown file alone does not make them available in the studio. Include a natural bridge into the unchanged body. Preserve an already accepted hook during targeted revisions. No fixed number or hook formula is required.
+**A demonstration that grows in usefulness.** In Kallaway’s analysis workflow reel, the viewer learns by 0:10 that a command and video link can produce a breakdown. Around 0:26, he expands the use case to comparing an entire batch for recurring patterns. That second capability changes what the first is useful for. Find the real next development in the creator’s material and use it to carry the story forward. [Watch Kallaway’s workflow reel](https://www.instagram.com/reel/DZU1D_8OI62/)
 
-Give the requested script or revision first, with only useful explanation or essential visual cues. Detailed storyboarding is separate. Keep the intended script distinct from the words selected from recorded footage.
+## Work with the creator
 
-Check credibility, progression, payoff and natural delivery. Verify numbers, dates and factual claims. Treat writing advice as guidance to test, not a prediction of viral performance.
+When the angle is open, offer a few distinct openings and what each would deliver, with a recommendation. Continue from an opening they already like. When a full script is requested, provide it.
+
+During a targeted revision, preserve accepted wording and change the requested span. Ask only for missing context that would materially change the script. Use verified claims, the creator’s own experiences, and footage they can actually show. Keep reusable feedback with its source in the installation’s writing memory.
+
+[The Studio scripting workflow](SCRIPTING.md) covers saving drafts, hook options, feedback, and approvals.
+
+The principles above are an original summary informed by Kallaway’s guide and the reference reviews. [Short-Form Storytelling Principles](https://docs.google.com/document/d/1JZzncUMeC5HRVSk0G5JoRQRXrnhjPKEyGDPmmzDi8mQ/edit?tab=t.0)

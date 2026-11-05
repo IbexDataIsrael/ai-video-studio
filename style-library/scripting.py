@@ -145,33 +145,194 @@ def voice_context():
 
 
 def validate_preferences(preferences):
-    if not isinstance(preferences, list) or len(preferences) > 40:
+    if not isinstance(preferences, list) or len(preferences) > 400:
+        raise FeedbackError('Writing memory needs attention in chat. Existing memories are preserved.', 400)
+    if sum(not item.get('forgotten_at') for item in preferences if isinstance(item, dict)) > 40:
         raise FeedbackError('Keep up to 40 useful writing preferences.', 400)
     ids = set()
     for item in preferences:
-        if not isinstance(item, dict) or set(item) != {'id', 'text', 'source'}:
+        if (not isinstance(item, dict) or not {'id', 'text', 'source'} <= set(item) or
+                set(item) - {'id', 'text', 'source', 'examples', 'forgotten_at'}):
             raise FeedbackError('Use a valid writing preference.', 400)
         token(item['id'])
         if item['id'] in ids or not text(item['text'], 1000) or not text(item['source'], 2000):
             raise FeedbackError('Each preference needs its own identity, wording and source.', 400)
+        if 'forgotten_at' in item:
+            if not isinstance(item['forgotten_at'], str):
+                raise FeedbackError('Use a valid forgotten memory date.', 400)
+            try:
+                datetime.fromisoformat(item['forgotten_at'])
+            except ValueError as error:
+                raise FeedbackError('Use a valid forgotten memory date.', 400) from error
+        examples = item.get('examples', [])
+        if not isinstance(examples, list) or len(examples) > 8:
+            raise FeedbackError('Keep up to eight useful examples with each memory.', 400)
+        example_ids = set()
+        for example in examples:
+            required = {'id', 'before', 'after', 'feedback', 'context'}
+            optional = {'project_id', 'before_version', 'after_version'}
+            if not isinstance(example, dict) or not required <= set(example) or set(example) - required - optional:
+                raise FeedbackError('Save the wording, feedback and context for each writing example.', 400)
+            token(example['id'])
+            if example['id'] in example_ids or not text(example['feedback'], 4000):
+                raise FeedbackError('Each writing example needs its own identity and feedback.', 400)
+            for key in ['before', 'after', 'context']:
+                text(example[key], 4000)
+            if not example['before'].strip() and not example['after'].strip():
+                raise FeedbackError('Keep the actual wording with the feedback.', 400)
+            for key in ['before_version', 'after_version']:
+                if key in example and (not isinstance(example[key], str) or
+                        not re.fullmatch('[a-f0-9]{64}', example[key]) or not example.get('project_id')):
+                    raise FeedbackError('Link writing examples to an exact project script.', 400)
+            if 'project_id' in example and (not isinstance(example['project_id'], str) or
+                    not re.fullmatch('[a-z0-9][a-z0-9-]*', example['project_id'])):
+                raise FeedbackError('Use a valid source project.', 400)
+            example_ids.add(example['id'])
         ids.add(item['id'])
 
 
 def voice_current():
     with index.STATE_LOCK:
         _, data, value, revision = voice_context()
-        return {'revision': revision, 'preferences': value, 'version_count': len(data['versions'])}
+        return {'revision': revision, 'preferences': [p for p in value if not p.get('forgotten_at')],
+                'forgotten_ids': [p['id'] for p in value if p.get('forgotten_at')],
+                'version_count': len(data['versions'])}
+
+
+def voice_request_value(data, request_id):
+    token(request_id)
+    return next((v['value'] for v in data['versions'] if request_id in v['request_ids']), None)
 
 
 def voice_save(body):
     if not isinstance(body, dict) or set(body) != {'revision', 'request_id', 'preferences'}:
         raise FeedbackError('Use a valid writing preference request.', 400)
     with index.STATE_LOCK:
-        path, data, _, _ = voice_context()
+        path, data, current, _ = voice_context()
         validate_preferences(body['preferences'])
-        value = [{'id': p['id'], 'text': p['text'].strip(), 'source': p['source'].strip()} for p in body['preferences']]
+        requested = [{**p, 'text': p['text'].strip(), 'source': p['source'].strip()} for p in body['preferences']]
+        previous = voice_request_value(data, body['request_id'])
+        if previous is not None:
+            active = [p for p in previous if not p.get('forgotten_at')]
+            if len(active) != len(requested) or any(
+                    any(saved.get(key) != value for key, value in entry.items())
+                    for saved, entry in zip(active, requested)):
+                raise FeedbackError('This writing request was already used for different text.')
+            return voice_current()
+        by_id = {p['id']: p for p in current}
+        value = []
+        for preference in requested:
+            old = by_id.get(preference['id'], {})
+            if old.get('forgotten_at') or preference.get('forgotten_at'):
+                raise FeedbackError('Restore a forgotten memory explicitly before using it again.')
+            value.append({**old, **preference, 'text': preference['text'].strip(), 'source': preference['source'].strip()})
+        selected = {p['id'] for p in value}
+        at = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        value += [p if p.get('forgotten_at') else {**p, 'forgotten_at': at} for p in current if p['id'] not in selected]
+        validate_preferences(value)
         write(path, data, value, body['revision'], body['request_id'])
         return voice_current()
+
+
+def voice_remember(body):
+    if not isinstance(body, dict) or set(body) != {'revision', 'request_id', 'memory'}:
+        raise FeedbackError('Use a valid writing memory request.', 400)
+    memory = body['memory']
+    validate_preferences([memory])
+    if memory.get('forgotten_at'):
+        raise FeedbackError('Use Forget to manage an existing memory.', 400)
+    with index.STATE_LOCK:
+        path, data, current, _ = voice_context()
+        previous = voice_request_value(data, body['request_id'])
+        if previous is not None:
+            saved = next((p for p in previous if p['id'] == memory['id']), {})
+            saved_examples = {e['id']: e for e in saved.get('examples', [])}
+            if (any(saved.get(key) != value for key, value in memory.items() if key != 'examples') or
+                    any(saved_examples.get(e['id']) != e for e in memory.get('examples', []))):
+                raise FeedbackError('This writing request was already used for different text.')
+            return voice_current()
+        old = next((p for p in current if p['id'] == memory['id']), {})
+        if old.get('forgotten_at'):
+            raise FeedbackError('This memory was forgotten. Restore it explicitly before changing it.')
+        examples = {e['id']: e for e in old.get('examples', [])}
+        expected = {}
+        for example in memory.get('examples', []):
+            for key, wording in [('before_version', 'before'), ('after_version', 'after')]:
+                if key in example:
+                    script = project_script.current(example['project_id'], example[key])
+                    if example[wording] and example[wording] not in script['text']:
+                        raise FeedbackError('The example wording does not match its saved script.', 400)
+                    _, _, _, _, _, files, _ = project_script.context(example['project_id'])
+                    expected.update(files)
+            examples[example['id']] = example
+        updated = {**old, **memory}
+        if examples:
+            updated['examples'] = list(examples.values())
+        value = [updated if p['id'] == memory['id'] else p for p in current]
+        if not old:
+            value.append(updated)
+        validate_preferences(value)
+        write(path, data, value, body['revision'], body['request_id'], expected)
+        return voice_current()
+
+
+def voice_forget(body):
+    if (not isinstance(body, dict) or set(body) != {'revision', 'request_id', 'memory_id', 'forgotten'} or
+            type(body['forgotten']) is not bool):
+        raise FeedbackError('Use a valid memory action.', 400)
+    token(body['memory_id'])
+    with index.STATE_LOCK:
+        path, data, current, _ = voice_context()
+        previous = voice_request_value(data, body['request_id'])
+        if previous is not None:
+            saved = next((p for p in previous if p['id'] == body['memory_id']), None)
+            if saved is None or bool(saved.get('forgotten_at')) != body['forgotten']:
+                raise FeedbackError('This memory action was already used for a different change.')
+            return voice_current()
+        memory = next((p for p in current if p['id'] == body['memory_id']), None)
+        if memory is None:
+            raise FeedbackError('That writing memory is unavailable.', 404)
+        updated = {**memory}
+        if body['forgotten']:
+            updated['forgotten_at'] = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        else:
+            updated.pop('forgotten_at', None)
+        value = [updated if p['id'] == body['memory_id'] else p for p in current]
+        validate_preferences(value)
+        write(path, data, value, body['revision'], body['request_id'])
+        return voice_current()
+
+
+def voice_memory_current(memory_id, revision=None):
+    token(memory_id)
+    state = voice_current()
+    if revision is not None and revision != state['revision']:
+        raise FeedbackError('Writing memory changed. Copy a fresh correction request.')
+    memory = next((p for p in state['preferences'] if p['id'] == memory_id), None)
+    if memory is None:
+        raise FeedbackError('That writing memory is unavailable or forgotten.', 404)
+    return {'revision': state['revision'], 'memory': memory}
+
+
+def voice_recall(query='', project_id=None, limit=4):
+    query = text(query, 10000)
+    if type(limit) is not int or not 0 <= limit <= 8:
+        raise FeedbackError('Recall up to eight relevant writing examples.', 400)
+    if project_id is not None:
+        query += ' ' + brief_current(project_id)['idea']
+    terms = set(re.findall(r'\w{4,}', query.casefold()))
+    state = voice_current()
+    examples = []
+    for memory in state['preferences']:
+        for example in memory.get('examples', []):
+            words = set(re.findall(r'\w{4,}', ' '.join([memory['text'], example['context'],
+                example['feedback'], example['before'], example['after']]).casefold()))
+            score = len(terms & words)
+            examples.append((score, len(examples), {'memory_id': memory['id'], **example}))
+    examples.sort(key=lambda row: (row[0], row[1]), reverse=True)
+    return {'revision': state['revision'],
+            'preferences': [{key: p[key] for key in ['id', 'text', 'source']} for p in state['preferences']],
+            'examples': [row[2] for row in examples[:limit]]}
 
 
 # Optional opening sets are tied to immutable scripts. No choices are inferred from prose.

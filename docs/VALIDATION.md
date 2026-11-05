@@ -1,4 +1,16 @@
-# Current release validation — 0.1.0-beta.6 (2026-11-01)
+# Current release validation — 0.1.0-beta.7 (2026-11-05)
+
+- Optional idea-first script writing, immutable drafts, compatible hook choices, direct edits, exact feedback handoffs, script approval and raw-footage handoff. Writing memory retains supported lessons and actual wording/feedback; new chats read relevant saved context. A compact shared reference provides flexible editorial guidance. No embedded model, analytics, dependency or renderer changes.
+- Local Python 3.13 checks pass: 165 Python tests and 102 Node UI tests, all JavaScript syntax, registry validators, source scanning and empty starter seeds. npm audit and pip-audit of the core and optional speech locks report no known vulnerabilities. Guarded HTTP actions, stale-version refusal, idempotent retries, evidence preservation, Forget/Undo and clipboard failure are covered with disposable fixtures.
+- A 122-source-file preflight archive was extracted into a fresh directory and fully set up, including optional Apple Silicon transcription dependencies. Projects, references, techniques and writing memory started empty. Synthetic smoke completed the 2.4-second assembly and 5-second 1080×1920 motion render with the generated original unchanged. All 165 Python and 102 Node tests passed in that copy, and every source file matched its manifest. Package/browser caches on this Mac were reused.
+- Populated beta.6 Git and ZIP upgrade/rollback rehearsals preserved all 22 pre-existing owner-file hashes in each fixture, including media, source-pinned techniques, settings, scripts, feedback, approvals and legacy writing memory. The install check detected only a planted README customization, which was retained. After upgrading, script revisions, hooks, feedback, approval and enriched memory worked; a separate process could resume that saved context. Source rollback preserved data created after upgrading. Exact-commit release checks and CI are required before merge/publication.
+- Native browser checks during feature development covered script editing, hook selection/highlight/Undo, refinement copy, approval/recording handoff, starter result discovery and readable writing memory on desktop and a 390px viewport. Test writes stayed in disposable fixtures; existing owner files were verified independently. Reduced-motion and native keyboard controls are retained. A physical device, fresh human assistant session, independent machine, real-media take-selection/listening assessment and script-performance analytics remain outside these checks.
+
+This remains a beta. The reference helps writing choices; no viral outcome or script quality is guaranteed. See docs/PILOT.md for independent creator and other-platform coverage. Publication is verified against the actual numbered GitHub release.
+
+---
+
+# Previous release validation — 0.1.0-beta.6 (2026-11-01)
 
 - New-projects-first release: scripts/register.py inserts a newly registered project at the top of projects.json, --replace keeps a record's position and reference registrations still append. No interface, dependency or renderer pin changed, and existing project order is not rewritten.
 - 136 Python tests (including four disposable-fixture registration-order tests, one of which fails against the beta.5 register.py) and 51 Node UI tests, JavaScript syntax, exact committed source (116 files), version/tag consistency and empty-seed checks pass. npm audit and pip-audit of the core and optional speech locks report no known vulnerabilities.
