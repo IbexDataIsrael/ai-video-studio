@@ -26,7 +26,7 @@ __pycache__/
 *.pfx
 /.codex/
 /.claude/
-/.hyperframes/
+.hyperframes/
 /runtime/
 /releases/
 /examples/studio-check/output/

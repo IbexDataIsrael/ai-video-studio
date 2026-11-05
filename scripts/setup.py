@@ -29,7 +29,8 @@ def node_supported():
     if not shutil.which('node'): return False
     try:
         result = subprocess.run(['node', '--version'], capture_output=True, text=True, timeout=10, check=True)
-        return int(result.stdout.strip().lstrip('v').split('.')[0]) >= 22
+        version = tuple(int(part) for part in result.stdout.strip().lstrip('v').split('.'))
+        return len(version) == 3 and version >= (22, 12, 0)
     except (OSError, ValueError, subprocess.SubprocessError): return False
 
 def capability_report():
@@ -70,8 +71,8 @@ def main():
     if not args.studio_only:
         missing = [t for t in ['node', 'npm', 'ffmpeg', 'ffprobe'] if not shutil.which(t)]
         if missing: raise SystemExit('Install these prerequisites first: '+', '.join(missing)+'. See SETUP.md; no global installs were attempted.')
-        if int(subprocess.check_output(['node','--version'],text=True).strip().lstrip('v').split('.')[0]) < 22:
-            raise SystemExit('Node 22 or newer is required.')
+        if not node_supported():
+            raise SystemExit('Node 22.12.0 or newer is required by the pinned renderer. See SETUP.md.')
         if not PY.exists(): venv.EnvBuilder(with_pip=True).create(ROOT/'.venv')
         run([PY,'-m','pip','install','--require-hashes','-r','requirements.lock.txt'])
         if args.transcription:

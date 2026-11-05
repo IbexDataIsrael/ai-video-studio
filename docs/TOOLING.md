@@ -9,3 +9,9 @@ Use `python3 scripts/hf.py <command> ...` for the local renderer. It sets no-upd
 Source/rights ledger: origin, owner, permission, purpose and limitations. Epidemic Sound is an optional source to evaluate with the user's own coverage; no tracks/account coverage ship here. Record edited-time cues and listen for clipped words, masking and excessive repetition. No background music by default.
 
 Run python3 scripts/setup.py --check for the capability report. It checks local prerequisites/packages and leaves browser/site/image-generation availability for the assistant to verify in chat. docs/CAPABILITIES.md explains fallbacks. Simple sound effects can be synthesized locally with code and FFmpeg; a commercial library is optional. Local availability does not prove audible quality.
+
+## Pinned renderer maintenance
+
+This release pins HyperFrames 0.9.16 and retains GSAP 3.14.2. Full media setup needs Node >=22.12.0. HyperFrames currently pins Undici 7.25.0 upstream; the scoped npm override selects patched Undici 7.30.2 within its 7.x line. Keep the override and package-lock.json together, audit after any dependency change and rerun local rendering/editor checks before removing or changing it. Do not run npm audit fix --force or an unpinned upgrade in an owner's studio.
+
+Local check, render and the isolated editor handoff were exercised with synthetic sources; an app update does not rewrite accepted compositions or videos. The 0.9 distributed cloud protocol change is outside the default local workflow. Custom Lambda/Cloud Run owners must migrate their own optional stacks together with their SDK; this release does not deploy or validate cloud infrastructure.

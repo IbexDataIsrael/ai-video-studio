@@ -1,7 +1,9 @@
-# AI Video Studio — 0.1.0-beta.8
+# AI Video Studio — 0.1.0-beta.9
 
-Prepared: 2026-11-05. Library registration now records creation dates and stores exact project-to-reference links in either registration order. Final approval can recover one missing link when project ID, current version and video path match one active library entry. Ambiguous, removed, archived, foreign and mismatched sources remain blocked. A recorded source hash must match the approved video.
+Prepared: 2026-11-05. HyperFrames 0.8.144 → 0.9.16 with a scoped Undici 7.30.2 override. The renderer and its browser tooling require Node 22.12.0 or newer; setup checks the full minimum before installing. GSAP and Python locks are unchanged. The local render wrapper retains no-update/no-telemetry behavior.
 
-Registration commits the library entry and matching project link together with guarded writes and recovery history. Existing creation dates and project links survive descriptor replacements; undated legacy entries are not assigned today's date. Sorting remains Newest added, using original saved dates rather than approval time.
+CI cleanup was separately reviewed in PR #26: one run per PR update, retained main/v* tag verification, manual dispatch and cancellation of superseded PR runs. Linux/macOS Intel Python 3.11/3.13, all tests, audits and the required release gate remain. Apple Silicon media/setup verification is a separate local pilot; Intel CI does not establish that coverage.
 
-There is no renderer, dependency or media change. Upgrades apply source only and preserve owner projects, media, libraries, techniques, scripts, settings, feedback, approvals, memory and local customizations. See docs/VALIDATION.md for checks and limits, docs/UPDATING.md for updates and docs/RELEASE.md for publication. The numbered GitHub release is authoritative for publication state.
+Upgrade reviewed source and pinned media dependencies only, keeping the installation's capability mode. Preserve all owner projects/media/library/techniques/scripts/settings/feedback/approvals/memory and editor working copies; there is no owner-data migration or automatic creative re-render. Read docs/UPDATING.md. Source rollback retains newer owner data and restores the previous renderer lock with npm ci for a media installation. Cloud rendering is optional and untested here; 0.9 uses distributed Plan v2 and owners of custom 0.8 cloud stacks must follow upstream migration guidance before using those stacks.
+
+See docs/VALIDATION.md for observed checks and limits. The numbered GitHub release is authoritative for publication state.
