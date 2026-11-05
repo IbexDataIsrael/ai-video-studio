@@ -76,10 +76,12 @@ def current(project_id, version=None):
         if version is not None and saved is None: raise FeedbackError('That saved script version is unavailable.', 404)
         return {'project_id': project_id, 'title': project['title'], 'revision': revision,
                 'version_id': saved['id'] if saved else None, 'text': saved['text'] if saved else original,
+                'current_version_id': data['current'],
+                'versions': [{'id': v['id'], 'at': v.get('at', ''), 'origin': v.get('origin', 'studio'), 'preview': v['text'][:90]} for v in reversed(data['versions'])],
                 'version_count': len(data['versions']), 'original': original, 'assembled': assembled}
 
 
-def save(body):
+def save(body, expected_files=None):
     if (not isinstance(body, dict) or set(body) != {'project_id', 'revision', 'request_id', 'text'} or
             not all(isinstance(v, str) for v in body.values()) or not re.fullmatch(r'[a-f0-9]{64}', body['revision'])):
         raise FeedbackError('Use a valid project script request.', 400)
@@ -111,5 +113,5 @@ def save(body):
             data['versions'].append(version)
         version['request_ids'].append(body['request_id'])
         data['current'] = version_id
-        storage.commit({path: storage.json_bytes(data)}, {**body, 'text': text, 'operation': 'save-project-script'}, expected)
+        storage.commit({path: storage.json_bytes(data)}, {**body, 'text': text, 'operation': 'save-project-script'}, {**expected, **(expected_files or {})})
         return {**current(project['id']), 'saved_version_id': version_id}

@@ -11,6 +11,7 @@ from library import BASE, STUDIO
 REGISTRY = BASE / 'projects.json'
 STATE_LOCK = threading.RLock()
 TOKEN = re.compile(r'^[a-z0-9][a-z0-9-]*$')
+START_REQUEST = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}')
 MIME = {
     '.mp4': 'video/mp4', '.mov': 'video/quicktime', '.png': 'image/png',
     '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp',
@@ -178,11 +179,23 @@ def _public_index():
     return data
 
 
+def starter_request(project):
+    if 'starter_request_id' not in project:
+        return None
+    value = project['starter_request_id']
+    if project.get('format') != 'video' or not isinstance(value, str) or not START_REQUEST.fullmatch(value):
+        raise ValueError('Use the copied script starter request ID for a video project')
+    return value
+
+
 def validate():
     projects = registry()['projects']
     ids = [p['id'] for p in projects]
     if len(ids) != len(set(ids)):
         raise ValueError('Duplicate project ID')
+    requests = [value for project in projects if (value := starter_request(project))]
+    if len(requests) != len(set(requests)):
+        raise ValueError('Duplicate script starter request ID')
     for project in projects:
         artifact_ids = [a['id'] for a in project['artifacts']]
         if len(artifact_ids) != len(set(artifact_ids)):

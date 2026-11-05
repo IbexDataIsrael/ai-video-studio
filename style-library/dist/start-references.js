@@ -1,6 +1,12 @@
 /* Project-only inspiration. Browsing/copying never edits the library or its selection. */
 window.StartReferences=(()=>{
- const targetKey=t=>JSON.stringify([t.reference_id,t.example_id||null,t.slide||null]);
+ const isLink=r=>r?.kind==='link';
+ const targetKey=t=>isLink(t)?JSON.stringify(['link',t.url]):JSON.stringify([t.reference_id,t.example_id||null,t.slide||null]);
+ function link(value,note=''){
+  let url;try{url=new URL(value.trim());}catch{throw Error('Paste a full video link, starting with https://.');}
+  if(!['https:','http:'].includes(url.protocol)||url.username||url.password||url.href.length>10000)throw Error('Use an http or https video link without sign-in details.');
+  return {kind:'link',url:url.href,note:String(note).slice(0,2000),details:{title:url.hostname.replace(/^www\./,''),label:'',kind:'link'}};
+ }
  const noteValue=r=>({note:typeof r?.note==='string'?r.note.slice(0,2000):'',time:typeof r?.time==='number'&&Number.isFinite(r.time)&&r.time>=0?Math.round(r.time*100)/100:null,focus:typeof r?.focus==='string'?r.focus.slice(0,1000):''});
  const hasNote=r=>{const n=noteValue(r);return !!(n.note.trim()||n.time!==null||n.focus.trim());};
  const target=t=>({reference_id:t.reference_id,example_id:t.example_id||null,slide:t.slide||null});
@@ -26,28 +32,30 @@ window.StartReferences=(()=>{
  }
  function text(rows){
   if(!rows.length)return '';
-  let value=(rows.length===1?'Use this reference:':'Use these references:')+'\n\n'+rows.map(r=>r.message).join('\n\n');
-  const notes=rows.filter(hasNote);if(notes.length)value+='\n\nFor this project:\n'+notes.map(r=>{const n=noteValue(r),position=n.time!==null?'At '+exact(n.time):n.focus.trim()?'Moment or time range: '+n.focus.trim():'';return (r.details.label||r.details.title)+(position?' — '+position:'')+(n.note.trim()?': '+n.note.trim():'');}).join('\n');
+  let value=(rows.length===1?'Use this reference:':'Use these references:')+'\n\n'+rows.map(r=>isLink(r)?r.url:r.message).join('\n\n');
+  const notes=rows.filter(hasNote);if(notes.length)value+='\n\nFor this project:\n'+notes.map(r=>{const n=noteValue(r),position=n.time!==null?'At '+exact(n.time):n.focus.trim()?'Moment or time range: '+n.focus.trim():'';return (isLink(r)?r.url:r.details.label||r.details.title)+(position?' — '+position:'')+(n.note.trim()?': '+n.note.trim():'');}).join('\n');
   return value;
  }
  async function validate(rows){
   if(!rows.length)return;
+  rows.filter(isLink).forEach(r=>link(r.url));rows=rows.filter(r=>!isLink(r));if(!rows.length)return;
   rows.forEach(r=>{const d=resolve(r),n=noteValue(r);if(n.time!==null&&(n.time<d.start||d.end!==null&&n.time>d.end))throw Error('Review the timestamp for this exact example before copying.');});const result=await handoff(rows),expected=(rows.length===1?'Use this reference:':'Use these references:')+'\n\n'+rows.map(r=>r.message).join('\n\n');
   if(result.text.trim()!==expected.trim())throw Error('A selected reference or its saved notes changed. Remove it and select it again before copying.');
  }
  function restore(rows){
   if(!Array.isArray(rows))return [];
   const seen=new Set();return rows.slice(0,60).filter(r=>{
+   if(isLink(r)){let normalized;try{normalized=link(r.url);}catch{return false;}const key=targetKey(normalized);if(seen.has(key))return false;seen.add(key);return true;}
    if(!r||typeof r.reference_id!=='string'||typeof r.context_revision!=='string'||!Array.isArray(r.note_ids)||!r.note_ids.every(n=>typeof n==='string')||typeof r.message!=='string'||!r.details||typeof r.details.title!=='string')return false;
    if(r.example_id!==null&&typeof r.example_id!=='string'||r.slide!==null&&(!Number.isInteger(r.slide)||r.slide<1))return false;
    const key=targetKey(r);if(seen.has(key))return false;seen.add(key);return true;
-  }).map(r=>({...r,...noteValue(r)}));
+  }).map(r=>isLink(r)?link(r.url,r.note):({...r,...noteValue(r)}));
  }
  function selectedTargets(){
   let slides={};try{slides=JSON.parse(localStorage.getItem('ai-video-studio-reference-slides-v1')||'{}');}catch{}
   return [...selected].map(id=>{const e=item(id);return e?{reference_id:id,example_id:isTech(e)?example(e,false).id:null,slide:isCarousel(e)&&Number.isInteger(slides?.[id])?slides[id]:null}:null;}).filter(Boolean);
  }
- function create({dialog,get,set,showPicker,state=()=>{},level=()=>{},getDrafts=()=>({}),setDrafts=()=>{}}){
+ function create({dialog,get,set,showPicker,state=()=>{},level=()=>{},getDrafts=()=>({}),setDrafts=()=>{},getLinkDraft=()=>'',setLinkDraft=()=>{}}){
   const summary=dialog.querySelector('#start-reference-summary'),host=dialog.querySelector('#start-picker');
   let kind='videos',collection='all',query='',family=null,preview=null,loading=false,busy=false,run=0,visible=false,message='',browseScroll=0,browseFocus=null,noteRun=0,noteLoading=false,noteError='';
   const fresh=new Map();
@@ -68,10 +76,22 @@ window.StartReferences=(()=>{
    const row=rowFor(t),n=noteValue(row),disabled=!row||inPreview&&noteLoading||stale(t),position=n.time!==null?'✓ Note time: '+exact(n.time):d.kind==='technique'?'This example · '+exact(d.start)+'–'+exact(d.end):'Whole reference';
    return '<section class="start-project-note" data-project-note="'+esc(encodeURIComponent(targetKey(t)))+'">'+(stale(t)?'<div class="start-note-warning"><p>The source changed. Review your note before using it with this version.</p><button type="button" class="secondary" data-ref-rebase>Use note with this source</button><small>Clears the earlier timestamp or time range.</small></div>':'')+'<label for="start-borrow-'+id+'">What to borrow for this project <small>optional</small></label><textarea id="start-borrow-'+id+'" data-ref-note rows="2" maxlength="2000" placeholder="e.g. The opening headline, with my own footage"'+(disabled?' disabled':'')+'>'+esc(n.note)+'</textarea><div class="start-note-time'+(n.time!==null?' is-attached':'')+'"><span>'+esc(position)+'</span>'+(n.time!==null?'<button type="button" class="text-button" data-ref-remove-time>Remove timestamp</button>':'')+'</div>'+(d.media?'<button type="button" class="secondary start-note-timestamp" data-ref-timestamp'+(disabled||inPreview&&!(host.querySelector('video')?.readyState>=1)?' disabled':'')+'>Add timestamp</button>':'<label class="start-note-focus" for="start-focus-'+id+'">Moment or time range <small>optional</small><input id="start-focus-'+id+'" data-ref-focus maxlength="1000" value="'+esc(n.focus)+'" placeholder="e.g. 0:02–0:05, or the opening headline"'+(disabled?' disabled':'')+'></label>')+'<p class="start-note-helper">'+esc(inPreview&&noteLoading?'Loading reference context…':inPreview&&noteError?noteError:stale(t)?'Review this note before copying.':choose(t)?'Kept in this project draft and included in Copy request.':'Your note stays in this draft. Add this reference to include it in your request.')+'</p>'+(inPreview&&noteError?'<button type="button" class="text-button" data-ref-note-retry>Try again</button>':'')+'</section>';
   }
+  function summaryNote(r,i){
+   const n=noteValue(r),position=n.time!==null?'At '+exact(n.time):n.focus.trim();
+   return '<label for="start-summary-note-'+i+'">What would you like to borrow?</label><textarea id="start-summary-note-'+i+'" data-ref-summary-note="'+i+'" rows="2" maxlength="2000" placeholder="e.g. The opening question or the animated diagrams">'+esc(n.note)+'</textarea>'+(position?'<small class="start-summary-position">'+esc(position)+'</small>':'')+(!isLink(r)?'<details class="start-source-options"><summary>Reference details</summary>'+composer(r,'summary-'+i)+(r.message.split('\n').length>2?'<p>'+esc(r.message.split('\n').slice(2).join('\n'))+'</p>':'')+'</details>':'');
+  }
   function summaryRender(){
    const rows=get(),selection=selectedTargets();
-   summary.innerHTML='<div class="start-reference-actions"><button type="button" class="secondary" data-ref-browse>Browse library</button>'+(selection.length?'<button type="button" class="text-button" data-ref-import>Use your '+(selection.length===1?'selected reference':selection.length+' selected references')+'</button>':'')+'</div><div class="start-chosen-references">'+rows.map((r,i)=>'<article class="start-chosen-reference"><div><button type="button" class="start-chosen-preview" data-ref-watch="'+esc(r.reference_id)+'"'+(r.example_id?' data-example-id="'+esc(r.example_id)+'"':'')+' aria-label="View '+esc(r.details.label||r.details.title)+'"><img src="'+esc(r.details.poster)+'" alt=""></button><div><strong>'+esc(r.details.title)+'</strong><span>'+esc([r.details.label,r.details.creator,r.slide?'Slide '+r.slide:''].filter(Boolean).join(' · '))+'</span></div><button type="button" class="text-button" data-ref-remove="'+i+'" aria-label="Remove '+esc(r.details.label||r.details.title)+' from this project">Remove</button></div>'+composer(r,'summary-'+i)+((r.message.match(/\n/g)||[]).length>1?'<details><summary>Included library notes</summary><p>'+esc(r.message.split('\n').slice(2).join('\n'))+'</p></details>':'')+'</article>').join('')+'</div><p class="start-reference-status" role="status">'+esc(message)+'</p>';
+   summary.innerHTML='<div class="start-reference-actions"><button type="button" class="secondary" data-ref-browse>Browse library</button><button type="button" class="secondary" data-ref-paste aria-expanded="'+linkOpen+'" aria-controls="start-link-entry">Paste a video link</button>'+(selection.length?'<button type="button" class="text-button" data-ref-import>Use your '+(selection.length===1?'selected reference':selection.length+' selected references')+'</button>':'')+'</div><div id="start-link-entry"'+(linkOpen?'':' hidden')+'><label for="start-video-link">Video link</label><div class="start-link-input"><input id="start-video-link" type="url" inputmode="url" maxlength="10000" placeholder="https://…" value="'+esc(getLinkDraft())+'"><button type="button" class="secondary" data-ref-add-link>Add link</button></div><p class="start-field-help">Use it as inspiration for this project.</p></div><div class="start-chosen-references">'+rows.map((r,i)=>'<article class="start-chosen-reference"><div>'+(isLink(r)?'<span class="start-link-icon" aria-hidden="true">↗</span>':'<button type="button" class="start-chosen-preview" data-ref-watch="'+esc(r.reference_id)+'"'+(r.example_id?' data-example-id="'+esc(r.example_id)+'"':'')+' aria-label="View '+esc(r.details.label||r.details.title)+'"><img src="'+esc(r.details.poster)+'" alt=""></button>')+'<div><strong>'+esc(r.details.title)+'</strong>'+(isLink(r)?'<a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">'+esc(r.url)+'</a>':'<span>'+esc([r.details.label,r.details.creator,r.slide?'Slide '+r.slide:''].filter(Boolean).join(' · '))+'</span>')+'</div><button type="button" class="text-button" data-ref-remove="'+i+'" aria-label="Remove '+esc(r.details.label||r.details.title)+' from this project">Remove</button></div>'+summaryNote(r,i)+'</article>').join('')+'</div><p class="start-reference-status" role="status">'+esc(message)+'</p>';
    summary.querySelectorAll('[data-ref-import],[data-ref-browse]').forEach(b=>b.disabled=busy);state();
+  }
+  let linkOpen=!!getLinkDraft();
+  function addLink(){
+   const input=summary.querySelector('#start-video-link');
+   try{const row=link(input.value),index=get().findIndex(r=>targetKey(r)===targetKey(row));
+    if(index<0){if(get().length>=60)throw Error('Choose up to 60 references.');set([...get(),row]);}
+    setLinkDraft('');linkOpen=false;message='';summaryRender();summary.querySelector('#start-summary-note-'+(index<0?get().length-1:index))?.focus();
+   }catch(error){message=error.message;summary.querySelector('.start-reference-status').textContent=message;input.focus();}
   }
   function pause(){const video=host.querySelector('video');if(video)video.pause();}
   function media(t){const d=resolve(t);return '<div class="start-reference-preview">'+(d.media?'<video controls muted playsinline preload="metadata" poster="'+esc(d.poster)+'" src="'+esc(d.media)+'" aria-label="'+esc(d.label||d.title)+' preview"></video>':'<img src="'+esc(d.poster)+'" alt="'+esc(d.title)+'">')+'<div><strong>'+esc(d.label||d.title)+'</strong><p>'+esc(d.creator)+(d.kind==='technique'?' · '+exact(d.start)+'–'+exact(d.end):'')+'</p><p>'+esc(d.description)+'</p>'+(!d.media?'<small>'+(d.status==='not_analyzed'?'Awaiting analysis. Your assistant can inspect the original in chat.':'Saved cover image; no local video preview.')+'</small>':'')+'</div></div>';}
@@ -147,6 +167,8 @@ window.StartReferences=(()=>{
    return false;
   }
   function noteInput(event){
+   if(event.target.id==='start-video-link'){setLinkDraft(event.target.value);return;}
+   if(event.target.dataset.refSummaryNote!==undefined){const index=Number(event.target.dataset.refSummaryNote);set(get().map((r,i)=>i===index?{...r,note:event.target.value.slice(0,2000)}:r));return;}
    if(event.target.dataset.refNote===undefined&&event.target.dataset.refFocus===undefined)return;
    const t=noteTarget(event.target);if(!t||stale(t))return;
    update(t,event.target.dataset.refNote!==undefined?{note:event.target.value}:{focus:event.target.value,time:null});if(visible)summaryRender();
@@ -169,8 +191,9 @@ window.StartReferences=(()=>{
   });
   host.querySelector('#start-reference-search').addEventListener('input',event=>{query=event.target.value;browseScroll=0;render();});
   host.addEventListener('input',noteInput);summary.addEventListener('input',noteInput);
-  summary.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(noteClick(b))return;if(b.dataset.refWatch)return watch({reference_id:b.dataset.refWatch,example_id:b.dataset.exampleId||null,slide:null});if(b.hasAttribute('data-ref-browse'))open();if(b.hasAttribute('data-ref-import'))add(selectedTargets());if(b.dataset.refRemove!==undefined){const row=get()[Number(b.dataset.refRemove)];if(row)stash(row);set(get().filter((_,i)=>i!==Number(b.dataset.refRemove)));summaryRender();}});
+  summary.addEventListener('keydown',event=>{if(event.target.id==='start-video-link'&&event.key==='Enter'){event.preventDefault();addLink();}});
+  summary.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(noteClick(b))return;if(b.hasAttribute('data-ref-paste')){linkOpen=!linkOpen;summaryRender();summary.querySelector(linkOpen?'#start-video-link':'[data-ref-paste]')?.focus();return;}if(b.hasAttribute('data-ref-add-link'))return addLink();if(b.dataset.refWatch)return watch({reference_id:b.dataset.refWatch,example_id:b.dataset.exampleId||null,slide:null});if(b.hasAttribute('data-ref-browse'))open();if(b.hasAttribute('data-ref-import'))add(selectedTargets());if(b.dataset.refRemove!==undefined){const row=get()[Number(b.dataset.refRemove)];if(row&&!isLink(row))stash(row);set(get().filter((_,i)=>i!==Number(b.dataset.refRemove)));summaryRender();}});
   return {render:summaryRender,open,hide,back,watch,get visible(){return visible;},get busy(){return busy;}};
  }
- return {create,restore,text,validate,capture,resolve,targetKey,noteValue};
+ return {create,restore,text,validate,capture,resolve,targetKey,noteValue,link};
 })();

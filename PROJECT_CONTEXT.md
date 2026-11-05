@@ -1,10 +1,12 @@
 # Your creative home
 
-This is the reusable AI Video Studio starter, version **0.1.0-beta.6**. Each installation starts with empty personal project/reference registries. Users bring their own footage, references, preferences and accounts. Existing installations keep their collections when upgrading.
+This is the reusable AI Video Studio starter, version **0.1.0-beta.7**. Each installation starts with empty personal project/reference registries. Users bring their own footage, references, preferences and accounts. Existing installations keep their collections when upgrading.
 
 ## Start a new chat
 
 Read AGENTS.md, README.md, docs/WORKFLOW.md and docs/DESIGN-SYSTEM.md. For creative work read the requested project's STATUS.md, approval-state.json, brief, current storyboard/design and latest review notes. Use SETUP.md for first installation and docs/HANDOFF.md to continue an existing project. CLAUDE.md points to the same shared instructions.
+
+For script-writing work, use docs/SCRIPTING-BASELINE.md as the core shared editorial reference and docs/SCRIPTING.md for the Studio workflow, plus relevant local writing memory through scripting.voice_recall. An idea-first video can start in Script before recording; people with footage retain the existing editing path.
 
 The chat is where you create. Projects holds spoken cuts, storyboards, designed reviews and final assets. Reference Library holds your work and outside inspiration, with exact technique examples and borrowing notes. How it works explains the process. Start a project prepares one request with optional script/inspiration; it does not create a project or send an AI message automatically. Raw takes get a spoken cut first; already edited speech is preserved.
 

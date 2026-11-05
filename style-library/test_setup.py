@@ -58,7 +58,7 @@ class SetupTests(unittest.TestCase):
             for name in ['catalog','projects','settings']:
                 (base/f'{name}.example.json').write_text('{"empty_starter":true}')
                 (base/f'{name}.json').write_text(json.dumps({'owner':name,'records':[{'id':'keep-me'}]}))
-            for name in ['projects/demo/raw/video.mov','projects/demo/exports/final.mp4','references/creator/source.mp4','projects/demo/approval-state.json','projects/demo/script-state.json','projects/demo/review-feedback.json','projects/demo/review-feedback-links.json','style-library/reference-notes.json','style-library/runtime/editor-sessions/demo.json','README.md','.env']:
+            for name in ['projects/demo/raw/video.mov','projects/demo/exports/final.mp4','references/creator/source.mp4','projects/demo/approval-state.json','projects/demo/script-state.json','projects/demo/script-brief.json','projects/demo/script-hooks.json','projects/demo/script-feedback.json','style-library/writing-voice.json','projects/demo/review-feedback.json','projects/demo/review-feedback-links.json','style-library/reference-notes.json','style-library/runtime/editor-sessions/demo.json','README.md','.env']:
                 p=root/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(b'owner-specific bytes: '+name.encode())
             before={str(p.relative_to(root)):p.read_bytes() for p in root.rglob('*') if p.is_file()}
             with patch.object(setup,'ROOT',root),patch.object(sys,'argv',['setup','--studio-only']),patch.object(setup,'capability_report',return_value={}),patch.object(setup,'run',side_effect=AssertionError('Studio-only must not install media')),contextlib.redirect_stdout(io.StringIO()):
@@ -73,6 +73,7 @@ class SetupTests(unittest.TestCase):
             with patch.object(setup,'ROOT',root),patch.object(sys,'argv',['setup','--studio-only']),patch.object(setup,'capability_report',return_value={}),contextlib.redirect_stdout(io.StringIO()):setup.main()
             self.assertEqual((base/'catalog.json').read_bytes(),before)
             for name in ['projects','settings']:self.assertEqual((base/f'{name}.json').read_bytes(),(base/f'{name}.example.json').read_bytes())
+            self.assertFalse((base/'writing-voice.json').exists())
     def test_partial_demo_is_preserved_and_fails(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'projects/setup-demo').mkdir(parents=True)

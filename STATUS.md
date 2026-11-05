@@ -1,18 +1,19 @@
-# AI Video Studio — 0.1.0-beta.6
+# AI Video Studio — 0.1.0-beta.7
 
-Prepared: 2026-11-01. A small fix on top of the beta.5 Public Launch build. GitHub's actual tag/release is authoritative for publication; local preparation alone is not a published release.
+Prepared: 2026-11-05. Script writing is optional and lives alongside the existing footage-first editing flow. GitHub's published numbered tag/release is authoritative; local preparation is not publication.
 
-## Changes in beta.6
+## What is included
 
-- A newly registered project now appears first on the Projects home. scripts/register.py previously appended new projects to the end of projects.json, which the home lists in saved order, so new work showed up last. Replacing an existing project with --replace keeps its current position, and reference registrations are unchanged.
-- style-library/PROJECT-NAVIGATION.md documents the newest-first order, and a disposable-fixture test covers new, replaced and refused registrations.
+- Start with an idea, draft or creator reference before recording, or continue with Edit my footage.
+- Keep immutable script versions, compatible hook options, direct edits and version-pinned refinement feedback together in the project.
+- Approve an exact script, record outside the studio, then bring raw footage into chat for a spoken cut before storyboarding.
+- Read a compact shared scriptwriting reference and private writing memory. Supported feedback and actual wording can carry into later chats; readable memory notes offer correction, Forget and Undo.
+- Open the saved draft matching a copied starter request without redirecting unrelated or edited drafts.
 
-Existing projects.json files are not reordered; only projects registered after updating go to the top. There is no interface, dependency, renderer or data-format change. Beta.5's safer-update checks, beta.4's setup fixes and everything in beta.3 remain.
+Writing continues in the editing chat. There is no embedded model, analytics, dependency or renderer change. No script quality or viral result is guaranteed.
 
 ## Preservation and verification
 
-The public package contains reviewed source, docs, templates and empty examples only. Existing projects, original/exported media, catalogs/techniques, settings, feedback, scripts, approvals and local source changes must survive upgrades. No data migration is required from beta.5.
+Fresh installations start with empty projects, reference collections and writing memory. Existing installations retain projects, original/exported media, catalogs/techniques, settings, scripts, briefs, hooks, feedback, approvals, memory and local source changes. No destructive migration is required from beta.6.
 
-Fresh source-only setup, unit/UI tests, dependency audits, synthetic assembly/render and populated beta.5 Git/ZIP upgrade/rollback are release checks. Actual results and limits are in docs/VALIDATION.md. Independent teammate upgrades, fresh Codex/Claude Code sessions and other-platform media workflows remain beta pilot work; use docs/PILOT.md. The original beta has no Updates UI; docs/UPDATING.md includes a direct prompt.
-
-For future application work read docs/RELEASE.md. For installed upgrades read docs/UPDATING.md. This source release never approves, updates or publishes a creative project, grants account access or sends messages to anyone.
+See docs/VALIDATION.md for observed checks and limits. Independent creator/fresh-assistant and other-platform media pilots remain covered by docs/PILOT.md. Read docs/RELEASE.md for publication and docs/UPDATING.md for installation updates. No creative deliverable or team message is part of this application release.

@@ -116,3 +116,9 @@ style-library/dist/project-script-ui.js
 style-library/dist/start-references.js
 style-library/test_start_references.js
 style-library/test_register.py
+docs/SCRIPTING.md
+docs/SCRIPTING-BASELINE.md
+style-library/scripting.py
+style-library/test_scripting.py
+style-library/dist/writing-voice-ui.js
+style-library/dist/scripting.css

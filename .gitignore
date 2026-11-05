@@ -35,6 +35,7 @@ __pycache__/
 *.log
 
 /style-library/reference-notes.json
+/style-library/writing-voice.json
 
 # Owner-fetched public covers (not bundled source assets)
 style-library/dist/assets/reference-previews/
