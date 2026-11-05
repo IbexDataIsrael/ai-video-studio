@@ -1,5 +1,9 @@
 # Validation and known limits
 
+## Beta.10 — Notice correction — 2026-11-05
+
+Only version labels and the HyperFrames attribution notice change from beta.9. HyperFrames still declares Apache-2.0. Executable source and all dependency pins/lock entries are identical after excluding the root release version fields; the beta.9 renderer/editor/upgrade evidence below remains applicable. The fresh install, source-manifest and hosted checks for the new release are verified separately. No owner-data rewrite or creative re-render is required.
+
 ## Beta.9 — HyperFrames upgrade and CI reliability — 2026-11-05
 
 - HyperFrames 0.8.144 → 0.9.16, with a renderer-scoped Undici 7.30.2 override. The lock audit reports zero known npm vulnerabilities. GSAP and both Python dependency locks are unchanged. Node 22.12.0 is the minimum required by the new browser tooling; prerequisite/doctor tests cover unsupported versions and refusal before writes/installation. 176 Python and 103 Node UI tests pass locally, with JavaScript syntax and source/empty-seed checks.
