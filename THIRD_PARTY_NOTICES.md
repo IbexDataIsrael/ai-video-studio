@@ -4,7 +4,7 @@ The root MIT code license does not replace third-party terms. Verify the final r
 
 Bundled UI fonts: Archivo Black, Instrument Serif and Inter. Their original copyright/OFL texts are beside the WOFF2 files in style-library/dist/assets/fonts/. Do not rename font licensing or claim ownership. The bundled font assets and notices are the only pre-existing visual assets in the starter. The synthetic sample uses another local copy of Inter under the same license.
 
-Installed dependencies are downloaded from their package registries and excluded from the source export. HyperFrames 0.8.144 declares Apache-2.0; GSAP 3.14.2 declares its own Standard “no charge” License (https://gsap.com/standard-license/); Pillow 13.0.0 declares MIT-CMU. Inspect full dependency licenses when distributing bundled executable output. Font licenses and package-lock/requirements hashes are preserved.
+Installed dependencies are downloaded from their package registries and excluded from the source export. HyperFrames declares Apache-2.0 (the pinned version is recorded in package.json); GSAP 3.14.2 declares its own Standard “no charge” License (https://gsap.com/standard-license/); Pillow 13.0.0 declares MIT-CMU. Inspect full dependency licenses when distributing bundled executable output. Font licenses and package-lock/requirements hashes are preserved.
 
 The generic saved-link SVG poster is project-authored and contains no third-party source imagery. It is an illustration of a saved link, not a video frame.
 

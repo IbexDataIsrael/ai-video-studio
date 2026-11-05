@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.0-beta.10 — Renderer notice correction — 2026-11-05
+
+- Make the HyperFrames dependency notice version-free after the renderer upgrade; its Apache-2.0 license is unchanged. Retains the tested 0.9.16 renderer, Undici 7.30.2 security override, Node requirement and CI reliability changes from beta.9. No application logic, dependency pin or owner-data change.
+
 ## 0.1.0-beta.9 — Renderer upgrade and CI reliability — 2026-11-05
 
 - Upgrade the pinned local HyperFrames renderer from 0.8.144 to 0.9.16, with a scoped Undici 7.30.2 override for the upstream HTTP dependency security fixes. GSAP and Python dependency pins stay unchanged.
