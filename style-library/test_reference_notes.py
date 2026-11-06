@@ -142,6 +142,19 @@ class ReferenceNoteTests(unittest.TestCase):
         with self.assertRaises(notes.NoteError):
             notes.handoff({'references': [moment]}, 'http://127.0.0.1:4870')
 
+    def test_whole_video_handoff_includes_direction_only_when_supplied(self):
+        state = notes.save(self.body(time=2))
+        source = self.row(state)
+        origin = 'http://127.0.0.1:4870'
+        direct = notes.handoff({'references': [source]}, origin)['text']
+        selected = notes.handoff({'references': [source | {'direction': 'Borrow the pacing.'}]}, origin)['text']
+        self.assertIn('#style=video\nAt 0:02: Borrow the card entrance.', direct)
+        self.assertEqual(selected, direct + '\nWhat to borrow: Borrow the pacing.')
+        for reference_id in ('link', 'carousel'):
+            with self.subTest(reference_id=reference_id), self.assertRaises(notes.NoteError):
+                row = self.row(notes.current(reference_id)) | {'direction': 'Borrow the pacing.'}
+                notes.handoff({'references': [row]}, origin)
+
     def test_changed_source_keeps_earlier_notes_and_rejects_stale_copy_save(self):
         body = self.body(time=1)
         state = notes.save(body)

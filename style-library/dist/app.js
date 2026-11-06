@@ -90,10 +90,24 @@ function updateSelection(){
  const summary=selectionSummary(picks);
  $('#selected-count').textContent=summary;
  $('#selection-description').textContent='Copy your picks together for your editing chat.';
+ const picksBySource=new Map();
+ for(const pick of picks){
+  const sourceId=pick.x?.style_id??pick.moment?.reference_id;
+  if(!sourceId)continue;
+  if(!picksBySource.has(sourceId))picksBySource.set(sourceId,[]);
+  picksBySource.get(sourceId).push(pick);
+ }
+ document.querySelectorAll('[data-source-picks]').forEach(badge=>{
+  const sourceSummary=selectionSummary(picksBySource.get(badge.dataset.sourcePicks)??[]);
+  badge.hidden=!sourceSummary;
+  badge.textContent=sourceSummary?sourceSummary+' selected':'';
+ });
  document.querySelectorAll('.select-card,[data-select-excerpt]').forEach(b=>{
   const token=b.dataset.selectExcerpt||exampleToken(b.dataset.id,b.dataset.selectExample);
   const pick=selectionItem(token);if(!pick)return;
-  const chosen=selected.has(token),label=(chosen?'Remove from selection: ':'Add to selection: ')+(pick.x?.label||pick.entry.title);
+  const chosen=selected.has(token);
+  const name=!pick.x&&pick.entry.media_path&&!isCarousel(pick.entry)?'full video · '+pick.entry.title:pick.x?.label||pick.entry.title;
+  const label=(chosen?'Remove from selection: ':'Add to selection: ')+name;
   b.setAttribute('aria-pressed',String(chosen));b.setAttribute('aria-label',label);b.title=label;b.textContent=chosen?'✓':'+';
   b.closest('.style-card')?.classList.toggle('is-selected',chosen);
  });
@@ -145,7 +159,7 @@ function updateControls(){
 }
 function videoCard(e){
  const carousel=isCarousel(e),preview=carousel?'View carousel · '+e.slides.length+' slides':e.asset_type==='project'?'View project assets':e.media_path?'View style'+(e.duration?' · '+stamp(e.duration):''):'View reference';
- return '<article class="style-card" data-id="'+esc(e.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(e.id)+'" aria-label="View '+esc(e.title)+'">'+(e.poster==='assets/link-reference.svg'?referencePoster(e,true):'<img src="'+esc(e.poster)+'" width="540" height="960" alt="'+esc(carousel?e.title+' — actual carousel cover':e.asset_type==='project'?e.title+' — saved project artwork':e.media_path?e.title+' — actual '+e.version+' video frame':e.title+' — source link, no local video')+'" loading="lazy">')+'<span class="preview-pill"><span class="play-symbol">'+(carousel?'▤':e.media_path?'▶':'↗')+'</span>'+preview+'</span></button><div class="card-badges"><span class="version">'+(e.collection==='mine'?esc(e.version)+(e.delivery_status==='final'?' · FINAL':e.review_status==='review_pending'?' · REVIEW':''):(e.analysis_status==='not_analyzed'?'AWAITING ANALYSIS':'REFERENCE'))+'</span>'+cardActions(e)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(e.title)+'</h2><button data-open="'+esc(e.id)+'" aria-label="View details for '+esc(e.title)+'">↗</button></div><p class="card-subtitle">'+esc(e.subtitle)+'</p><div class="tags">'+e.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div><div class="card-palette">'+e.palette.map(c=>'<span class="swatch" style="--swatch:'+esc(c)+'" title="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'" aria-label="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'"></span>').join('')+'<span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
+ return '<article class="style-card" data-id="'+esc(e.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(e.id)+'" aria-label="View '+esc(e.title)+'">'+(e.poster==='assets/link-reference.svg'?referencePoster(e,true):'<img src="'+esc(e.poster)+'" width="540" height="960" alt="'+esc(carousel?e.title+' — actual carousel cover':e.asset_type==='project'?e.title+' — saved project artwork':e.media_path?e.title+' — actual '+e.version+' video frame':e.title+' — source link, no local video')+'" loading="lazy">')+'<span class="preview-pill"><span class="play-symbol">'+(carousel?'▤':e.media_path?'▶':'↗')+'</span>'+preview+'</span></button><div class="card-badges"><span class="version">'+(e.collection==='mine'?esc(e.version)+(e.delivery_status==='final'?' · FINAL':e.review_status==='review_pending'?' · REVIEW':''):(e.analysis_status==='not_analyzed'?'AWAITING ANALYSIS':'REFERENCE'))+'</span>'+cardActions(e)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(e.title)+'</h2><button data-open="'+esc(e.id)+'" aria-label="View details for '+esc(e.title)+'">↗</button></div><span class="card-source-picks" data-source-picks="'+esc(e.id)+'" hidden></span><p class="card-subtitle">'+esc(e.subtitle)+'</p><div class="tags">'+e.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div><div class="card-palette">'+e.palette.map(c=>'<span class="swatch" style="--swatch:'+esc(c)+'" title="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'" aria-label="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'"></span>').join('')+'<span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
 }
 function techniqueCard(t){
  const x=example(t),e=source(x.style_id);

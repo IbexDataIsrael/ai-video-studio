@@ -180,9 +180,9 @@ def handoff(body, base_url):
             if not isinstance(row, dict) or set(row) not in (required, required | {'direction'}, required | {'moment'}):
                 raise NoteError('Choose valid references and saved notes.', 400)
             direction = clean_text(row.get('direction', ''), 'Borrowing direction', 2000)
-            if direction and not row['example_id']:
-                raise NoteError('Choose an exact technique for this direction.', 400)
             ctx = context(row['reference_id'], row['example_id'])
+            if direction and not row['example_id'] and (not ctx['has_video'] or ctx['slide_count']):
+                raise NoteError('Choose a video or an exact technique for this direction.', 400)
             ids, slide = row['note_ids'], row['slide']
             if (not isinstance(ids, list) or len(ids) > 5000 or any(not isinstance(i, str) for i in ids) or
                     len(ids) != len(set(ids)) or row['context_revision'] != ctx['context_revision']):
