@@ -99,13 +99,14 @@ function updateSelection(){
  $('#selected-previews').innerHTML=picks.slice(0,4).map(({entry,x})=>
   '<img src="'+esc(x?.poster||entry.poster)+'" alt="'+esc(entry.title)+'">').join('');
  $('#detail-selection').hidden=!n;
- $('#detail-selection-count').textContent=summary;
+ $('#detail-selection-count').textContent=n?summary+' selected':'';
  $('#detail-selection-status').textContent='';
  const copy=$('#detail-copy-selection');
- copy.textContent=n&&picks.every(p=>p.x)?'Copy '+summary+' for chat':'Copy for chat';
+ copy.textContent='Copy selection for chat';
  copy.disabled=false;
  const chosen=selected.has(activeSelectionToken());
- $('#detail-add').textContent=chosen?'In your selection ✓':'Add to selection +';
+ const wholeVideo=active?.media_path&&!isTech(active)&&!sourceExcerpt;
+ $('#detail-add').textContent=chosen?'In your selection ✓':wholeVideo?'Add full reference +':'Add to selection +';
  $('#detail-add').setAttribute('aria-pressed',String(chosen));
 }
 function toggleSelection(token){
@@ -213,7 +214,7 @@ function quickReference(original=false){
  const t=sourceExcerpt?.technique||(isTech(active)?active:null),x=sourceExcerpt?.example||(t?example(t,false):null),e=x?source(x.style_id):active;
  if(original)return e.source_url?{kind:'original',label:'Copy original link',text:e.source_url}:null;
  const slide=isCarousel(e)?Number($('#detail-media').dataset.slideIndex)||0:null;
- return {kind:'reference',label:x?'Borrow this technique':e.media_path?'Copy full reference':'Copy for chat',text:referenceUrl(t?.id||active.id,x?.id,slide),hint:'Copies this exact reference and its saved notes. Paste into your editing chat.'};
+ return {kind:'reference',label:x?'Copy this technique for chat':e.media_path?'Copy full reference':'Copy for chat',text:referenceUrl(t?.id||active.id,x?.id,slide),hint:'Copies this exact reference and its saved notes. Paste into your editing chat.'};
 }
 async function copyCardReference(id,exampleId,button){
  if(window.ReferenceNotes)return window.ReferenceNotes.copyCard(id,exampleId,button);
@@ -255,12 +256,14 @@ function referencePoster(e,compact=false){
  const tag=compact?'span':'div',heading=compact?'span':'h3',copy=compact?'span':'p';
  return '<'+tag+' class="link-preview-placeholder'+(compact?' card-placeholder':'')+'"><svg viewBox="0 0 24 24" width="54" height="54" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="m16 9 6-3v12l-6-3"/></svg><'+heading+' class="placeholder-title">'+title+'</'+heading+'><'+copy+' class="placeholder-description">'+body+'</'+copy+'></'+tag+'>';
 }
-function referenceExcerpts(e){
+function referenceTechniqueRows(e){
  if(!e.media_path)return [];
- return techniques.flatMap(t=>browseExamples(t)
+ const excerpts=techniques.flatMap(t=>browseExamples(t)
   .filter(x=>x.style_id===e.id&&x.source_version===e.version&&x.source_path===e.media_path)
-  .map(x=>({technique:t,example:x})))
-  .sort((a,b)=>a.example.start-b.example.start||a.example.end-b.example.end);
+  .map(x=>({technique:t,example:x,time:x.start})));
+ const reviewed=e.source_sha256&&e.technique_review_sha256===e.source_sha256;
+ const jumpPoints=reviewed?[]:e.moments||[];
+ return [...excerpts,...jumpPoints].sort((a,b)=>a.time-b.time||(a.example?.end??a.time)-(b.example?.end??b.time));
 }
 function positionBorrowControls(){
  const controls=$('#reference-use'),token=sourceExcerpt&&activeSelectionToken();
@@ -278,12 +281,16 @@ function positionBorrowControls(){
 }
 function renderReferenceTechniques(e){
  $('#reference-techniques').after($('#reference-use'));
- const excerpts=referenceExcerpts(e),current=sourceExcerpt?exampleToken(sourceExcerpt.technique.id,sourceExcerpt.example.id):null;
- $('#reference-techniques').hidden=!excerpts.length;
- $('#reference-technique-count').textContent=excerpts.length;
- $('#reference-technique-list').innerHTML=excerpts.map(({technique:t,example:x})=>{
+ const rows=referenceTechniqueRows(e),current=sourceExcerpt&&activeSelectionToken();
+ const count=rows.filter(row=>row.example).length;
+ $('#reference-techniques').hidden=!rows.length;
+ $('#reference-techniques-label').textContent=count?'Techniques':'Jump points';
+ $('#reference-technique-count').textContent=count||rows.length;
+ $('#reference-technique-hint').hidden=!count;
+ $('#reference-technique-list').innerHTML=rows.map(({technique:t,example:x,time,label:pointLabel})=>{
+  if(!x)return '<div class="reference-excerpt"><button class="reference-excerpt-play reference-jump-point" data-jump-point="'+esc(time)+'"><span><strong>'+esc(pointLabel)+'</strong><small>Jump point · '+exact(time)+'</small></span></button></div>';
   const token=exampleToken(t.id,x.id),label=x.label;
-  return '<div class="reference-excerpt"><button class="reference-excerpt-play" data-play-excerpt="'+esc(token)+'" aria-pressed="'+(token===current)+'">'+
+  return '<div class="reference-excerpt"><button class="reference-excerpt-play" data-play-excerpt="'+esc(token)+'" aria-controls="reference-use" aria-expanded="'+(token===current)+'">'+
    '<img src="'+esc(x.poster)+'" alt="" loading="lazy"><span><strong>'+esc(label)+'</strong><small>'+esc(t.title)+' · '+exact(x.start)+'–'+exact(x.end)+'</small></span></button>'+
    '<button class="secondary reference-excerpt-add" data-select-excerpt="'+esc(token)+'" aria-label="Add to selection: '+esc(label)+'" aria-pressed="false">+</button></div>';
  }).join('');
@@ -292,13 +299,14 @@ function renderReferenceTechniques(e){
 function playSourceExcerpt(token){
  const pick=selectionItem(token),video=$('#detail-media video');
  if(!pick?.x||!video||!active||pick.x.style_id!==active.id||pick.x.source_version!==active.version||pick.x.source_path!==active.media_path)return;
+ if(sourceExcerpt&&activeSelectionToken()===token)return returnToFullVideo();
  window.ReferenceNotes?.retain();
  if(!sourceExcerpt)fullVideoTime=video.currentTime;
  sourceExcerpt={technique:pick.entry,example:pick.x};
  $('#source-clip-controls').hidden=false;
  positionBorrowControls();
  setVideoRange?.(pick.x,pick.x.start,true);
- document.querySelectorAll('[data-play-excerpt]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.playExcerpt===token)));
+ document.querySelectorAll('[data-play-excerpt]').forEach(b=>b.setAttribute('aria-expanded',String(b.dataset.playExcerpt===token)));
  window.LibraryVisibility?.exampleDetails(pick.entry,pick.x);
  updateSelection();updateQuickCopy();window.ReferenceNotes?.mountCurrent();
 }
@@ -310,14 +318,14 @@ function returnToFullVideo(focus=true){
  $('#source-clip-controls').hidden=true;
  positionBorrowControls();
  document.querySelectorAll('[data-play-excerpt]').forEach(b=>{
-  b.setAttribute('aria-pressed','false');
+  b.setAttribute('aria-expanded','false');
   if(focus&&b.dataset.playExcerpt===token)b.focus();
  });
  window.LibraryVisibility?.exampleDetails();
  updateSelection();updateQuickCopy();window.ReferenceNotes?.mountCurrent();
 }
 function showReferenceCredit(e){
- const credit=$('#reference-credit'),name=$('#reference-creator'),link=$('#reference-original');
+ const credit=$('#reference-credit'),name=$('#reference-credit-name'),link=$('#reference-original');
  credit.hidden=e.collection!=='reference';
  const creator=e.creator_name||e.creator,handle=e.creator_handle?'@'+e.creator_handle.replace(/^@/,''):'';
  name.textContent=[creator,handle&&creator!==handle?handle:''].filter(Boolean).join(' · ');
@@ -340,7 +348,6 @@ function showStyle(id,resumeAt=null){
  if(e.media_path)window.ReferenceNotes?.bindMomentControls(e);
  }
  renderReferenceTechniques(e);
- $('#moments-section').open=false;$('#moments-section').hidden=!e.moments.length||!e.media_path;$('#detail-moments').innerHTML=e.moments.map(m=>'<button class="moment" data-time="'+m.time+'"><span>'+stamp(m.time)+'</span>'+esc(m.label)+'</button>').join('');
  $('#detail-traits').innerHTML=Object.entries(e.traits).map(([key,value])=>'<div class="trait"><dt>'+esc(key)+'</dt><dd>'+esc(value)+'</dd></div>').join('');sharedDetails(e);$('#detail-evidence').textContent=e.evidence;
  $('#detail-links').innerHTML=(e.project_id?'<a href="#project='+encodeURIComponent(e.project_id)+'">Open project ↗</a>':'')+(e.archive_path?'<a href="/download/'+encodeURIComponent(e.id)+'" download="'+esc(e.archive_path.split('/').pop())+'">Download all '+e.slides.length+' slides ↓</a>':'')+(e.related_style_id?'<button data-source-video="'+esc(e.related_style_id)+'">Source video ↗</button>':'')+(e.article_url?'<a href="'+esc(e.article_url)+'" target="_blank" rel="noopener noreferrer">Companion article ↗</a>':'')+(e.source_url?'<button data-copy-original>Copy original link</button>':'')+e.notes.slice(0,2).map((n,i)=>'<a href="/notes/'+encodeURIComponent(e.id)+'/'+i+'" target="_blank" rel="noopener">'+(i===0?'Project notes':'Design / review notes')+' ↗</a>').join('');
  $('#detail-context').textContent=['Style ID: '+e.id,isCarousel(e)?'Carousel: '+e.slides.length+' slides · '+e.aspect_ratio:e.media_path?'Example: '+e.media_path:'Original linked above.',e.composition?'Editable: '+e.composition:'',...e.notes].filter(Boolean).join('\n');
@@ -356,7 +363,7 @@ function showTechnique(id,exampleId){
  const t=techniques.find(t=>t.id===id);if(!t)return;pausePreview();active=t;$('#style-dialog .reference-deep-details').open=false;
  let x=exampleId?t.examples.find(x=>x.id===exampleId):example(t);if(!x)x=example(t);window.LibraryVisibility?.techniqueNotice(source(x.style_id));window.LibraryVisibility?.exampleDetails(t,x);choices[t.id]=x.id;
  const e=source(x.style_id);showReferenceCredit(e);positionBorrowControls();if(legacySelection===false)saveSelection();
- $('#detail-media').classList.remove('carousel-preview');$('#detail-media').classList.add('technique-preview');$('#technique-examples').hidden=false;$('#moments-section').hidden=true;
+ $('#detail-media').classList.remove('carousel-preview');$('#detail-media').classList.add('technique-preview');$('#technique-examples').hidden=false;
  $('#detail-title').textContent=t.title;$('#detail-category').textContent=used(t)?'TECHNIQUE · USED IN MY WORK':'TECHNIQUE · REFERENCE';$('#detail-subtitle').textContent=t.category+' · '+t.examples.length+' example'+(t.examples.length===1?'':'s');$('#detail-summary').textContent=t.summary;
  $('#detail-media').innerHTML='<video controls muted playsinline preload="metadata" poster="'+esc(x.poster)+'" src="/media/'+encodeURIComponent(e.id)+'" aria-label="'+esc(t.title)+' example preview"></video><div class="clip-controls"><span>'+esc(e.creator)+' · '+exact(x.start)+'–'+exact(x.end)+'<small>Selected excerpt · '+(x.end-x.start).toFixed(1)+'s</small></span><button id="replay-example">Replay example ↻</button><a class="full-video-link" href="#style='+encodeURIComponent(e.id)+'">View full video</a></div>';bindMedia(e,x);
  $('#example-list').innerHTML=t.examples.filter(v=>v.id===x.id||!isExampleRemoved(t,v)).map(v=>{const s=source(v.style_id);return '<button class="example-choice" data-example="'+esc(v.id)+'" aria-label="Choose '+esc(v.label)+'" role="radio" aria-checked="'+(v.id===x.id)+'" tabindex="'+(v.id===x.id?'0':'-1')+'"><img src="'+esc(v.poster)+'" alt=""><span><strong>'+esc(v.label)+'</strong><small>'+esc(s.creator)+' · '+exact(v.start)+'–'+exact(v.end)+(s.collection==='mine'?' · my work':'')+(isRemoved(s)||isExampleRemoved(t,v)?' · removed from library':'')+'</small></span><span class="choice-check" aria-hidden="true"></span></button>';}).join('');
@@ -394,7 +401,12 @@ $('#reference-technique-list').addEventListener('click',event=>{
  const add=event.target.closest('[data-select-excerpt]');
  if(add)return toggleSelection(add.dataset.selectExcerpt);
  const watch=event.target.closest('[data-play-excerpt]');
- if(watch)playSourceExcerpt(watch.dataset.playExcerpt);
+ if(watch)return playSourceExcerpt(watch.dataset.playExcerpt);
+ const jump=event.target.closest('[data-jump-point]');
+ if(jump){
+  returnToFullVideo(false);
+  setVideoRange?.(null,Number(jump.dataset.jumpPoint));
+ }
 });
 $('#detail-media').addEventListener('click',event=>{if(event.target.closest('#source-full-video'))returnToFullVideo();});
 $('#detail-quick-copy').addEventListener('click',()=>copyQuickReference());
@@ -402,7 +414,6 @@ $('#example-list').addEventListener('click',event=>{const b=event.target.closest
 $('#example-list').addEventListener('keydown',event=>{if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const buttons=[...$('#example-list').querySelectorAll('[data-example]')],at=buttons.indexOf(event.target.closest('[data-example]'));if(at<0)return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(at+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)+buttons.length)%buttons.length,id=buttons[next].dataset.example;showTechnique(active.id,id);render();$('#example-list').querySelector('[data-example="'+id+'"]')?.focus();});
 $('#detail-links').addEventListener('click',event=>{if(event.target.closest('[data-copy-original]'))return copyQuickReference(true);const b=event.target.closest('[data-source-video]');if(b)showStyle(b.dataset.sourceVideo);});
 $('#detail-media').addEventListener('click',event=>{if(!active||!isCarousel(active))return;const direct=event.target.closest('[data-carousel-slide]'),step=event.target.closest('[data-carousel-step]');if(direct)showCarouselSlide(active,Number(direct.dataset.carouselSlide));else if(step)showCarouselSlide(active,Number($('#detail-media').dataset.slideIndex)+Number(step.dataset.carouselStep));});
-$('#detail-moments').addEventListener('click',event=>{const b=event.target.closest('[data-time]'),video=$('#detail-media video');if(!b||!video)return;if(sourceExcerpt)returnToFullVideo(false);const seek=()=>video.currentTime=Number(b.dataset.time);if(video.readyState>=1)seek();else video.addEventListener('loadedmetadata',seek,{once:true});});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.dataset.close==='style-dialog'?closeStyle():$('#'+b.dataset.close).close()));
 $('#style-dialog').addEventListener('cancel',event=>{event.preventDefault();closeStyle();});$('#style-dialog').addEventListener('click',event=>{if(event.target===$('#style-dialog'))closeStyle();});$('#brief-dialog').addEventListener('click',event=>{if(event.target===$('#brief-dialog'))$('#brief-dialog').close();});
 let libraryRoute=0;
@@ -428,7 +439,7 @@ window.addEventListener('hashchange',applyRoute);
 async function refreshLibraryOnReturn(){
  if(window.Studio?.currentSection!=='library'||document.querySelector('dialog[open]:not(#style-dialog)'))return;
  const prior=active,route=libraryRoute,category=$('#technique').value,creator=$('#creator').value;
- const excerptsBefore=prior&&!isTech(prior)?JSON.stringify(referenceExcerpts(prior)):null;
+ const rowsBefore=prior&&!isTech(prior)?JSON.stringify(referenceTechniqueRows(prior)):null;
  try{
   const changed=await window.refreshReferenceCatalog();
   if(!changed||route!==libraryRoute||window.Studio?.currentSection!=='library')return;
@@ -441,7 +452,7 @@ async function refreshLibraryOnReturn(){
   if(!entry)return;
   if(!sourceExcerpt&&(!video||video.paused)&&JSON.stringify(entry)!==JSON.stringify(prior)){
    showStyle(prior.id,entry.media_path===prior.media_path?video?.currentTime??null:null);
-  }else if(excerptsBefore!==JSON.stringify(referenceExcerpts(entry)))renderReferenceTechniques(entry);
+  }else if(rowsBefore!==JSON.stringify(referenceTechniqueRows(entry)))renderReferenceTechniques(entry);
  }catch{/* Keep the open preview if the local studio is briefly unavailable. */}
 }
 window.addEventListener('focus',refreshLibraryOnReturn);

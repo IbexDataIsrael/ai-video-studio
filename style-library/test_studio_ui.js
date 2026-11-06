@@ -471,6 +471,35 @@ test('timestamp selections survive reload alongside an earlier exact technique p
  assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{}});
  assert.equal(storage.get(v2),'["tech-demo@first"]');
 });
+test('legacy jump points share the technique timeline until the current source has been reviewed',async()=>{
+ const reference={id:'video',version:'v1',media_path:'references/source.mp4',source_sha256:'fixture-hash',
+  moments:[{time:4,label:'Later observation'},{time:0.5,label:'Opening observation'}]};
+ const h=referenceCatalogHarness({entries:[reference],techniques:[{id:'tech-demo',default_example:'excerpt',
+  examples:[{id:'excerpt',style_id:'video',source_version:'v1',source_path:reference.media_path,start:2,end:3}]}]});
+ await h.vm.window.refreshReferenceCatalog();
+ const times=reviewHash=>JSON.parse(h.run("JSON.stringify(referenceTechniqueRows({...source('video'),technique_review_sha256:"+
+  JSON.stringify(reviewHash)+"}).map(row=>row.time))"));
+ assert.deepEqual(times('earlier-hash'),[0.5,2,4]);
+ assert.deepEqual(times('fixture-hash'),[2]);
+ assert.equal(h.run("source('video').moments.length"),2);
+});
+test('clicking the active excerpt again restores the full-video time and retains the selection',async()=>{
+ const reference={id:'video',version:'v1',media_path:'references/source.mp4'};
+ const h=referenceCatalogHarness({entries:[reference],techniques:[{id:'tech-demo',default_example:'excerpt',
+  examples:[{id:'excerpt',style_id:'video',source_version:'v1',source_path:reference.media_path,start:2,end:3}]}]});
+ await h.vm.window.refreshReferenceCatalog();
+ const query=h.vm.document.querySelector;
+ const video={currentTime:9};
+ h.vm.document.querySelector=selector=>selector==='#detail-media video'?video:query(selector);
+ h.vm.ranges=[];
+ h.run(`active=source('video');positionBorrowControls=()=>{};updateQuickCopy=()=>{};
+  setVideoRange=(range,time,play=false)=>ranges.push([range?.id??null,time,play]);
+  toggleSelection('tech-demo@excerpt');
+  playSourceExcerpt('tech-demo@excerpt');playSourceExcerpt('tech-demo@excerpt');`);
+ assert.equal(JSON.stringify(h.vm.ranges),'[["excerpt",2,true],[null,9,false]]');
+ assert.equal(h.run('sourceExcerpt'),null);
+ assert.equal(h.run("selected.has('tech-demo@excerpt')"),true);
+});
 test('returning from chat refreshes an open pending reference to the saved preview',async()=>{
  const pending={id:'video',analysis_status:'not_analyzed'};
  const h=referenceCatalogHarness({entries:[pending]});

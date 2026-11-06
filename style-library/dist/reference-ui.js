@@ -95,7 +95,7 @@ window.ReferenceIntake=(()=>{
  }
  function analysisRequest(e){
   const action=e.analysis_status==='not_analyzed'?'Analyze this reference':'Review the saved analysis of this reference';
-  return action+' and update its existing library entry. Save each distinct reusable technique you can verify as a playable excerpt. Group related examples into existing techniques and create a new family for a different move. Keep my saved notes, and record any limits.\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
+  return action+' and update its existing library entry. Review the entire playable video, including any earlier timestamp observations. Save each distinct reusable technique you can verify as a playable excerpt. Group related examples into existing techniques and create a new family for a different move. Keep my saved notes, and record any limits.\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
  }
  function renderAnalysisCopy(e){
   const button=$('#reference-analyze'),copied=lastAnalysisCopy?.id===e.id&&lastAnalysisCopy.text===analysisRequest(e);

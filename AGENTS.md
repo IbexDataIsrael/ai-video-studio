@@ -63,7 +63,7 @@ Saved notes can be edited inline or reversibly deleted. Preserve their IDs, sour
 
 ## Technique upkeep during analysis
 
-During reference analysis, save each distinct reusable move verified in the media as part of the same task. Combine multiple observations of one move into a useful viewing window. Reuse technique families by visible purpose and behavior, preserve exact example IDs and record the source window, version, path, hash and a source-backed poster. Use the inspected-example registration flow in docs/HANDOFF.md. Saving a link leaves analysis to chat.
+During reference analysis, review the full playable source and earlier timestamp observations. Save each distinct reusable move verified in the media, including separate moves that overlap. Combine multiple observations of one move into a useful viewing window. Reuse technique families by visible purpose and behavior, preserve exact example IDs and record the source window, version, path, hash and a source-backed poster. Use the inspected-example registration and coverage steps in docs/HANDOFF.md. Saving a link leaves analysis to chat.
 
 ## Updating the studio
 
