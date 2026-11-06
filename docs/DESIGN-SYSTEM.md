@@ -28,13 +28,15 @@ October 27 V19: ordinary reference actions are **Copy for chat** and **Add to se
 
 ## Sound, previews and editor access — UX V20
 
-Use a centered dot for a single selected technique example. Keep public cover-image availability separate from analysis: Awaiting analysis and Partly analyzed reflect recorded inspection, not image presence. Missing previews use state-aware copy: Ready for analysis for pending sources, Preview not saved for partial sources, and Video preview unavailable for other saved sources. Cover images never imply playable video.
+Use a centered dot for a single selected technique example. Keep public cover-image availability separate from analysis: Awaiting analysis reflects saved inspection state. Missing previews show whether the source is ready for analysis or video is unavailable in Studio. Cover images never imply playable video.
 
 Open in HyperFrames is a quiet action beside downloads in Edit, tied to a known version-local composition. The explicit launch creates a separate working copy. Sound stays in Edit as a concise expandable summary with the existing timestamped feedback flow. Generated/free sounds are the starting point; owner-provided libraries remain optional and have no assumed connection.
 
-## Analysis-first reference intake — UX V21
+## Reference intake and borrowing
 
-After saving: Reference saved. Next: analyze it. Copy analysis request is the primary explicit clipboard action, with a visible Copied confirmation and paste guidance. Public cover retrieval stays quiet and separate; no user-facing preview-retry controls or cover-status toasts. Pending placeholders explain style notes, useful moments and a preview when available without guaranteeing playable media. Partially analyzed sources retain progress-specific copy. Pending borrowing controls remain available in a secondary Use the saved link section; drafts, saved notes and exact-source copying retain their existing behavior.
+Keep Add reference to a link and Save reference. Edit details carries title, creator and the original note. A new saved link offers Copy analysis request as the next action. In a playable reference, lead with the video and its Techniques. Keep analysis coverage under About this reference. Bring an access issue forward when the user can provide a local copy in chat.
+
+Use short labels, source frames and time ranges for the technique list. The current excerpt plays in the same player, and Back to full video returns to the earlier position. Place Borrow this technique beside the selected excerpt and offer optional direction there. Use + for each exact example and show Review selection with a count when it has items. A single chat request can carry several examples and their individual direction. Borrow another moment retains the full-video timestamp controls.
 
 ## Review and script context — UX V23
 

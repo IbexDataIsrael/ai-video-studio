@@ -4,3 +4,40 @@
 
 .reference-analysis-next{margin:22px 0 16px;padding:21px;border:1px solid #ccd7b2;border-left:3px solid #82945c;border-radius:8px;background:#f0f3e5}.reference-analysis-next .eyebrow{font-size:8px;margin:0 0 10px;color:#6c7d50}.detail-copy .reference-analysis-next h3{font-size:23px;line-height:1.22;letter-spacing:-.5px;margin:0 0 10px}.analysis-next-description{font-size:12px;line-height:1.7;color:#647250;margin:0 0 17px}.analysis-next-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.analysis-skip{background:transparent;padding:8px 0;font-size:11px;color:#65744f;text-decoration:underline;text-underline-offset:4px}.analysis-next-helper{font-size:10px;line-height:1.7;color:#73815e;margin:14px 0 0}.detail-actions{align-items:flex-start}.reference-more{align-self:flex-start;margin:0}.reference-more>summary{list-style:none;cursor:pointer;border:1px solid #cfd4c3;border-radius:5px;padding:12px 15px;font-size:11px;line-height:1.3;font-weight:650;color:#556044;display:flex;align-items:center;gap:10px;min-height:41px}.reference-more>summary::-webkit-details-marker{display:none}.reference-more>summary:after{content:'⌄';font-size:11px;font-weight:400}.reference-more[open]{flex-basis:100%}.reference-more[open]>summary{width:max-content}.reference-more[open]>summary:after{content:'⌃'}.reference-more-actions{display:flex;gap:8px;flex-wrap:wrap;padding:12px 0 3px}.reference-more-actions button{font-size:10px}
 @media(max-width:730px){.reference-analysis-next{padding:18px;margin-top:19px}.detail-copy .reference-analysis-next h3{font-size:22px}.analysis-next-actions{gap:16px}.reference-more>summary{padding:11px 12px;font-size:10px;min-height:38px}}
+
+.reference-save-footer{justify-content:flex-end}
+#reference-dialog #reference-url{font-size:16px}
+#reference-dialog .reference-heading{margin-bottom:22px}
+#reference-techniques{margin:22px 0 18px}
+#reference-techniques-title{display:flex;align-items:center;gap:8px}
+#reference-technique-count{border-radius:20px;padding:2px 7px;background:#e8ecdc;color:#536346;font-size:11px}
+#reference-technique-list{display:grid;gap:6px}
+.reference-excerpt{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:4px}
+.reference-excerpt:has([aria-pressed=true].reference-excerpt-play){background:#eef1e4;border-color:#aebd90}
+.reference-excerpt-play{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:4px;background:transparent;text-align:left;color:var(--ink);border-radius:6px}
+.reference-excerpt-play:hover{background:#f0f2e7}
+.reference-excerpt-play img{width:35px;height:45px;object-fit:cover;border-radius:4px}
+.reference-excerpt-play strong,.reference-excerpt-play small{display:block;line-height:1.45}
+.reference-excerpt-play small{color:#556446;margin-top:2px}
+.reference-excerpt-add{min-width:44px;min-height:44px;padding:0;font-size:16px}
+.reference-excerpt-add[aria-pressed=true]{background:#dbe8bd;border-color:#9cb273}
+#detail-review-selection{min-height:44px}
+#source-clip-controls{display:flex;justify-content:space-between;gap:12px}
+#source-clip-controls[hidden]{display:none}
+#source-clip-controls button{min-height:44px}
+#moments-section{margin:18px 0;color:#536346}
+#moments-section summary{cursor:pointer}
+#moments-section .moments{margin-top:8px}
+.reference-technique-header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.detail-copy .reference-technique-header h3{margin:0}
+.reference-technique-header button{min-height:44px;padding:0 3px;white-space:nowrap}
+#reference-use.inline-borrow{margin:0 0 6px;padding:11px 14px;border-radius:8px;background:#f6f8ef}
+#reference-use.inline-borrow .detail-actions{margin:0}
+#reference-use.inline-borrow #detail-add{display:none}
+.detail-media:has(#source-clip-controls:not([hidden])){flex-direction:column}
+.detail-media:has(#source-clip-controls:not([hidden]))>video{flex:1;min-height:0}
+#source-clip-controls button{white-space:nowrap;text-decoration:none}
+@media(max-width:730px){
+ .detail-media:has(#source-clip-controls:not([hidden])){position:sticky;top:0;z-index:2;height:42vh}
+ #source-clip-controls{padding:6px 12px}
+}

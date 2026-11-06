@@ -18,11 +18,17 @@ function harness(options={}){
 test('pending reference has a direct next step without automatic copying',()=>{
  const h=harness();h.details(h.context.active);
  assert.equal(h.node('#reference-analyze').textContent,'Copy analysis request');assert.equal(h.node('#reference-analysis-title').textContent,'Next: analyze this reference.');assert.equal(h.copies.length,0);assert.equal(h.node('#pending-link-heading').hidden,false);assert.ok(h.node('#reference-use').classes.has('awaiting-analysis'));
- h.context.active={...entry('partial'),analysis_status:'partial'};h.details(h.context.active);assert.equal(h.node('#reference-analysis-title').textContent,'Continue analyzing this reference.');assert.equal(h.node('#pending-link-heading').hidden,true);
+ h.context.active={...entry('partial'),analysis_status:'partial',media_path:'references/example.mp4'};
+ h.details(h.context.active);assert.equal(h.node('#reference-analysis-next').hidden,true);
+ assert.equal(h.node('#pending-link-heading').hidden,true);assert.equal(h.node('#detail-analyze').hidden,false);
+ h.context.active={...entry('unavailable'),analysis_issue:'video_unavailable'};
+ h.details(h.context.active);assert.equal(h.node('#reference-analysis-next').hidden,false);
+ assert.equal(h.node('#reference-analysis-title').textContent,'Video unavailable in Studio.');
+ assert.match(h.node('.analysis-next-description').textContent,/Attach a local copy/);
 });
 test('explicit copy identifies this exact source and original note without changing analysis',async()=>{
  const h=harness();h.details(h.context.active);await h.click();
- assert.equal(h.copies.length,1);assert.match(h.copies[0],/#style=one/);assert.match(h.copies[0],/Borrow the card reveal/);assert.equal(h.context.active.analysis_status,'not_analyzed');assert.equal(h.node('#reference-analyze').textContent,'Copied ✓');assert.equal(h.node('#analysis-dialog').open,false);
+ assert.equal(h.copies.length,1);assert.match(h.copies[0],/#style=one/);assert.match(h.copies[0],/Borrow the card reveal/);assert.match(h.copies[0],/Save each distinct reusable technique/);assert.equal(h.context.active.analysis_status,'not_analyzed');assert.equal(h.node('#reference-analyze').textContent,'Copied ✓');assert.equal(h.node('#analysis-dialog').open,false);
  h.details(h.context.active);assert.equal(h.node('#reference-analyze').textContent,'Copied ✓');
 });
 test('unavailable clipboard opens the exact request for manual copying',async()=>{
@@ -40,7 +46,10 @@ async function pendingCover(){
  c.render=()=>{h.node('#gallery').innerHTML=c.entries[0].poster;h.rendered.push(c.entries[0].poster);};
  c.showStyle=id=>{c.active=c.entries.find(e=>e.id===id);h.opened.push(id);};
  c.applyRoute=()=>{c.active=c.entries[0];c.render();};
- c.fetch=async url=>{if(url==='/references')return reply({id:'one',duplicate:false});assert.equal(url,'/reference-preview');return new Promise(resolve=>{complete=()=>{covered=true;resolve(reply({id:'one',changed:true,available:true}));};});};
+ c.fetch=async (url,options)=>{if(url==='/references'){
+  assert.deepEqual(Object.keys(JSON.parse(options.body)).sort(),['action','url']);
+  return reply({id:'one',duplicate:false});
+ }assert.equal(url,'/reference-preview');return new Promise(resolve=>{complete=()=>{covered=true;resolve(reply({id:'one',changed:true,available:true}));};});};
  await h.node('#reference-form').listeners.submit({preventDefault(){}});
  assert.equal(h.node('#gallery').innerHTML,'assets/link-reference.svg');assert.equal(typeof complete,'function');
  h.complete=async()=>{complete();await new Promise(resolve=>setImmediate(resolve));};return h;

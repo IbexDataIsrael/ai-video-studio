@@ -13,6 +13,7 @@ window.ReferenceNotes=(()=>{
  function retain(){for(const [el,p] of panels){if(!el.isConnected){panels.delete(el);continue;}if(p.combined?!$('#brief-dialog').open:!$('#style-dialog').open||$('#brief-dialog').open)continue;const text=p.el.querySelector('[data-borrow-note]'),focus=p.el.querySelector('[data-borrow-focus]');if(text){const d={...draft(p),text:text.value,contextRevision:draft(p).contextRevision||p.data?.context_revision};if(focus)d.focus=focus.value;drafts.set(key(p.target),d);}}remember();}
  function currentTarget(){
   if(!active)return null;
+  if(sourceExcerpt)return {reference_id:sourceExcerpt.technique.id,example_id:sourceExcerpt.example.id,slide:null};
   const x=isTech(active)?example(active,false):null;
   const slide=isCarousel(active)?Number($('#detail-media').dataset.slideIndex)+1:null;
   return {reference_id:active.id,example_id:x?.id||null,slide};
@@ -38,12 +39,16 @@ window.ReferenceNotes=(()=>{
  function paint(p){
   if(panels.get(p.el)!==p)return;
   const wasOpen=p.el.querySelector('.reference-note-composer')?.open,d=draft(p),notes=applicable(p),saved=notes.length;
+  const title=p.target.example_id?'Add borrowing direction':p.combined?'Add a note':'Borrow another moment';
   const open=p.forceOpen??wasOpen??(hasDraft(p)||!!saved),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
-  p.el.innerHTML='<details class="reference-note-composer"'+(open?' open':'')+'><summary>'+(saved?'Your notes ('+saved+')':'Add a note (optional)')+'</summary><div class="reference-note-body">'+(stale?'<div class="reference-stale-draft"><p>This draft belongs to an earlier source. Review it before using it here.</p><button class="secondary" data-note-rebase>Use draft with this source</button><small>Clears the earlier timestamp.</small></div>':'')+'<div class="reference-note-context'+(d.time!==null?' is-attached':'')+'"><span>'+esc(scope(p))+'</span>'+(d.time!==null?'<button class="text-button" data-note-remove-time>Remove timestamp</button>':'')+'</div><label class="sr-only" for="borrow-'+p.id+'">What would you like to borrow?</label><textarea id="borrow-'+p.id+'" data-borrow-note rows="3" maxlength="2000" placeholder="What would you like to borrow?"'+(disabled?' disabled':'')+'>'+esc(d.text)+'</textarea>'+(p.combined?'<label class="reference-focus-label">Moment or slide <span>optional</span><input data-borrow-focus maxlength="1000" value="'+esc(d.focus||'')+'" placeholder="e.g. 0:02–0:05, or slide 2"'+(disabled?' disabled':'')+'></label>':d.focus?'<p class="reference-focus-existing">Moment: '+esc(d.focus)+'</p>':'')+'<div class="feedback-actions">'+(p.data?.has_video&&!p.combined?'<button class="secondary" data-note-timestamp'+(disabled?' disabled':'')+'>Add timestamp</button>':'')+'<button class="primary" data-note-save'+(disabled||stale?' disabled':'')+'>'+(p.busy?'Saving…':'Save note')+'</button><button class="text-button" data-note-clear'+(!hasDraft(p)?' hidden':'')+(disabled?' disabled':'')+'>Clear draft</button></div><p class="reference-note-status" role="status">'+esc(p.message|| (p.loading?'Loading saved notes…':'Save your note, then copy it to your editing chat.'))+'</p>'+(saved?'<div class="reference-saved-notes"><h4>Saved with this reference ('+saved+')</h4>'+cards(notes,p)+'</div>':'')+'</div></details>';
+  p.el.innerHTML='<details class="reference-note-composer"'+(open?' open':'')+'><summary>'+(saved?'Borrowing notes ('+saved+')':title)+'</summary><div class="reference-note-body">'+(stale?'<div class="reference-stale-draft"><p>This draft belongs to an earlier source. Review it before using it here.</p><button class="secondary" data-note-rebase>Use draft with this source</button><small>Clears the earlier timestamp.</small></div>':'')+'<div class="reference-note-context'+(d.time!==null?' is-attached':'')+'"><span>'+esc(scope(p))+'</span>'+(d.time!==null?'<button class="text-button" data-note-remove-time>Remove timestamp</button>':'')+'</div><label class="sr-only" for="borrow-'+p.id+'">What would you like to borrow?</label><textarea id="borrow-'+p.id+'" data-borrow-note rows="3" maxlength="2000" placeholder="What would you like to borrow?"'+(disabled?' disabled':'')+'>'+esc(d.text)+'</textarea>'+(p.combined&&!p.target.example_id?'<label class="reference-focus-label">Moment or slide <span>optional</span><input data-borrow-focus maxlength="1000" value="'+esc(d.focus||'')+'" placeholder="e.g. 0:02–0:05, or slide 2"'+(disabled?' disabled':'')+'></label>':d.focus?'<p class="reference-focus-existing">Moment: '+esc(d.focus)+'</p>':'')+'<div class="feedback-actions">'+(p.data?.has_video&&!p.combined&&!p.target.example_id?'<button class="secondary" data-note-timestamp'+(disabled?' disabled':'')+'>Add timestamp</button>':'')+'<button class="primary" data-note-save'+(disabled||stale?' disabled':'')+'>'+(p.busy?'Saving…':'Save note')+'</button><button class="text-button" data-note-clear'+(!hasDraft(p)?' hidden':'')+(disabled?' disabled':'')+'>Clear draft</button></div><p class="reference-note-status" role="status">'+esc(p.message|| (p.loading?'Loading saved notes…':p.target.example_id?'Your direction goes with this excerpt when you copy. Save the note if you want to reuse it.':'Save your note, then copy it to your editing chat.'))+'</p>'+(saved?'<div class="reference-saved-notes"><h4>Saved with this reference ('+saved+')</h4>'+cards(notes,p)+'</div>':'')+'</div></details>';
   if(p.error)p.el.insertAdjacentHTML('beforeend','<p class="reference-note-error" role="alert">'+esc(p.error)+' <button class="text-button" data-note-retry>Retry</button></p>');
   if(p.legacy&&!p.data?.notes.some(n=>n.legacy_key===p.legacy.key))p.el.insertAdjacentHTML('beforeend','<details class="reference-legacy-note"><summary>Earlier browser note</summary><p>This note is still in your browser. Review it, then save it with your studio.</p>'+(p.legacy.focus?'<p><strong>Moment:</strong> '+esc(p.legacy.focus)+'</p>':'')+'<p>'+esc(p.legacy.borrow||p.legacy.focus)+'</p><button class="secondary" data-note-import'+(disabled?' disabled':'')+'>Save earlier note</button></details>');
   if(p.data?.earlier_notes.length)p.el.insertAdjacentHTML('beforeend','<details class="reference-earlier-notes"><summary>Earlier source notes ('+p.data.earlier_notes.length+')</summary><p>Kept for context. These notes refer to an earlier source and are not included when you copy.</p>'+cards(p.data.earlier_notes,{combined:true})+'</details>');
-  if(!p.combined){$('#detail-quick-copy').disabled=disabled||!p.data;$('#detail-quick-copy').textContent='Copy for chat';$('#detail-quick-hint').textContent=saved?saved+' saved '+(saved===1?'note':'notes')+' · '+(p.data?.example_label|| (p.target.slide?'Slide '+p.target.slide:'This reference')):'Copy this exact reference into your editing chat. Notes are optional.';}
+  if(!p.combined){$('#detail-quick-copy').disabled=disabled||!p.data;$('#detail-quick-copy').textContent=p.target.example_id?'Borrow this technique':'Copy for chat';
+   $('#detail-quick-hint').textContent=p.target.example_id&&p.data
+    ?p.data.example_label+' · '+exact(p.data.start)+'–'+exact(p.data.end)
+    :saved?saved+' saved '+(saved===1?'note':'notes'):'Copy this reference into your editing chat.';}
  }
  let panelCount=0;
  async function mount(el,t,combined=false){
@@ -97,8 +102,12 @@ window.ReferenceNotes=(()=>{
  });
  function row(p){
   if(p.loading||p.busy||!p.data)throw Error('Wait for your saved notes to load, or retry the reference.');
-  if(hasDraft(p))throw Error('Save or clear your draft before copying.');
-  return {...p.target,context_revision:p.data.context_revision,note_ids:applicable(p).map(n=>n.id)};
+  const handoff={...p.target,context_revision:p.data.context_revision,note_ids:applicable(p).map(n=>n.id)};
+  if(!p.el||!hasDraft(p))return handoff;
+  const d=draft(p);
+  if(!p.target.example_id||d.time!==null||d.focus.trim())throw Error('Save or clear your draft before copying.');
+  if(d.contextRevision!==p.data.context_revision)throw Error('Review the earlier-source draft before copying.');
+  return {...handoff,direction:d.text.trim()};
  }
  async function prepare(list){
   retain();const rows=list.map(row),signature=JSON.stringify(rows);
@@ -122,14 +131,33 @@ window.ReferenceNotes=(()=>{
   try{const data=await load(t),p={target:t,data,loading:false,busy:false};await copy([p],status,button,()=>button.isConnected);if(button.isConnected){setTimeout(()=>{button.innerHTML=copyIcon;status.hidden=true;},2400);}}
   catch(error){notify(error.message);}
  }
- async function openSelection(ids){
-  retain();pausePreview();const run=++selectionRun;briefIds=ids.filter(id=>item(id));selectionPanels=[];$('#copy-status').textContent='Loading saved notes…';$('#copy-again').disabled=true;$('#copy-again').textContent='Copy for chat';$('#reference-message-preview').open=false;$('#brief-text').value='';
-  $('#handoff-items').innerHTML=briefIds.map((id,i)=>{const t=targetFor(id),e=item(id),x=t.example_id?example(e,false):null;return '<section class="handoff-item"><div class="handoff-item-head"><img src="'+esc(x?.poster||e.poster)+'" alt=""><div><h3>'+esc(e.title)+'</h3><p>'+esc(x?x.label+' · '+source(x.style_id).creator+' · '+exact(x.start)+'–'+exact(x.end):e.creator)+'</p></div><button class="remove-reference" data-selection-remove="'+esc(id)+'">Remove from selection</button></div><div data-selection-notes="'+i+'"></div></section>';}).join('');
-  $('#brief-dialog').showModal();
-  const loaded=await Promise.all(briefIds.map((id,i)=>mount($('#handoff-items [data-selection-notes="'+i+'"]'),targetFor(id),true)));
-  if(run!==selectionRun)return;selectionPanels=loaded;$('#copy-again').disabled=false;$('#copy-status').textContent='Ready to copy. Paste into your editing chat.';
+ async function openSelection(tokens){
+  retain();pausePreview();const run=++selectionRun;
+  briefIds=tokens.filter(selectionItem);selectionPanels=[];
+  $('#copy-status').textContent='Loading saved notes…';$('#copy-again').disabled=true;$('#copy-again').textContent='Copy for chat';
+  $('#reference-message-preview').open=false;$('#brief-text').value='';
+  const picks=briefIds.map(selectionItem);
+  $('#handoff-items').innerHTML=picks.map(({entry:e,x},i)=>{
+   const title=x?.label||e.title;
+   const detail=x?e.title+' · '+exact(x.start)+'–'+exact(x.end):e.creator;
+   return '<section class="handoff-item"><div class="handoff-item-head"><img src="'+esc(x?.poster||e.poster)+'" alt=""><div><h3>'+
+    esc(title)+'</h3><p>'+esc(detail)+'</p></div><button class="remove-reference" data-selection-remove="'+esc(briefIds[i])+
+    '" aria-label="Remove '+esc(title)+' from selection">Remove</button></div><div data-selection-notes="'+i+'"></div></section>';
+  }).join('');
+  if(!$('#brief-dialog').open)$('#brief-dialog').showModal();
+  const loaded=await Promise.all(picks.map(({entry:e,x},i)=>mount($('#handoff-items [data-selection-notes="'+i+'"]'),targetFor(e.id,x?.id),true)));
+  if(run!==selectionRun)return;
+  selectionPanels=loaded;$('#copy-again').disabled=!loaded.length;$('#copy-status').textContent='';
  }
- $('#handoff-items').addEventListener('click',event=>{const button=event.target.closest('[data-selection-remove]');if(!button)return;retain();const id=button.dataset.selectionRemove;selected.delete(id);saveSelection();const next=briefIds.filter(v=>v!==id);if(next.length)openSelection(next);else{$('#brief-dialog').close();++selectionRun;}});
+ $('#handoff-items').addEventListener('click',event=>{
+  const button=event.target.closest('[data-selection-remove]');if(!button)return;
+  retain();
+  const token=button.dataset.selectionRemove;
+  selected.delete(token);saveSelection();
+  const next=briefIds.filter(v=>v!==token);
+  if(next.length)openSelection(next);
+  else $('#brief-dialog').close();
+ });
  $('#brief-dialog').addEventListener('close',()=>{retain();++selectionRun;});
  $('#copy-again').addEventListener('click',()=>{const run=selectionRun;copy(selectionPanels,$('#copy-status'),$('#copy-again'),()=>selectionRun===run&&$('#brief-dialog').open);});
  $('#reference-message-preview').addEventListener('toggle',async()=>{

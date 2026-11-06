@@ -53,7 +53,12 @@ window.StartReferences=(()=>{
  }
  function selectedTargets(){
   let slides={};try{slides=JSON.parse(localStorage.getItem('ai-video-studio-reference-slides-v1')||'{}');}catch{}
-  return [...selected].map(id=>{const e=item(id);return e?{reference_id:id,example_id:isTech(e)?example(e,false).id:null,slide:isCarousel(e)&&Number.isInteger(slides?.[id])?slides[id]:null}:null;}).filter(Boolean);
+  return [...selected].map(token=>{
+   const [id,exampleId]=token.split('@'),e=item(id);
+   if(!e||exampleId&&!e.examples?.some(x=>x.id===exampleId))return null;
+   return {reference_id:id,example_id:isTech(e)?exampleId||example(e,false).id:null,
+    slide:isCarousel(e)&&Number.isInteger(slides?.[id])?slides[id]:null};
+  }).filter(Boolean);
  }
  function create({dialog,get,set,showPicker,state=()=>{},level=()=>{},getDrafts=()=>({}),setDrafts=()=>{},getLinkDraft=()=>'',setLinkDraft=()=>{}}){
   const summary=dialog.querySelector('#start-reference-summary'),host=dialog.querySelector('#start-picker');

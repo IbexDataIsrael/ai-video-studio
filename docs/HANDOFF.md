@@ -28,7 +28,13 @@ Saved notes can be edited inline or reversibly deleted. Preserve their IDs, sour
 
 ## Technique upkeep during analysis
 
-During reference analysis, consider useful observed techniques as part of the same task. Group examples by visible purpose and behavior; reuse an existing family or add a meaningful variation before creating a distinct family. Keep the set curated, preserve exact example IDs and record actual source windows/version/path/hash and source-backed posters. Do not create techniques from an unviewed link or treat a named effect as proof it was observed. Saving a link alone never performs this analysis.
+During reference analysis, save each distinct reusable move verified in the media as part of the same task. Combine multiple observations of one move into a useful viewing window. Reuse technique families by visible purpose and behavior, preserve exact example IDs and record the source window, version, path, hash and a source-backed poster. Use the inspected-example registration flow in docs/HANDOFF.md. Saving a link leaves analysis to chat.
+
+When finishing an analysis, prepare the updated reference descriptor and an example plan. Run `python3 scripts/register.py reference <entry.json> --replace --techniques <examples.json>`. The example plan is a JSON array. Each row has a `family` object and an `example` object. Use just `id` for an existing family. A new family also needs `title`, `category`, `summary`, `direction`, `aliases`, `keep`, `avoid` and `evidence`. Each example needs a stable `id`, `label`, `start`, `end`, `poster_at`, a versioned `poster` under `assets/techniques/` and `evidence` describing what was observed. Times use the playable source clock. The tool generates missing excerpt posters with FFmpeg and saves the reference, family examples and source hashes together. Keep earlier example IDs and recheck each linked excerpt if replacing the video. Repeating an analysis should reuse the saved example and preserve removal markers. Run `python3 style-library/library.py validate` and open the reference to check playback and exact example links.
+
+If actual video cannot be accessed, keep the reference pending, record the access limit and set `analysis_issue` to `video_unavailable` on that entry. Ask for a local copy in the editing chat. Clear the issue after inspecting a usable source. Exact font or audio details that remain unverified belong in evidence. Do not claim analysis coverage that the available tools did not support.
+
+The full reference lists its current excerpts under Techniques. Borrow this technique copies the exact family/example and range with its saved notes and any optional direction for that handoff. The browser selection can retain multiple examples from one family. Borrow another moment keeps the whole source and the chosen timestamp together. Removed technique examples retain their original IDs, media and direct links.
 
 ## Removed library references
 
@@ -44,7 +50,7 @@ Copy for chat includes the selected exact reference/example/slide and the saved 
 
 Earlier-source notes remain visible as context and are excluded from current copying. Source changes reject stale saves/copies; a draft started on an earlier source needs review before rebasing and clears its previous timestamp. Earlier browser notes in ai-video-studio-notes-v1 are retained unchanged; users can review and Save earlier note into the studio. Do not silently bulk-import, overwrite or infer a precise timestamp from their free-text focus. Identical imports are idempotent for the same source.
 
-Reference options (ellipsis near the title) holds Edit details, occasional Analyze again and reversible Remove from library. Pending analysis prepares a chat request; partial analysis explains remaining gaps. Analysis is never invoked or marked complete by the interface. Techniques keep a clear example picker, selected excerpt and View full video; manage that source in its own details. Detailed CLI handoffs remain available, while the ordinary UI uses a compact optional message preview.
+Reference options (ellipsis near the title) holds Edit details, occasional Analyze again and reversible Remove from library. Pending analysis prepares a chat request. Analysis limits belong in About this reference, with an actionable message when the video is unavailable. Analysis is never invoked or marked complete by the interface. Techniques keep a clear example picker, selected excerpt and View full video; manage that source in its own details. Detailed CLI handoffs remain available, while the ordinary UI uses a compact optional message preview.
 
 ## Saved project scripts
 

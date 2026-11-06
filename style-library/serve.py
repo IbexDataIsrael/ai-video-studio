@@ -246,7 +246,9 @@ class Handler(SimpleHTTPRequestHandler):
             except (OSError,ValueError,TypeError,KeyError):return self.json_error(503,'Reference notes are unavailable. Existing notes are preserved.')
         if path=='/reference-visibility':
             if not self.trusted():return
-            try:return self.text(json.dumps(visibility_state(parse_qs(route.query).get('id',[''])[0])),'application/json',head)
+            try:
+                query=parse_qs(route.query,keep_blank_values=True)
+                return self.text(json.dumps(visibility_state(query.get('id',[''])[0],query.get('example',[None])[0])),'application/json',head)
             except (IntakeError,ReviewError) as error:return self.json_error(error.status,str(error))
             except (OSError,ValueError,TypeError,KeyError):return self.json_error(503,'The reference is unavailable.')
         if path=='/project-script':

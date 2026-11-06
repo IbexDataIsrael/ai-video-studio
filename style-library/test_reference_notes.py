@@ -108,6 +108,19 @@ class ReferenceNoteTests(unittest.TestCase):
         for time in [0, 4.01, True, float('nan')]:
             with self.subTest(time=time), self.assertRaises(notes.NoteError): notes.save(self.body('tech-demo', 'first', time=time))
 
+    def test_same_family_handoff_keeps_independent_ranges_and_direction(self):
+        first = self.row(notes.current('tech-demo', 'first')) | {'direction': 'Use it on the hook.'}
+        second = self.row(notes.current('tech-demo', 'second')) | {'direction': 'Use it on the payoff.'}
+        text = notes.handoff({'references': [first, second]}, 'http://127.0.0.1:4870')['text']
+        self.assertIn('First reveal (0:02–0:04)', text)
+        self.assertIn('Second reveal (0:05–0:08)', text)
+        self.assertIn('example=first\nWhat to borrow: Use it on the hook.', text)
+        self.assertIn('example=second\nWhat to borrow: Use it on the payoff.', text)
+        self.assertFalse((self.base / 'reference-notes.json').exists())
+        stale = second | {'context_revision': first['context_revision']}
+        with self.assertRaises(notes.NoteError):
+            notes.handoff({'references': [stale]}, 'http://127.0.0.1:4870')
+
     def test_changed_source_keeps_earlier_notes_and_rejects_stale_copy_save(self):
         body = self.body(time=1)
         state = notes.save(body)

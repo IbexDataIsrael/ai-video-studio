@@ -176,8 +176,12 @@ def handoff(body, base_url):
         out = ['Use this reference:' if len(body['references']) == 1 else 'Use these references:', '']
         seen = set()
         for row in body['references']:
-            if not isinstance(row, dict) or set(row) != {'reference_id', 'example_id', 'slide', 'context_revision', 'note_ids'}:
+            required = {'reference_id', 'example_id', 'slide', 'context_revision', 'note_ids'}
+            if not isinstance(row, dict) or set(row) not in (required, required | {'direction'}):
                 raise NoteError('Choose valid references and saved notes.', 400)
+            direction = clean_text(row.get('direction', ''), 'Borrowing direction', 2000)
+            if direction and not row['example_id']:
+                raise NoteError('Choose an exact technique for this direction.', 400)
             ctx = context(row['reference_id'], row['example_id'])
             ids, slide = row['note_ids'], row['slide']
             if (not isinstance(ids, list) or len(ids) > 5000 or any(not isinstance(i, str) for i in ids) or
@@ -209,5 +213,7 @@ def handoff(body, base_url):
                 if n.get('focus'):
                     position += ' · ' + n['focus']
                 out.append(f"{position}: {n['text']}")
+            if direction:
+                out.append(f'What to borrow: {direction}')
             out.append('')
         return {'text': '\n'.join(out).rstrip()}
