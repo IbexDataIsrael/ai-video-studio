@@ -36,7 +36,7 @@ Open in HyperFrames is a quiet action beside downloads in Edit, tied to a known 
 
 Keep Add reference to a link and Save reference. Edit details carries title, creator and the original note. A new saved link offers Copy analysis request as the next action. In a playable reference, lead with the video and its Techniques. Keep analysis coverage under About this reference. Bring an access issue forward when the user can provide a local copy in chat.
 
-Use short labels, source frames and time ranges for the technique list. The current excerpt plays in the same player, and Back to full video returns to the earlier position. Place Borrow this technique beside the selected excerpt and offer optional direction there. Use + for each exact example and show Review selection with a count when it has items. A single chat request can carry several examples and their individual direction. Borrow another moment retains the full-video timestamp controls.
+Use short labels, source frames and time ranges for the technique list. The current excerpt plays in the same player, and Back to full video returns to the earlier position. Place Borrow this technique beside the selected excerpt and offer optional direction there. Show the creator and original source link under the title. Use + for each exact example and Add moment beside the full-video player. A bottom bar counts the picks and offers direct Copy for chat with optional Review & add direction. Both paths combine excerpts and timestamped notes in one handoff.
 
 ## Review and script context — UX V23
 

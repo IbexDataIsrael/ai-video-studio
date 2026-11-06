@@ -121,6 +121,27 @@ class ReferenceNoteTests(unittest.TestCase):
         with self.assertRaises(notes.NoteError):
             notes.handoff({'references': [stale]}, 'http://127.0.0.1:4870')
 
+    def test_handoff_combines_exact_examples_and_unsaved_timestamp_notes(self):
+        first = self.row(notes.current('tech-demo', 'first'))
+        second = self.row(notes.current('tech-demo', 'second')) | {'direction': 'Use it for the hook.'}
+        source = self.row(notes.current('video'))
+        moment = source | {'moment': {'time': 0, 'text': 'Start with this frame.'}}
+        later = source | {'moment': {'time': 8.125, 'text': 'Borrow this pause.'}}
+        text = notes.handoff({'references': [first, second, moment, later]}, 'http://127.0.0.1:4870')['text']
+        self.assertIn('example=first', text)
+        self.assertIn('example=second\nWhat to borrow: Use it for the hook.', text)
+        self.assertIn('style=video&time=0\nWhat to borrow: Start with this frame.', text)
+        self.assertIn('style=video&time=8.125\nWhat to borrow: Borrow this pause.', text)
+        self.assertFalse((self.base / 'reference-notes.json').exists())
+        for value in [-1, 11, True, float('nan')]:
+            with self.subTest(value=value), self.assertRaises(notes.NoteError):
+                notes.handoff({'references': [source | {'moment': {'time': value, 'text': ''}}]}, 'http://127.0.0.1:4870')
+        with self.assertRaises(notes.NoteError):
+            notes.handoff({'references': [first | {'moment': moment['moment']}]}, 'http://127.0.0.1:4870')
+        self.media.write_bytes(b'changed source')
+        with self.assertRaises(notes.NoteError):
+            notes.handoff({'references': [moment]}, 'http://127.0.0.1:4870')
+
     def test_changed_source_keeps_earlier_notes_and_rejects_stale_copy_save(self):
         body = self.body(time=1)
         state = notes.save(body)

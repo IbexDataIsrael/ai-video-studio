@@ -443,16 +443,33 @@ function referenceCatalogHarness(initial,storage=new Map()){
  return {node,events,run,vm,storage,update:value=>{catalog=value;}};
 }
 test('legacy picks retain their exact example and can be joined by a sibling',async()=>{
- const legacy='ai-video-studio-selection-v1',choices='ai-video-studio-examples-v1',next='ai-video-studio-selection-v2';
+ const legacy='ai-video-studio-selection-v1',choices='ai-video-studio-examples-v1',next='ai-video-studio-selection-v3';
  const h=referenceCatalogHarness({
   entries:[{id:'video'}],techniques:[{id:'tech-demo',default_example:'first',
    examples:[{id:'first',style_id:'video'},{id:'second',style_id:'video'}]}],
  },new Map([[legacy,'["video","tech-demo"]'],[choices,'{"tech-demo":"second"}']]));
  await h.vm.window.refreshReferenceCatalog();
- assert.equal(h.storage.get(next),'["video","tech-demo@second"]');
+ assert.deepEqual(JSON.parse(h.storage.get(next)).picks,['video','tech-demo@second']);
  h.run("choices['tech-demo']='first'; toggleSelection('tech-demo@first');");
- assert.equal(h.storage.get(next),'["video","tech-demo@second","tech-demo@first"]');
+ assert.deepEqual(JSON.parse(h.storage.get(next)).picks,['video','tech-demo@second','tech-demo@first']);
  assert.equal(h.storage.get(legacy),'["video","tech-demo"]');
+});
+test('timestamp selections survive reload alongside an earlier exact technique pick',async()=>{
+ const v2='ai-video-studio-selection-v2',v3='ai-video-studio-selection-v3';
+ const catalog={entries:[{id:'video'}],techniques:[{id:'tech-demo',default_example:'first',
+  examples:[{id:'first',style_id:'video'}]}]};
+ const storage=new Map([[v2,'["tech-demo@first"]']]);
+ const original=referenceCatalogHarness(catalog,storage);
+ await original.vm.window.refreshReferenceCatalog();
+ original.run(`selectedMoments.set('moment:one',{reference_id:'video',time:1.5,context_revision:'fixture',text:'Use this.'});
+  selected.add('moment:one');saveSelection();`);
+ const reopened=referenceCatalogHarness(catalog,storage);
+ await reopened.vm.window.refreshReferenceCatalog();
+ assert.equal(reopened.run('selectionSummary([...selected].map(selectionItem))'),'1 technique · 1 moment');
+ assert.equal(reopened.run("selectionItem('moment:one').moment.text"),'Use this.');
+ reopened.run("removeSelection('moment:one');saveSelection();");
+ assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{}});
+ assert.equal(storage.get(v2),'["tech-demo@first"]');
 });
 test('returning from chat refreshes an open pending reference to the saved preview',async()=>{
  const pending={id:'video',analysis_status:'not_analyzed'};

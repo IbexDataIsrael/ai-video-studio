@@ -34,7 +34,7 @@ When finishing an analysis, prepare the updated reference descriptor and an exam
 
 If actual video cannot be accessed, keep the reference pending, record the access limit and set `analysis_issue` to `video_unavailable` on that entry. Ask for a local copy in the editing chat. Clear the issue after inspecting a usable source. Exact font or audio details that remain unverified belong in evidence. Do not claim analysis coverage that the available tools did not support.
 
-The full reference lists its current excerpts under Techniques. Borrow this technique copies the exact family/example and range with its saved notes and any optional direction for that handoff. The browser selection can retain multiple examples from one family. Borrow another moment keeps the whole source and the chosen timestamp together. Removed technique examples retain their original IDs, media and direct links.
+The full reference lists its current excerpts under Techniques. Borrow this technique copies the exact family/example and range with its saved notes and any optional direction for that handoff. The browser selection can retain multiple examples from one family. Add moment captures the full-video timestamp and an optional note in the same selection as technique excerpts. A copied moment link uses #style=<id>&time=<seconds>. Resolve the exact reference and inspect that point in the playable source. The timestamp note belongs to this handoff. Removed technique examples retain their original IDs, media and direct links.
 
 ## Removed library references
 

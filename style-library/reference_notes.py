@@ -177,7 +177,7 @@ def handoff(body, base_url):
         seen = set()
         for row in body['references']:
             required = {'reference_id', 'example_id', 'slide', 'context_revision', 'note_ids'}
-            if not isinstance(row, dict) or set(row) not in (required, required | {'direction'}):
+            if not isinstance(row, dict) or set(row) not in (required, required | {'direction'}, required | {'moment'}):
                 raise NoteError('Choose valid references and saved notes.', 400)
             direction = clean_text(row.get('direction', ''), 'Borrowing direction', 2000)
             if direction and not row['example_id']:
@@ -189,7 +189,18 @@ def handoff(body, base_url):
                 raise NoteError('The selected source or notes changed. Review them before copying.', 409)
             if slide is not None and (type(slide) is not int or not 1 <= slide <= ctx['slide_count']):
                 raise NoteError('Choose an exact carousel slide.', 400)
-            token = (row['reference_id'], row['example_id'], slide)
+            moment_time, moment_text = None, ''
+            if 'moment' in row:
+                moment = row['moment']
+                if (not isinstance(moment, dict) or set(moment) != {'time', 'text'} or
+                        row['example_id'] is not None or slide is not None or ids or not ctx['has_video']):
+                    raise NoteError('Choose a moment in the full reference video.', 400)
+                moment_time = moment['time']
+                if (type(moment_time) not in (int, float) or
+                        not 0 <= moment_time <= (ctx['end'] if ctx['end'] is not None else 86400)):
+                    raise NoteError('Choose a time inside the full reference video.', 400)
+                moment_text = clean_text(moment['text'], 'Borrowing direction', 2000)
+            token = (row['reference_id'], row['example_id'], slide, moment_time)
             if token in seen:
                 raise NoteError('Choose each exact reference once.', 400)
             seen.add(token)
@@ -207,7 +218,12 @@ def handoff(body, base_url):
             if slide is not None:
                 params['slide'] = slide
                 label += f' · Slide {slide}'
+            if moment_time is not None:
+                params['time'] = str(moment_time)
+                label += f' · Moment at {library.timestamp(moment_time)}'
             out += [label, base_url.rstrip('/') + '/#' + urlencode(params)]
+            if moment_text:
+                out.append(f'What to borrow: {moment_text}')
             for n in selected:
                 position = f"At {library.timestamp(n['time'])}" if n.get('time') is not None else f"Slide {n['slide']}" if n.get('slide') else 'What to borrow'
                 if n.get('focus'):
