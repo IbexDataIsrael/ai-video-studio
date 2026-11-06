@@ -147,55 +147,93 @@ window.ReferenceNotes=(()=>{
   try{const data=await load(t),p={target:t,data,loading:false,busy:false};await copy([p],status,button,()=>button.isConnected);if(button.isConnected){setTimeout(()=>{button.innerHTML=copyIcon;status.hidden=true;},2400);}}
   catch(error){notify(error.message);}
  }
- function syncMomentEditor(){
-  const editor=$('#video-moment-editor');
-  if(!editor||!editor.dataset.moment)return;
-  const moment=selectedMoments.get(editor.dataset.moment),status=$('#video-moment-status');
-  if(moment)$('#video-moment-text').value=moment.text;
-  else{editor.hidden=true;delete editor.dataset.moment;status.textContent='';$('#add-video-moment').setAttribute('aria-expanded','false');}
+ function syncMomentFeedback(){
+  const undo=$('#undo-video-moment');
+  if(selectedMoments.has(undo.dataset.moment))return;
+  $('#video-moment-feedback').hidden=true;
+  $('#video-moment-status').textContent='';
+  delete undo.dataset.moment;
  }
+ $('#undo-video-moment').addEventListener('click',()=>{
+  const token=$('#undo-video-moment').dataset.moment;
+  if(!selectedMoments.has(token))return;
+  removeSelection(token);
+  saveSelection();
+  syncMomentFeedback();
+  $('#add-video-moment').focus();
+ });
  function bindMomentControls(entry){
   const video=$('#detail-media video'),button=$('#add-video-moment'),editor=$('#video-moment-editor');
-  const status=$('#video-moment-status'),field=$('#video-moment-text');
-  editor.hidden=true;delete editor.dataset.moment;status.textContent='';
-  button.hidden=!entry;button.onclick=null;button.setAttribute('aria-expanded','false');
+  const toolbar=$('#detail-selection-toolbar'),field=$('#video-moment-text');
+  const submit=$('#save-video-moment'),cancel=$('#close-video-moment'),error=$('#video-moment-error');
+  const undo=$('#undo-video-moment');
+  let draft=null;
+  function showEditor(open){
+   toolbar.hidden=open;
+   editor.hidden=!open;
+   error.textContent='';
+   field.value='';
+   field.readOnly=false;
+   submit.disabled=false;
+  }
+  showEditor(false);
+  delete undo.dataset.moment;
+  syncMomentFeedback();
+  button.hidden=!entry;
+  button.onclick=cancel.onclick=editor.onsubmit=null;
   if(!entry||!video)return;
-  let pending=false;
   const current=()=>active===entry&&video.isConnected;
-  const label=()=>{
+  const updateAvailability=()=>{
    if(!current())return;
-   const ready=!video.error&&video.readyState>=1&&Number.isFinite(video.currentTime);
-   button.disabled=pending||!ready;
-   button.textContent=ready?'+ Add moment at '+stamp(video.currentTime):'+ Add moment';
+   button.disabled=!!video.error||video.readyState<1;
   };
-  for(const type of ['loadedmetadata','timeupdate','seeking','error'])video.addEventListener(type,label);
-  label();
-  button.onclick=async()=>{
+  for(const type of ['loadedmetadata','emptied','error'])video.addEventListener(type,updateAvailability);
+  updateAvailability();
+  const closeEditor=()=>{
+   draft=null;
+   showEditor(false);
+   button.focus();
+  };
+  button.onclick=()=>{
    video.pause();
    const time=Math.min(Math.round(video.currentTime*1000)/1000,entry.duration??video.duration);
    if(!Number.isFinite(time))return;
-   pending=true;label();
-   try{
-    const target=targetFor(entry.id);
-    const data=detail?.target.reference_id===entry.id&&detail.data?detail.data:await load(target);
-    if(!current()||!$('#style-dialog').open)return;
-    if(time>(data.end??86400))throw Error('Choose a time inside the full reference video.');
-    let token=[...selectedMoments].find(([,m])=>m.reference_id===entry.id&&m.time===time&&m.context_revision===data.context_revision)?.[0];
-    if(!token){
-     if(selected.size>=60)throw Error('Choose up to 60 items for one request.');
-     token='moment:'+crypto.randomUUID();
-     selectedMoments.set(token,{reference_id:entry.id,time,context_revision:data.context_revision,text:''});
-     selected.add(token);saveSelection();
-    }
-    editor.dataset.moment=token;editor.hidden=false;button.setAttribute('aria-expanded','true');syncMomentEditor();
-    editor.querySelector('label').textContent='Note for '+exact(time)+' (optional)';
-    status.textContent='Moment at '+exact(time)+' added to your selection.';
-    field.focus();
-   }catch(error){if(current())status.textContent=error.message;}
-   finally{pending=false;label();}
+   draft={time};
+   $('#detail-selection-status').textContent='';
+   $('#video-moment-title').textContent='Moment at '+exact(time);
+   showEditor(true);
+   field.focus();
   };
-  field.oninput=()=>updateMomentText(editor.dataset.moment,field.value);
-  $('#close-video-moment').onclick=()=>{editor.hidden=true;button.setAttribute('aria-expanded','false');button.focus();};
+  cancel.onclick=closeEditor;
+  editor.onsubmit=async event=>{
+   event.preventDefault();
+   if(!draft||submit.disabled)return;
+   const pending=draft,{time}=pending,note=field.value.trim();
+   const stillEditing=()=>current()&&draft===pending&&$('#style-dialog').open;
+   submit.disabled=true;
+   field.readOnly=true;
+   error.textContent='';
+   try{
+    const data=await load(targetFor(entry.id));
+    if(!stillEditing())return;
+    if(time>(data.end??86400))throw Error('Choose a time inside the full reference video.');
+    const duplicate=[...selectedMoments.values()].some(moment=>
+     moment.reference_id===entry.id&&moment.time===time&&moment.context_revision===data.context_revision);
+    if(duplicate)throw Error('This moment is already selected. You can edit its note in Selection.');
+    if(selected.size>=60)throw Error('Choose up to 60 items for one request.');
+    const token='moment:'+crypto.randomUUID();
+    selectedMoments.set(token,{reference_id:entry.id,time,context_revision:data.context_revision,text:note});
+    selected.add(token);
+    saveSelection();
+    closeEditor();
+    undo.dataset.moment=token;
+    $('#video-moment-feedback').hidden=false;
+    $('#video-moment-status').textContent='Added moment at '+exact(time);
+   }catch(failure){if(stillEditing())error.textContent=failure.message;}
+   finally{
+    if(stillEditing()){submit.disabled=false;field.readOnly=false;}
+   }
+  };
  }
  function updateMomentText(token,text){
   const moment=selectedMoments.get(token);
@@ -242,12 +280,12 @@ window.ReferenceNotes=(()=>{
   const button=event.target.closest('[data-selection-remove]');if(!button)return;
   retain();
   const token=button.dataset.selectionRemove;
-  removeSelection(token);saveSelection();syncMomentEditor();
+  removeSelection(token);saveSelection();syncMomentFeedback();
   const next=briefIds.filter(v=>v!==token);
   if(next.length)openSelection(next);
   else $('#brief-dialog').close();
  });
- $('#brief-dialog').addEventListener('close',()=>{retain();syncMomentEditor();++selectionRun;});
+ $('#brief-dialog').addEventListener('close',()=>{retain();++selectionRun;});
  $('#copy-again').addEventListener('click',()=>{const run=selectionRun;copy(selectionPanels,$('#copy-status'),$('#copy-again'),()=>selectionRun===run&&$('#brief-dialog').open);});
  $('#reference-message-preview').addEventListener('toggle',async()=>{
   if(!$('#reference-message-preview').open)return;const run=selectionRun;$('#brief-text').value='Preparing your message…';

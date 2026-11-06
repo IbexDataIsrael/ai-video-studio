@@ -16,7 +16,7 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 Use **Copy full reference** below the description to copy the whole video on its own. To collect the whole video alongside excerpts and moments, choose **Add full video to selection** from Reference options.
 
-Use **+** to collect excerpts. In the bottom bar, **Add moment** captures the player's current time and adds it to the same selection. You can add an optional note there. **Copy selection for chat** copies the whole selection immediately. **Review & add direction** lets you inspect the picks and refine the notes. The two selection copy paths include the same items and notes.
+Use **+** to collect excerpts. In the bottom bar, **Add moment** pauses at the current time and opens a note editor. Choose **Add to selection** with or without a note, or **Cancel** to return to your earlier picks. **Undo** removes the moment you just added. **Copy for chat** copies all your picks. Open **Selection** to review or edit them. The two selection copy paths include the same items and notes.
 
 The selection remembers each exact example, including two examples from the same family. Moment notes belong to the selection in this browser. Copying a selection does not create a saved library note.
 

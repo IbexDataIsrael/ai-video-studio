@@ -102,11 +102,12 @@ function updateSelection(){
  $('#detail-selection').hidden=!n&&!hasReferenceVideo();
  $('#detail-selection-count').textContent=n?summary+' selected':'';
  $('#detail-selection-status').textContent='';
- $('#detail-review-selection').hidden=!n;
+ const review=$('#detail-review-selection');
+ review.textContent='Selection ('+n+')';
+ review.disabled=!n;
  const copy=$('#detail-copy-selection');
- copy.hidden=!n;
- copy.textContent='Copy selection for chat';
- copy.disabled=false;
+ copy.textContent='Copy for chat';
+ copy.disabled=!n;
  const chosen=selected.has(activeSelectionToken());
  $('#detail-add').textContent=chosen?'In your selection ✓':'Add to selection +';
  $('#detail-add').setAttribute('aria-pressed',String(chosen));
@@ -435,7 +436,12 @@ $('#example-list').addEventListener('keydown',event=>{if(!['ArrowDown','ArrowUp'
 $('#detail-links').addEventListener('click',event=>{if(event.target.closest('[data-copy-original]'))return copyQuickReference(true);const b=event.target.closest('[data-source-video]');if(b)showStyle(b.dataset.sourceVideo);});
 $('#detail-media').addEventListener('click',event=>{if(!active||!isCarousel(active))return;const direct=event.target.closest('[data-carousel-slide]'),step=event.target.closest('[data-carousel-step]');if(direct)showCarouselSlide(active,Number(direct.dataset.carouselSlide));else if(step)showCarouselSlide(active,Number($('#detail-media').dataset.slideIndex)+Number(step.dataset.carouselStep));});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.dataset.close==='style-dialog'?closeStyle():$('#'+b.dataset.close).close()));
-$('#style-dialog').addEventListener('cancel',event=>{event.preventDefault();closeStyle();});$('#style-dialog').addEventListener('click',event=>{if(event.target===$('#style-dialog'))closeStyle();});$('#brief-dialog').addEventListener('click',event=>{if(event.target===$('#brief-dialog'))$('#brief-dialog').close();});
+$('#style-dialog').addEventListener('cancel',event=>{
+ event.preventDefault();
+ if($('#video-moment-editor').hidden)closeStyle();
+ else $('#close-video-moment').click();
+});
+$('#style-dialog').addEventListener('click',event=>{if(event.target===$('#style-dialog'))closeStyle();});$('#brief-dialog').addEventListener('click',event=>{if(event.target===$('#brief-dialog'))$('#brief-dialog').close();});
 let libraryRoute=0;
 async function applyRoute(){
  const token=++libraryRoute;

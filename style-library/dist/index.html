@@ -64,22 +64,30 @@
     <section id="reference-user-note" class="reference-user-note" hidden><h3>Why you saved it</h3><p id="reference-user-note-text"></p></section>
     <details class="reference-deep-details"><summary>About this reference</summary><dl id="detail-traits" class="traits"></dl><div class="taste"><h3>Keep the good parts</h3><ul id="detail-keep"></ul><h3>Leave behind</h3><ul id="detail-avoid"></ul></div><div class="evidence"><h3>What’s been checked</h3><p id="detail-evidence"></p><div id="detail-links" class="detail-links"></div><div id="reference-saved-note-slot"></div><div id="example-visibility" class="detail-links" hidden><button id="toggle-example-visibility" class="text-button"></button><p id="example-visibility-status" role="status"></p></div><details><summary>Source details</summary><p id="detail-context"></p></details></div></details>
   </section><section id="detail-selection" class="detail-selection" aria-label="Borrowing selection" hidden>
-    <div class="detail-selection-row">
-      <div class="detail-selection-summary">
-        <button id="add-video-moment" class="secondary" aria-controls="video-moment-editor" aria-expanded="false" hidden disabled>+ Add moment</button>
-        <strong id="detail-selection-count" aria-live="polite"></strong>
+    <div id="detail-selection-toolbar">
+      <div id="video-moment-feedback" class="video-moment-feedback" hidden>
+        <span id="video-moment-status" role="status"></span>
+        <button id="undo-video-moment" type="button" class="text-button">Undo</button>
       </div>
-      <div class="detail-selection-actions"><button id="detail-review-selection" class="text-button">Review &amp; add direction</button><button id="detail-copy-selection" class="primary">Copy selection for chat</button></div>
-    </div>
-    <div id="video-moment-editor" hidden>
-      <label for="video-moment-text">Moment note (optional)</label>
-      <div class="video-moment-input">
-        <textarea id="video-moment-text" rows="2" maxlength="2000" placeholder="What would you like to borrow?"></textarea>
-        <button id="close-video-moment" class="text-button">Done</button>
+      <p id="detail-selection-status" role="status"></p>
+      <div class="detail-selection-row">
+        <button id="add-video-moment" class="secondary" aria-controls="video-moment-editor" hidden disabled>+ Add moment</button>
+        <div class="detail-selection-actions">
+          <button id="detail-review-selection" class="text-button" disabled>Selection (0)</button>
+          <button id="detail-copy-selection" class="primary" disabled>Copy for chat</button>
+        </div>
       </div>
     </div>
-    <p id="video-moment-status" role="status"></p>
-    <p id="detail-selection-status" role="status"></p>
+    <form id="video-moment-editor" aria-labelledby="video-moment-title" hidden>
+      <h3 id="video-moment-title"></h3>
+      <textarea id="video-moment-text" aria-label="Moment note (optional)" rows="2" maxlength="2000" placeholder="Add a note (optional)"></textarea>
+      <p id="video-moment-error" role="alert"></p>
+      <div class="video-moment-actions">
+        <button id="close-video-moment" type="button" class="text-button">Cancel</button>
+        <button id="save-video-moment" type="submit" class="primary">Add to selection</button>
+      </div>
+    </form>
+    <span id="detail-selection-count" class="sr-only" role="status"></span>
   </section></div></div></dialog>
   <dialog id="brief-dialog" aria-labelledby="brief-title"><div class="brief-head"><div><p class="eyebrow">YOUR SELECTED REFERENCES</p><h2 id="brief-title">Bring your ideas together.</h2></div><button class="close-button" data-close="brief-dialog" aria-label="Close selected references">×</button></div><p class="brief-intro">Copy your picks together. Add direction wherever you need it.</p><div id="handoff-items" class="handoff-items"></div><details id="reference-message-preview" class="message-preview"><summary>Preview message</summary><textarea id="brief-text" readonly aria-label="Message to copy into your editing chat" spellcheck="false"></textarea></details><div class="brief-foot"><span id="copy-status" role="status"></span><button id="copy-again" class="primary">Copy for chat</button></div></dialog>
   <dialog id="link-dialog" aria-labelledby="link-title"><div class="brief-head"><h2 id="link-title">Your reference link.</h2><button class="close-button" data-close="link-dialog" aria-label="Close reference link">×</button></div><p>Copy this message with ⌘C or Ctrl+C, then paste it into your editing chat.</p><textarea id="link-text" readonly rows="3" aria-label="Message to copy"></textarea></dialog>
