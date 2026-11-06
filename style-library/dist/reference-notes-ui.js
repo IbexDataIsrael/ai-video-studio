@@ -40,8 +40,8 @@ window.ReferenceNotes=(()=>{
   if(panels.get(p.el)!==p)return;
   const wasOpen=p.el.querySelector('.reference-note-composer')?.open,d=draft(p),notes=applicable(p),saved=notes.length;
   const prompt=p.target.example_id&&p.combined?'How would you like to use this?':'What would you like to borrow?';
-  const title=p.target.example_id?'Add direction':p.combined?'Add a note':p.data?.has_video?'Saved reference notes':'Add a note';
-  const open=p.forceOpen??wasOpen??(hasDraft(p)||!!saved),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
+  const title=p.target.example_id?(hasDraft(p)?'Edit direction':'Add direction'):p.combined?'Add a note':p.data?.has_video?'Saved reference notes':'Add a note';
+  const open=p.forceOpen??wasOpen??((p.combined||!p.target.example_id)&&(hasDraft(p)||!!saved)),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
   p.el.innerHTML='<details class="reference-note-composer"'+(open?' open':'')+'><summary>'+(saved?'Borrowing notes ('+saved+')':title)+'</summary><div class="reference-note-body">'+(stale?'<div class="reference-stale-draft"><p>This draft belongs to an earlier source. Review it before using it here.</p><button class="secondary" data-note-rebase>Use draft with this source</button><small>Clears the earlier timestamp.</small></div>':'')+'<div class="reference-note-context'+(d.time!==null?' is-attached':'')+'"><span>'+esc(scope(p))+'</span>'+(d.time!==null?'<button class="text-button" data-note-remove-time>Remove timestamp</button>':'')+'</div><label class="sr-only" for="borrow-'+p.id+'">'+esc(prompt)+'</label><textarea id="borrow-'+p.id+'" data-borrow-note rows="3" maxlength="2000" placeholder="'+esc(prompt)+'"'+(disabled?' disabled':'')+'>'+esc(d.text)+'</textarea>'+(p.combined&&!p.target.example_id?'<label class="reference-focus-label">Moment or slide <span>optional</span><input data-borrow-focus maxlength="1000" value="'+esc(d.focus||'')+'" placeholder="e.g. 0:02–0:05, or slide 2"'+(disabled?' disabled':'')+'></label>':d.focus?'<p class="reference-focus-existing">Moment: '+esc(d.focus)+'</p>':'')+'<div class="feedback-actions">'+(p.data?.has_video&&!p.combined&&!p.target.example_id?'<button class="secondary" data-note-timestamp'+(disabled?' disabled':'')+'>Add timestamp</button>':'')+'<button class="primary" data-note-save'+(disabled||stale?' disabled':'')+'>'+(p.busy?'Saving…':'Save note')+'</button><button class="text-button" data-note-clear'+(!hasDraft(p)?' hidden':'')+(disabled?' disabled':'')+'>Clear draft</button></div><p class="reference-note-status" role="status">'+esc(p.message|| (p.loading?'Loading saved notes…':p.target.example_id?'Your direction goes with this excerpt when you copy. Save the note if you want to reuse it.':'Save your note, then copy it to your editing chat.'))+'</p>'+(saved?'<div class="reference-saved-notes"><h4>Saved with this reference ('+saved+')</h4>'+cards(notes,p)+'</div>':'')+'</div></details>';
   if(p.error)p.el.insertAdjacentHTML('beforeend','<p class="reference-note-error" role="alert">'+esc(p.error)+' <button class="text-button" data-note-retry>Retry</button></p>');
   if(p.legacy&&!p.data?.notes.some(n=>n.legacy_key===p.legacy.key))p.el.insertAdjacentHTML('beforeend','<details class="reference-legacy-note"><summary>Earlier browser note</summary><p>This note is still in your browser. Review it, then save it with your studio.</p>'+(p.legacy.focus?'<p><strong>Moment:</strong> '+esc(p.legacy.focus)+'</p>':'')+'<p>'+esc(p.legacy.borrow||p.legacy.focus)+'</p><button class="secondary" data-note-import'+(disabled?' disabled':'')+'>Save earlier note</button></details>');
@@ -53,6 +53,8 @@ window.ReferenceNotes=(()=>{
  }
  let panelCount=0;
  async function mount(el,t,combined=false){
+  const previous=panels.get(el);
+  if(previous&&key(previous.target)!==key(t))el.replaceChildren();
   const p={el,target:t,combined,id:++panelCount,data:null,loading:true,busy:false,message:'',error:null,legacy:null};panels.set(el,p);paint(p);
   try{const [data,legacy]=await Promise.all([load(t),legacyFor(t)]);if(panels.get(el)!==p)return p;p.data=data;p.legacy=legacy;}
   catch(error){p.error=error.message;}
@@ -130,6 +132,15 @@ window.ReferenceNotes=(()=>{
   finally{copyBusy=false;if(valid())button.disabled=false;}
  }
  function copyCurrent(){const p=detail;if(p)return copy([p],$('#detail-quick-status'),$('#detail-quick-copy'),()=>detail===p&&$('#style-dialog').open);}
+ function copyFullReference(entry){
+  const target=targetFor(entry.id);
+  return copy(async()=>{
+   const data=await load(target),panel={target,data,useDraft:true};
+   if(hasDraft(panel))throw Error(sourceExcerpt?'Return to the full video, then save or clear your draft under About this reference.':'Save or clear your draft under About this reference, then copy again.');
+   return [panel];
+  },
+   $('#full-reference-copy-status'),$('#copy-full-reference'),()=>active===entry&&$('#style-dialog').open);
+ }
  async function copyCard(id,exampleId,button){
   const t=targetFor(id,exampleId);if(!exampleId&&isCarousel(item(id)))t.slide=null;
   const status=$('#toast');status.hidden=false;
@@ -141,26 +152,33 @@ window.ReferenceNotes=(()=>{
   if(!editor||!editor.dataset.moment)return;
   const moment=selectedMoments.get(editor.dataset.moment),status=$('#video-moment-status');
   if(moment)$('#video-moment-text').value=moment.text;
-  else{editor.hidden=true;delete editor.dataset.moment;status.textContent='';}
+  else{editor.hidden=true;delete editor.dataset.moment;status.textContent='';$('#add-video-moment').setAttribute('aria-expanded','false');}
  }
  function bindMomentControls(entry){
   const video=$('#detail-media video'),button=$('#add-video-moment'),editor=$('#video-moment-editor');
   const status=$('#video-moment-status'),field=$('#video-moment-text');
+  editor.hidden=true;delete editor.dataset.moment;status.textContent='';
+  button.hidden=!entry;button.onclick=null;button.setAttribute('aria-expanded','false');
+  if(!entry||!video)return;
+  let pending=false;
+  const current=()=>active===entry&&video.isConnected;
   const label=()=>{
-   button.disabled=!!video.error||video.readyState<1||!Number.isFinite(video.currentTime);
-   button.textContent=button.disabled?'+ Add moment':'+ Add moment at '+stamp(video.currentTime);
+   if(!current())return;
+   const ready=!video.error&&video.readyState>=1&&Number.isFinite(video.currentTime);
+   button.disabled=pending||!ready;
+   button.textContent=ready?'+ Add moment at '+stamp(video.currentTime):'+ Add moment';
   };
   for(const type of ['loadedmetadata','timeupdate','seeking','error'])video.addEventListener(type,label);
   label();
-  button.addEventListener('click',async()=>{
+  button.onclick=async()=>{
    video.pause();
    const time=Math.min(Math.round(video.currentTime*1000)/1000,entry.duration??video.duration);
    if(!Number.isFinite(time))return;
-   button.disabled=true;
+   pending=true;label();
    try{
     const target=targetFor(entry.id);
     const data=detail?.target.reference_id===entry.id&&detail.data?detail.data:await load(target);
-    if(active!==entry||sourceExcerpt||!video.isConnected)return;
+    if(!current()||!$('#style-dialog').open)return;
     if(time>(data.end??86400))throw Error('Choose a time inside the full reference video.');
     let token=[...selectedMoments].find(([,m])=>m.reference_id===entry.id&&m.time===time&&m.context_revision===data.context_revision)?.[0];
     if(!token){
@@ -169,14 +187,15 @@ window.ReferenceNotes=(()=>{
      selectedMoments.set(token,{reference_id:entry.id,time,context_revision:data.context_revision,text:''});
      selected.add(token);saveSelection();
     }
-    editor.dataset.moment=token;editor.hidden=false;syncMomentEditor();
+    editor.dataset.moment=token;editor.hidden=false;button.setAttribute('aria-expanded','true');syncMomentEditor();
+    editor.querySelector('label').textContent='Note for '+exact(time)+' (optional)';
     status.textContent='Moment at '+exact(time)+' added to your selection.';
     field.focus();
-   }catch(error){status.textContent=error.message;}
-   finally{label();}
-  });
-  field.addEventListener('input',()=>updateMomentText(editor.dataset.moment,field.value));
-  $('#close-video-moment').addEventListener('click',()=>{editor.hidden=true;button.focus();});
+   }catch(error){if(current())status.textContent=error.message;}
+   finally{pending=false;label();}
+  };
+  field.oninput=()=>updateMomentText(editor.dataset.moment,field.value);
+  $('#close-video-moment').onclick=()=>{editor.hidden=true;button.setAttribute('aria-expanded','false');button.focus();};
  }
  function updateMomentText(token,text){
   const moment=selectedMoments.get(token);
@@ -236,5 +255,5 @@ window.ReferenceNotes=(()=>{
   catch(error){if(run===selectionRun)$('#brief-text').value=error.message;}
  });
  if(active)mountCurrent();
- return {mountCurrent,retain,copyCurrent,copyCard,openSelection,copySelection,bindMomentControls};
+ return {mountCurrent,retain,copyCurrent,copyFullReference,copyCard,openSelection,copySelection,bindMomentControls};
 })();

@@ -47,33 +47,26 @@
 .reference-credit{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px;margin:12px 0 0;font-size:13px}
 #reference-credit-name{color:var(--ink);font-weight:650}
 .reference-credit a{color:#536346;text-underline-offset:3px}
-.detail-selection{position:relative;z-index:3;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px 16px;padding:13px 20px;background:#f4f6eb;border-top:1px solid #d8e0cc}
+.detail-selection{position:relative;z-index:3;flex:none;padding:12px 20px;background:#f4f6eb;border-top:1px solid #d8e0cc}
+.detail-selection-row,.detail-selection-summary,.detail-selection-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.detail-selection-row{justify-content:space-between}
 .detail-selection strong{color:#39462d;font-size:12px;line-height:1.45}
-.detail-selection-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-.detail-selection-actions button{min-height:44px;font-size:12px}
-#detail-selection-status{margin:3px 0 0;color:#536346;font-size:11px}
-#detail-selection-status:empty{display:none}
-#reference-use.whole-video-actions{margin:12px 0 18px;padding:0;border:0;background:none}
-#reference-use.whole-video-actions .detail-actions{margin:0}
-#reference-use.whole-video-actions .detail-actions button{min-height:44px}
-#reference-use.whole-video-actions #detail-quick-copy,#reference-use.whole-video-actions #detail-add,#style-dialog:has(#detail-selection:not([hidden])) #reference-use #detail-quick-copy{color:#455633;background:transparent;border:1px solid #d2d9c6}
-#reference-use.whole-video-actions #detail-quick-hint{display:none}
+.detail-selection strong:empty{display:none}
+.detail-selection button,.full-reference-actions button{min-height:44px;font-size:12px}
+.detail-selection-actions{margin-left:auto}
+.full-reference-actions{margin:0 0 20px}
+#detail-selection-status,#video-moment-status,#full-reference-copy-status{margin:6px 0 0;color:#536346;font-size:11px}
+#detail-selection-status:empty,#video-moment-status:empty,#full-reference-copy-status:empty{display:none}
+#style-dialog:has(#detail-copy-selection:not([hidden])) #reference-use #detail-quick-copy{color:#455633;background:transparent;border:1px solid #d2d9c6}
 #reference-saved-note-slot{margin-top:12px}
-.detail-media:has(#full-video-tools){flex-direction:column}
-.detail-media:has(#full-video-tools)>video{flex:1;min-height:0}
-.full-video-tools{width:100%;padding:6px 14px;background:#252b20;border-top:1px solid #46513d;color:#e1e9cf}
-.full-video-tools-row{display:flex;align-items:center;flex-wrap:wrap;gap:3px 12px}
-.full-video-tools button{min-height:44px;color:#e1e9cf;text-underline-offset:3px}
-#video-moment-status{font-size:11px}
-#video-moment-editor label{display:block;margin:0 0 6px;font-size:12px}
-#video-moment-editor textarea{display:block;width:100%;padding:8px 10px;border:1px solid #b8c3a7;border-radius:5px;background:#f9faf3;color:var(--ink);resize:vertical}
+#video-moment-editor{margin-top:10px}
+#video-moment-editor label{display:block;margin:0 0 6px;color:#39462d;font-size:12px;font-weight:600}
+.video-moment-input{display:flex;align-items:center;gap:10px}
+#video-moment-editor textarea{flex:1;min-width:0;max-height:25vh;padding:8px 10px;border:1px solid #b8c3a7;border-radius:5px;background:#f9faf3;color:var(--ink);resize:vertical}
 .selection-moment-note{display:block;margin-top:12px;font-size:12px;font-weight:600;color:#4c5c3e}
 .selection-moment-note textarea{display:block;width:100%;margin-top:6px;padding:9px;border:1px solid #d4dcc9;border-radius:5px;background:#fafbf5;color:var(--ink);resize:vertical}
 @media(max-width:730px){
  .reference-detail-pane{display:block;max-height:none}
- .detail-selection{position:sticky;bottom:0;padding:9px 15px;flex-wrap:wrap}
- .detail-selection-actions{margin-left:auto}
+ .detail-selection{position:sticky;bottom:0;padding:9px 15px}
  .detail-selection-actions button{padding-inline:9px}
- .detail-media:has(#full-video-tools:not([hidden])){height:auto}
- .detail-media:has(#full-video-tools:not([hidden]))>video{height:43vh;flex:none}
 }

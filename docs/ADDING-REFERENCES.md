@@ -14,7 +14,9 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 **Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. Save a note when you want that direction to travel with the example in future edits.
 
-Use **+** to collect excerpts. Beneath the full-video player, **Add moment** captures the current time and adds it to the same selection. Add a note beside the player if you like. The bottom bar counts the techniques and moments together. **Copy selection for chat** copies the whole selection immediately. **Review & add direction** lets you inspect the picks, edit a moment note or give direction to a specific excerpt. The two selection copy paths include the same items and notes.
+Use **Copy full reference** below the description to copy the whole video on its own. To collect the whole video alongside excerpts and moments, choose **Add full video to selection** from Reference options.
+
+Use **+** to collect excerpts. In the bottom bar, **Add moment** captures the player's current time and adds it to the same selection. You can add an optional note there. **Copy selection for chat** copies the whole selection immediately. **Review & add direction** lets you inspect the picks and refine the notes. The two selection copy paths include the same items and notes.
 
 The selection remembers each exact example, including two examples from the same family. Moment notes belong to the selection in this browser. Copying a selection does not create a saved library note.
 
