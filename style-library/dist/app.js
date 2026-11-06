@@ -377,6 +377,7 @@ window.addEventListener('hashchange',applyRoute);
 async function refreshLibraryOnReturn(){
  if(window.Studio?.currentSection!=='library'||document.querySelector('dialog[open]:not(#style-dialog)'))return;
  const prior=active,route=libraryRoute,category=$('#technique').value,creator=$('#creator').value;
+ const excerptsBefore=prior&&!isTech(prior)?JSON.stringify(referenceExcerpts(prior)):null;
  try{
   const changed=await window.refreshReferenceCatalog();
   if(!changed||route!==libraryRoute||window.Studio?.currentSection!=='library')return;
@@ -389,10 +390,13 @@ async function refreshLibraryOnReturn(){
   if(!entry)return;
   if(!sourceExcerpt&&(!video||video.paused)&&JSON.stringify(entry)!==JSON.stringify(prior)){
    showStyle(prior.id,entry.media_path===prior.media_path?video?.currentTime??null:null);
-  }else renderReferenceTechniques(entry);
+  }else if(excerptsBefore!==JSON.stringify(referenceExcerpts(entry)))renderReferenceTechniques(entry);
  }catch{/* Keep the open preview if the local studio is briefly unavailable. */}
 }
 window.addEventListener('focus',refreshLibraryOnReturn);
+$('#style-dialog').addEventListener('pointerenter',()=>{
+ if(active?.analysis_status==='not_analyzed')refreshLibraryOnReturn();
+});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshLibraryOnReturn();});
 let catalogRequest=null,catalogSignature=null;
 window.refreshReferenceCatalog=()=>{

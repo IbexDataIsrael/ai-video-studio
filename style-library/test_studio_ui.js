@@ -1,4 +1,4 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),{readFileSync}=require('node:fs'),{join}=require('node:path'),{runInNewContext}=require('node:vm');
+const {test}=require('node:test'),assert=require('node:assert/strict'),{readFileSync}=require('node:fs'),{join}=require('node:path'),{createContext,runInContext,runInNewContext}=require('node:vm');
 test('library sorting uses original added dates, with stable undated entries and independent approval times',()=>{
  const app=readFileSync(join(__dirname,'dist/app.js'),'utf8'),start=app.indexOf('function render(){'),end=app.indexOf('\nfunction setView(',start);
  assert.ok(start>=0&&end>start);
@@ -422,6 +422,50 @@ test('initial routing waits for deferred studio modules even when local assets r
  runInNewContext(readFileSync(join(__dirname,'dist/app.js'),'utf8'),context);assert.deepEqual(calls,[]);context.window.Studio={route:()=>{routes++;return true;}};await events.DOMContentLoaded();assert.deepEqual(calls,['/site-settings.json','/catalog.json']);assert.equal(routes,1);
 });
 
+
+function referenceCatalogHarness(initial,storage=new Map()){
+ const nodes=new Map(),events={};
+ const node=selector=>{
+  if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,options:[{value:'all'}],
+   addEventListener(){},setAttribute(){},close(){}});
+  return nodes.get(selector);
+ };
+ let catalog=initial;
+ const vm=createContext({
+  window:{addEventListener:(name,fn)=>events[name]=fn},
+  document:{readyState:'interactive',querySelector:selector=>['dialog[open]:not(#style-dialog)','#detail-media video'].includes(selector)?null:node(selector),querySelectorAll:()=>[],
+   addEventListener:(name,fn)=>events[name]=fn,body:{classList:{toggle(){}}}},
+  localStorage:{getItem:key=>storage.get(key)??null,setItem:(key,value)=>storage.set(key,value)},
+  fetch:async()=>({ok:true,json:async()=>catalog}),
+ });
+ const run=code=>runInContext(code,vm);
+ run(readFileSync(join(__dirname,'dist/app.js'),'utf8'));
+ return {node,events,run,vm,storage,update:value=>{catalog=value;}};
+}
+test('legacy picks retain their exact example and can be joined by a sibling',async()=>{
+ const legacy='ai-video-studio-selection-v1',choices='ai-video-studio-examples-v1',next='ai-video-studio-selection-v2';
+ const h=referenceCatalogHarness({
+  entries:[{id:'video'}],techniques:[{id:'tech-demo',default_example:'first',
+   examples:[{id:'first',style_id:'video'},{id:'second',style_id:'video'}]}],
+ },new Map([[legacy,'["video","tech-demo"]'],[choices,'{"tech-demo":"second"}']]));
+ await h.vm.window.refreshReferenceCatalog();
+ assert.equal(h.storage.get(next),'["video","tech-demo@second"]');
+ h.run("choices['tech-demo']='first'; toggleSelection('tech-demo@first');");
+ assert.equal(h.storage.get(next),'["video","tech-demo@second","tech-demo@first"]');
+ assert.equal(h.storage.get(legacy),'["video","tech-demo"]');
+});
+test('returning from chat refreshes an open pending reference to the saved preview',async()=>{
+ const pending={id:'video',analysis_status:'not_analyzed'};
+ const h=referenceCatalogHarness({entries:[pending]});
+ await h.vm.window.refreshReferenceCatalog();
+ h.node('#style-dialog').open=true;
+ h.vm.window.Studio={currentSection:'library'};
+ h.vm.shown=[];
+ h.run("active=source('video'); updateControls=()=>{}; render=()=>{}; showStyle=(id,time)=>shown.push([id,time]);");
+ h.update({entries:[{...pending,analysis_status:'partial',media_path:'references/source.mp4'}]});
+ await h.events.focus();
+ assert.equal(JSON.stringify(h.vm.shown),'[["video",null]]');
+});
 
 test('script approval saves the exact version and reveals a separate recording handoff with retained hooks and feedback',async()=>{
  const h=scriptEditor({hooks:[{id:'current',opening:'Current draft.'},{id:'other',opening:'Another hook.\n\nA bridge.'}]});

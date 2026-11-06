@@ -150,7 +150,7 @@ def register_examples(catalog, entry, plan, evidence_records):
     """Attach verified examples to one video, keeping existing links and user visibility."""
     if not isinstance(plan, list) or not entry.get('media_path'):
         raise ValueError('Provide a list of technique examples for a playable video.')
-    source_file = registered_file(ROOT, entry['media_path'], MEDIA)
+    source_file = registered_file(ROOT, entry['media_path'], {'.mp4', '.mov', '.webm', '.m4v'})
     digest = index.digest(source_file)
     families = {t['id']: t for t in catalog.setdefault('techniques', [])}
     existing = {(t['id'], x['id']): x for t in families.values() for x in t['examples'] if x['style_id'] == entry['id']}
@@ -159,6 +159,8 @@ def register_examples(catalog, entry, plan, evidence_records):
     if isinstance(duration, bool) or not isinstance(duration, (int, float)) or not math.isfinite(duration) or duration <= 0:
         raise ValueError('A technique source needs a measured video duration.')
     snapshot = {'source_version': entry['version'], 'source_path': entry['media_path'], 'source_sha256': digest}
+    if any(x['source_path'] == entry['media_path'] and x['source_sha256'] != digest for x in existing.values()):
+        raise ValueError('Keep the previous media and use a new path for changed video bytes.')
     fresh_posters = []
     for row in plan:
         if not isinstance(row, dict) or set(row) != {'family', 'example'}:
