@@ -468,8 +468,19 @@ test('timestamp selections survive reload alongside an earlier exact technique p
  assert.equal(reopened.run('selectionSummary([...selected].map(selectionItem))'),'1 technique · 1 moment');
  assert.equal(reopened.run("selectionItem('moment:one').moment.text"),'Use this.');
  reopened.run("removeSelection('moment:one');saveSelection();");
- assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{}});
+ assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{},note_session:null,has_notes:false});
  assert.equal(storage.get(v2),'["tech-demo@first"]');
+});
+test('editing request scope survives reload and reset storage events refresh other tabs',async()=>{
+ const key='ai-video-studio-selection-v3',scope='fe4ca0b4-7dd5-4ce4-ac12-70369c3ab627';
+ const record={picks:['video'],moments:{},note_session:scope,has_notes:true};
+ const h=referenceCatalogHarness({entries:[{id:'video'}],techniques:[]},new Map([[key,JSON.stringify(record)]]));
+ await h.vm.window.refreshReferenceCatalog();assert.equal(h.run('noteSession'),scope);assert.equal(h.run('hasBorrowingNotes'),true);
+ let refreshes=0;h.vm.window.ReferenceNotes={syncSession(){refreshes++;}};
+ const reset={picks:[],moments:{},note_session:'aedfe4ed-efae-422a-af91-37fe037d94db',has_notes:false};
+ h.events.storage({key,newValue:JSON.stringify(reset)});
+ assert.equal(h.run('noteSession'),reset.note_session);assert.equal(h.run('selected.size'),0);assert.equal(h.run('hasBorrowingNotes'),false);assert.equal(refreshes,1);
+ h.events.storage({key,newValue:JSON.stringify({...reset,picks:['video']})});assert.equal(refreshes,1);assert.equal(h.run('selected.size'),1);
 });
 test('legacy jump points share the technique timeline until the current source has been reviewed',async()=>{
  const reference={id:'video',version:'v1',media_path:'references/source.mp4',source_sha256:'fixture-hash',

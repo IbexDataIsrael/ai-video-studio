@@ -42,6 +42,8 @@ Saving a direction note from an open technique also selects that exact example a
 
 Saved borrowing notes have an inline Edit action in reference details and Selection. Replace that note's text with an editor and Save changes / Cancel, temporarily hiding the new-note fields while editing. Keep a separate new-note draft. Preserve the note's identity and source position, show saved changes in both views and copy the revised text. Retain conflicting edits beside the latest saved wording for an explicit choice.
 
+Borrowing direction belongs to the current edit. Clear resets all selected references, techniques, moments, saved borrowing notes and unfinished direction together across videos. Keep the existing selection bar in place with a cleared confirmation, Undo and Dismiss. Undo survives reload and stays available until new editing work starts. Browsing alone keeps it. Synchronize the reset across open tabs. Keep reusable library entries and their analysis intact.
+
 ## Review and script context — UX V23
 
 Latest names the newest review; Final appears only after explicit approval succeeds. A registered older preferred video does not block final promotion of the current exact reviewed version. Keep earlier exports, source analysis and technique examples attached to their original media. Version menus dismiss on outside click and Escape, returning focus on Escape. Spoken cut offers optional Your script, Save script and Copy request for chat, with explicit saved/unsaved feedback. Distinguish supplied script from the selected spoken script. New-project requests can include the script without a required wizard step.

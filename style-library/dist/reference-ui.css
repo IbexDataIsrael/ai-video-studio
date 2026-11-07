@@ -81,6 +81,7 @@
 .reference-note-conflict{margin:10px 0;padding:10px;background:#eef1e4;border-radius:5px;font-size:12px}
 .reference-note-conflict p{margin:0 0 8px;white-space:pre-wrap}
 .reference-note-body:has([data-note-edit-text])>[data-borrow-note],.reference-note-body:has([data-note-edit-text])>.feedback-actions,.reference-note-body:has([data-note-edit-text])>.reference-focus-label,.reference-note-body:has([data-note-edit-text])>.reference-note-context{display:none}
+#selection-bar .selected-previews:empty{display:none}
 .video-moment-actions{justify-content:flex-end;margin-top:8px}
 #video-moment-error{color:#9c5132}
 .selection-moment-note{display:block;margin-top:12px;font-size:12px;font-weight:600;color:#4c5c3e}

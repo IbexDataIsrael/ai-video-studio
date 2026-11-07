@@ -241,7 +241,8 @@ class Handler(SimpleHTTPRequestHandler):
             if not self.trusted():return
             try:
                 query=parse_qs(route.query,keep_blank_values=True)
-                return self.text(json.dumps(reference_notes_state(query.get('id',[''])[0],query.get('example',[None])[0])),'application/json',head)
+                if set(query)-{'id','example','selection'} or any(len(v)!=1 for v in query.values()):return self.send_error(400)
+                return self.text(json.dumps(reference_notes_state(query.get('id',[''])[0],query.get('example',[None])[0],query.get('selection',[None])[0])),'application/json',head)
             except (NoteError,ReviewError) as error:return self.json_error(error.status,str(error))
             except (OSError,ValueError,TypeError,KeyError):return self.json_error(503,'Reference notes are unavailable. Existing notes are preserved.')
         if path=='/reference-visibility':

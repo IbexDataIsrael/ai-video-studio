@@ -71,7 +71,7 @@ async function techniqueNotes(options={}){
   if(!nodes.has(selector)){
    const field={value:'',focus(){}};
    const el={isConnected:true,hidden:false,open:false,textContent:'',dataset:{},
-    addEventListener(name,fn){this[name]=fn;},insertAdjacentHTML(){},replaceChildren(){this.innerHTML='';},contains(n){return n===field||n===this.save;},
+    addEventListener(name,fn){this[name]=fn;},close(){this.open=false;},insertAdjacentHTML(){},replaceChildren(){this.innerHTML='';},contains(n){return n===field||n===this.save;},
     querySelector(s){if(s==='[data-borrow-note]')return field;if(s==='.reference-note-composer')return {open:true};return null;},querySelectorAll(){return [];},
     set innerHTML(value){this.html=value;const text=value.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/);if(text)field.value=text[1];},
     get innerHTML(){return this.html||'';}};
@@ -81,12 +81,12 @@ async function techniqueNotes(options={}){
  };
  node('#style-dialog').open=true;
  const response=data=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>data});
- const context={window:{},$:node,active:null,sourceExcerpt:null,referenceNotes:{},selected:picks,
+ const context={window:{},$:node,active:null,sourceExcerpt:null,referenceNotes:{},selected:picks,selectedMoments:new Map(),noteSession:null,hasBorrowingNotes:false,
   source:()=>({media_path:'references/test.mp4'}),isTech:()=>false,isCarousel:()=>false,
-  esc:String,exact:String,URL,URLSearchParams,crypto:{randomUUID:()=> 'request-fixture'},
+  esc:String,exact:String,URL,URLSearchParams,crypto:require('node:crypto'),
   document:{addEventListener:(name,fn)=>events[name]=fn},
   localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
-  saveSelection(){storage.set('selection',JSON.stringify([...picks]));},
+  saveSelection(){storage.set('selection',JSON.stringify([...context.selected]));},persistSelection(){},updateSelection(){},selectionItem:id=>({entry:{id}}),
   fetch:async(url,init)=>{
    const body=init?.body?JSON.parse(init.body):null,params=new URL(url,'http://fixture').searchParams;
    const data={reference_id:body?.reference_id||params.get('id'),example_id:body?.example_id||params.get('example'),
@@ -103,7 +103,7 @@ async function techniqueNotes(options={}){
  };
  await mount();
  const save=text=>{node('#reference-note-panel').field.value=text;return events.click({target:node('#reference-note-panel').save});};
- return {picks,writes,storage,context,mount,save,panel:node('#reference-note-panel')};
+ return {picks,writes,storage,context,mount,save,node,api:context.window.ReferenceNotes,panel:node('#reference-note-panel')};
 }
 test('saving technique direction selects the exact example once and preserves earlier picks',async()=>{
  const h=await techniqueNotes({picks:['tech-other@chosen']});
@@ -134,4 +134,28 @@ test('a full selection keeps the saved note and explains why the technique was n
  const h=await techniqueNotes({picks:Array.from({length:60},(_,i)=>'tech-'+i+'@chosen')});
  await h.save('Keep this note.');assert.equal(h.picks.size,60);assert.equal(h.writes.length,1);
  assert.match(h.panel.innerHTML,/Note saved\. Your selection is full/);
+});
+test('Clear resets picks, moments and drafts together; Undo restores that editing request',async()=>{
+ const h=await techniqueNotes({picks:['tech-one@first','tech-two@second']});
+ h.context.hasBorrowingNotes=true;
+ h.context.selectedMoments.set('moment:one',{reference_id:'video',time:2,text:'Borrow this pause.'});
+ h.context.selected.add('moment:one');h.panel.field.value='Keep this unfinished direction.';
+ h.context.active=null;
+ h.api.clearSelection();
+ assert.equal(h.context.selected.size,0);assert.equal(h.context.selectedMoments.size,0);
+ assert.equal(h.context.hasBorrowingNotes,false);assert.equal(h.api.hasWork(),false);assert.equal(h.api.hasClearUndo(),true);
+ assert.match(h.context.noteSession,/^[a-f0-9-]{36}$/);
+ h.node('#undo-clear-selection').click();
+ assert.equal(h.context.noteSession,null);assert.equal(h.context.hasBorrowingNotes,true);
+ assert.deepEqual([...h.context.selected],['tech-one@first','tech-two@second','moment:one']);
+ assert.equal(h.context.selectedMoments.get('moment:one').text,'Borrow this pause.');
+ assert.equal(h.api.hasWork(),true);assert.equal(h.api.hasClearUndo(),false);
+});
+test('a note save finishing after Clear cannot reselect a cleared technique',async()=>{
+ let finish;const wait=new Promise(resolve=>finish=resolve),h=await techniqueNotes({wait});
+ const saving=h.save('Old request direction.');h.context.active=null;h.api.clearSelection();
+ const scope=h.context.noteSession;finish();await saving;
+ assert.equal(h.context.noteSession,scope);assert.equal(h.context.selected.size,0);
+ assert.equal(h.context.hasBorrowingNotes,false);assert.equal(h.api.hasWork(),false);
+ assert.equal(h.writes[0].selection_id,null);
 });

@@ -153,6 +153,40 @@ class ReferenceNoteTests(unittest.TestCase):
         self.assertEqual(len(result['history']), 1)
         self.assertEqual(result['history'][0]['before']['text'], state['notes'][0]['text'])
 
+    def test_editing_requests_isolate_notes_without_erasing_prior_saved_work(self):
+        legacy = notes.save(self.body())
+        scope = str(uuid.uuid4())
+        before = (self.base / 'reference-notes.json').read_bytes()
+        self.assertEqual(notes.current('video', selection_id=scope)['notes'], [])
+        self.assertEqual(before, (self.base / 'reference-notes.json').read_bytes())
+        selected = notes.save(self.body(selection_id=scope, text='Only for this edit.'))
+        self.assertEqual(len(selected['notes']), 1)
+        self.assertEqual(notes.current('video')['notes'], legacy['notes'])
+        self.assertEqual(notes.current('video', selection_id=str(uuid.uuid4()))['notes'], [])
+        row = self.row(selected) | {'selection_id': scope}
+        text = notes.handoff({'references': [row]}, 'http://127.0.0.1:4870')['text']
+        self.assertIn('Only for this edit.', text)
+        self.assertNotIn('Borrow the card entrance.', text)
+        with self.assertRaises(notes.NoteError):
+            notes.handoff({'references': [row | {'selection_id': str(uuid.uuid4())}]}, 'http://127.0.0.1:4870')
+        self.assertEqual(notes.current('video')['notes'], legacy['notes'])
+
+    def test_scoped_note_edit_and_retries_keep_the_same_request(self):
+        scope = str(uuid.uuid4())
+        saved = notes.save(self.body('tech-demo', 'first', selection_id=scope))
+        request = self.edit_body(saved) | {'selection_id': scope}
+        result = notes.edit(request)
+        self.assertEqual(result, notes.edit(request))
+        self.assertEqual(result['notes'][0]['selection_id'], scope)
+        self.assertEqual(notes.current('tech-demo', 'first')['notes'], [])
+        with self.assertRaises(notes.NoteError):
+            notes.edit(self.edit_body(result) | {'selection_id': str(uuid.uuid4())})
+        for value in ('invalid', '', [], 3):
+            with self.subTest(value=value), self.assertRaises(notes.NoteError):
+                notes.current('video', selection_id=value)
+            with self.subTest(value=value), self.assertRaises(notes.NoteError):
+                notes.save(self.body(selection_id=value))
+
     def test_read_and_handoff_without_notes_do_not_create_owner_files(self):
         state = notes.current('video')
         text = notes.handoff({'references': [self.row(state)]}, 'http://127.0.0.1:4870')['text']
@@ -352,6 +386,9 @@ class ReferenceNoteTests(unittest.TestCase):
             self.assertEqual(request(valid)[0], 200)
             status, raw = request({}, '', '/reference-notes?id=video', 'GET')
             self.assertEqual(status, 200)
+            self.assertEqual(request({}, '', '/reference-notes?id=video&selection=invalid', 'GET')[0], 400)
+            self.assertEqual(request({}, '', '/reference-notes?id=video&selection='+str(uuid.uuid4()), 'GET')[0], 200)
+            self.assertEqual(request({}, '', '/reference-notes?id=video&id=link', 'GET')[0], 400)
             before = (self.base / 'reference-notes.json').read_bytes()
             copied = request(valid | {'X-Studio-Action': 'reference-handoff'}, json.dumps({'references': [self.row(json.loads(raw))]}), '/reference-handoff')
             self.assertEqual(copied[0], 200)

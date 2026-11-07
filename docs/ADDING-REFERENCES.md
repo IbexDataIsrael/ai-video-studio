@@ -12,7 +12,7 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 ## Borrow a technique
 
-**Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. **Save note** keeps that direction with the exact example for future edits and adds the technique to your current selection. Saving again keeps one selection item.
+**Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. **Save note** keeps that direction with the exact example for this edit and adds the technique to your current selection. Saving again keeps one selection item.
 
 Choose **Edit** beside a saved note in the reference or in **Selection**. **Save changes** updates that same note. **Cancel** keeps the saved wording. The note keeps its timestamp, exact example and earlier wording. An unfinished edit is retained if you leave the reference or reload. Save or cancel it before copying that note. If another window changed the note, review the latest wording before choosing **Use my edit**.
 
@@ -20,7 +20,7 @@ Use **Copy full reference** below the description to copy the video link and sav
 
 Use **+** to collect excerpts across videos. Video cards show how many excerpts or moments you picked from each source. The card’s **+** selects the full video. In the bottom bar, **Add moment** shows the current time and pauses there when you open the note editor. Choose **Add to selection** with or without a note, or **Cancel** to return to your earlier picks. **Undo** removes the moment you just added. **Copy for chat** copies all your picks. Open **Selection** to review or edit them. The two selection copy paths include the same items and notes.
 
-The selection remembers each exact example, including two examples from the same family. Moment notes belong to the selection in this browser. Copying a selection does not create a saved library note.
+The selection remembers each exact example, including two examples from the same family. Borrowing notes belong to the current edit and stay with it while you browse, close panels or reload. **Clear** starts fresh across all videos, resetting picks, moments, borrowing notes and unfinished direction. **Undo** restores the previous edit; starting new picks or direction dismisses Undo. References and cataloged techniques stay in the library. Copying a selection does not create a saved library note.
 
 ## Remove or restore
 

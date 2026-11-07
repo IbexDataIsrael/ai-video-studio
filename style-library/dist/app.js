@@ -14,11 +14,14 @@ function cardActions(e,x=null){return '<span class="card-actions"><button class=
 try{referenceNotes=JSON.parse(localStorage.getItem('ai-video-studio-notes-v1')||'{}');}catch{}
 const selectionKey='ai-video-studio-selection-v3';
 const selectedMoments=new Map();
+let noteSession=null,hasBorrowingNotes=false;
 let legacySelection=false;
 try{
  const current=JSON.parse(localStorage.getItem(selectionKey)||'null');
  const previous=localStorage.getItem('ai-video-studio-selection-v2');
  selected=new Set(current?.picks??JSON.parse(previous??localStorage.getItem('ai-video-studio-selection-v1')??'[]'));
+ if(typeof current?.note_session==='string'&&/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(current.note_session))noteSession=current.note_session;
+ hasBorrowingNotes=!!current?.has_notes;
  legacySelection=!current&&previous===null&&selected.size>0;
  for(const [token,moment] of Object.entries(current?.moments||{})){
   if(selected.has(token)&&moment&&typeof moment.reference_id==='string'&&Number.isFinite(moment.time)&&
@@ -69,7 +72,7 @@ function hasReferenceVideo(){return !!active?.media_path&&!isTech(active)&&!isCa
 function notify(text){$('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,2200);}
 function persistSelection(){
  try{
-  localStorage.setItem(selectionKey,JSON.stringify({picks:[...selected],moments:Object.fromEntries(selectedMoments)}));
+  localStorage.setItem(selectionKey,JSON.stringify({picks:[...selected],moments:Object.fromEntries(selectedMoments),note_session:noteSession,has_notes:hasBorrowingNotes}));
   localStorage.setItem('ai-video-studio-examples-v1',JSON.stringify(choices));
  }catch{notify('Selection will last for this visit only; browser storage is unavailable.');}
 }
@@ -85,11 +88,16 @@ function selectionSummary(picks){
 }
 function updateSelection(){
  const picks=[...selected].map(selectionItem).filter(Boolean),n=picks.length;
- const visible=!!n&&(!window.Studio||window.Studio.currentSection==='library');
+ const undo=!!window.ReferenceNotes?.hasClearUndo(),work=hasBorrowingNotes||!!window.ReferenceNotes?.hasWork();
+ const visible=!!(n||undo||work)&&(!window.Studio||window.Studio.currentSection==='library');
  $('#selection-bar').hidden=!visible;document.body.classList.toggle('has-selection',visible);
  const summary=selectionSummary(picks);
- $('#selected-count').textContent=summary;
- $('#selection-description').textContent='Copy your picks together for your editing chat.';
+ $('#selected-count').textContent=undo?'Selection and notes cleared':n?summary:'Notes for this edit';
+ $('#selection-description').textContent=undo?'Ready for your next edit.':n?'Copy your picks together for your editing chat.':'Add a reference, or Clear to start fresh.';
+ $('#undo-clear-selection').hidden=!undo;
+ $('#clear-selection').textContent=undo?'Dismiss':'Clear';
+ $('#copy-selection').hidden=undo;
+ $('#copy-selection').disabled=!n;
  const picksBySource=new Map();
  for(const pick of picks){
   const sourceId=pick.x?.style_id??pick.moment?.reference_id;
@@ -129,6 +137,7 @@ function updateSelection(){
 }
 function toggleSelection(token){
  if(!selectionItem(token))return;
+ window.ReferenceNotes?.discardClearUndo();
  if(selected.has(token))removeSelection(token);
  else {
   if(selected.size>=60){notify('Choose up to 60 items for one request.');return;}
@@ -136,6 +145,19 @@ function toggleSelection(token){
  }
  saveSelection();
 }
+window.addEventListener('storage',event=>{
+ if(event.key==='ai-video-studio-clear-undo-v1'){window.ReferenceNotes?.syncClearUndo();updateSelection();return;}
+ if(event.key!==selectionKey||!event.newValue)return;
+ try{
+  const value=JSON.parse(event.newValue);if(!Array.isArray(value.picks))return;
+  const before=noteSession;
+  noteSession=typeof value.note_session==='string'&&/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(value.note_session)?value.note_session:null;
+  hasBorrowingNotes=!!value.has_notes;selected=new Set(value.picks.filter(id=>typeof id==='string'));selectedMoments.clear();
+  for(const [id,m] of Object.entries(value.moments||{}))if(selected.has(id)&&m&&typeof m.reference_id==='string'&&Number.isFinite(m.time)&&typeof m.context_revision==='string'&&typeof m.text==='string')selectedMoments.set(id,m);
+  if(before!==noteSession)window.ReferenceNotes?.syncSession();
+  updateSelection();
+ }catch{}
+});
 function populateCreators(){
  const current=$('#creator').value,groups=new Map();
  const rows=view!=='techniques'?viewEntries().map(e=>({id:e.id,source:e})):browseTechniques().flatMap(t=>browseExamples(t).map(x=>({id:t.id,source:source(x.style_id)})));
@@ -421,7 +443,7 @@ $('#toggle-filters').addEventListener('click',()=>{const open=$('#toggle-filters
 $('#active-filters').addEventListener('click',event=>{if(event.target.closest('[data-clear-all]'))return clearFilters();const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;$('#'+id).value=id==='search'?'':'all';render();$('#search').focus();});
 $('#reset').addEventListener('click',clearFilters);
 $('#reset-filters').addEventListener('click',clearFilters);
-$('#clear-selection').addEventListener('click',()=>{selected.clear();selectedMoments.clear();saveSelection();});$('#copy-selection').addEventListener('click',()=>openBrief([...selected]));
+$('#clear-selection').addEventListener('click',()=>window.ReferenceNotes?.clearSelection());$('#copy-selection').addEventListener('click',()=>openBrief([...selected]));
 $('#detail-add').addEventListener('click',()=>toggleSelection(activeSelectionToken()));
  $('#add-full-reference').addEventListener('click',()=>{
   if(!hasReferenceVideo())return;
