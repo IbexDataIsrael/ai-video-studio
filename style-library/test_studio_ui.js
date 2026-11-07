@@ -511,6 +511,44 @@ test('clicking the active excerpt again restores the full-video time and retains
  assert.equal(h.run('sourceExcerpt'),null);
  assert.equal(h.run("selected.has('tech-demo@excerpt')"),true);
 });
+test('Videos and Techniques keep the same exact examples, request scope and family count',async()=>{
+ const scope='fe4ca0b4-7dd5-4ce4-ac12-70369c3ab627';
+ const h=referenceCatalogHarness({entries:[{id:'video-a'},{id:'video-b'}],techniques:[{id:'family',default_example:'first',examples:[{id:'first',style_id:'video-a'},{id:'second',style_id:'video-b'}]}]},
+  new Map([['ai-video-studio-selection-v3',JSON.stringify({picks:['family@first'],moments:{},note_session:scope,has_notes:true})]]));
+ await h.vm.window.refreshReferenceCatalog();
+ h.vm.history={replaceState(){}};
+ h.run("updateControls=()=>{};render=()=>{};setView('techniques');choices.family='second';");
+ assert.equal(h.run("familySelectionCount('family')"),1);assert.equal(h.run('noteSession'),scope);
+ h.run("toggleSelection('family@second');setView('videos');");
+ assert.equal(h.run("familySelectionCount('family')"),2);
+ assert.deepEqual(JSON.parse(h.storage.get('ai-video-studio-selection-v3')).picks,['family@first','family@second']);
+ assert.equal(h.run('hasBorrowingNotes'),true);
+});
+test('example rows separate preview from collection and skip a chooser for a sole example',async()=>{
+ const h=referenceCatalogHarness({entries:[{id:'video',title:'Original video',creator:'Creator'}],techniques:[{id:'family',examples:[{id:'one',label:'One',style_id:'video',start:1,end:2,poster:'one.jpg'},{id:'two',label:'Two',style_id:'video',start:3,end:4,poster:'two.jpg'}]}]});
+ await h.vm.window.refreshReferenceCatalog();
+ const rows=JSON.parse(h.run("JSON.stringify(techniqueExampleRows(item('family'),item('family').examples[0]))"));
+ assert.equal(rows.single,false);assert.match(rows.html,/data-example="one"[^>]*aria-expanded="true"/);assert.match(rows.html,/data-select-excerpt="family@two"/);assert.match(rows.html,/Creator · Original video/);assert.doesNotMatch(rows.html,/role="radio"/);
+ h.run("item('family').examples.pop()");
+ const single=JSON.parse(h.run("JSON.stringify(techniqueExampleRows(item('family'),item('family').examples[0]))"));
+ assert.equal(single.single,true);assert.doesNotMatch(single.html,/data-example=/);assert.match(single.html,/data-select-excerpt="family@one"/);
+});
+test('technique detail keeps the selection footer visible at zero',async()=>{
+ const h=referenceCatalogHarness({entries:[{id:'video'}],techniques:[{id:'family',default_example:'one',examples:[{id:'one',style_id:'video'}]}]});
+ await h.vm.window.refreshReferenceCatalog();h.run("active=item('family');updateSelection()");
+ assert.equal(h.node('#detail-selection').hidden,false);assert.equal(h.node('#detail-copy-selection').disabled,true);
+ h.run("toggleSelection('family@one')");assert.equal(h.node('#detail-copy-selection').disabled,false);
+});
+test('full-video return context pins the exact matching source and clamps its excerpt time',async()=>{
+ const h=referenceCatalogHarness({entries:[{id:'video',media_path:'references/source.mp4',version:'v1',source_sha256:'hash'}],techniques:[{id:'family',examples:[{id:'one',style_id:'video',source_path:'references/source.mp4',source_version:'v1',source_sha256:'hash',start:4,end:7}]}]});
+ await h.vm.window.refreshReferenceCatalog();
+ const context=JSON.parse(h.run("JSON.stringify(techniqueReturnContext(source('video'),'family','one',5.4,123))"));
+ assert.deepEqual(context,{techniqueId:'family',exampleId:'one',sourceId:'video',time:5.4,scroll:123});
+ assert.equal(h.run("techniqueReturnContext(source('video'),'family','one',30).time"),7);
+ assert.equal(h.run("techniqueReturnContext(source('video'),'family','missing',5)"),null);
+ assert.equal(h.run("techniqueReturnContext({...source('video'),version:'v2'},'family','one',5)"),null);
+ assert.equal(h.run("techniqueReturnContext({...source('video'),source_sha256:'changed'},'family','one',5)"),null);
+});
 test('returning from chat refreshes an open pending reference to the saved preview',async()=>{
  const pending={id:'video',analysis_status:'not_analyzed'};
  const h=referenceCatalogHarness({entries:[pending]});

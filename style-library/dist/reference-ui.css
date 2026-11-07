@@ -13,6 +13,11 @@
 #reference-technique-count{border-radius:20px;padding:2px 7px;background:#e8ecdc;color:#536346;font-size:11px}
 #reference-technique-hint{margin:0 0 13px;color:#536346;font-size:12px;line-height:1.5}
 #reference-technique-list{display:grid;gap:6px}
+#technique-examples .example-list{display:grid;grid-template-columns:1fr;gap:6px}
+#technique-example-hint{font-size:12px;line-height:1.5;color:#536346}
+.reference-excerpt .reference-example-info:hover{background:transparent}
+#return-to-technique{min-height:44px;padding:0 0 10px;text-align:left;line-height:1.5;color:#536346}
+#technique-examples+#reference-techniques{margin:0}
 .reference-excerpt{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:4px}
 .reference-excerpt:has(.reference-excerpt-play[aria-expanded=true]){background:#eef1e4;border-color:#aebd90}
 .reference-excerpt-play{display:flex;align-items:center;gap:10px;flex:1;min-width:0;padding:4px;background:transparent;text-align:left;color:var(--ink);border-radius:6px}
@@ -34,6 +39,7 @@
 #reference-use.inline-borrow .detail-actions button{min-height:44px}
 #reference-use.inline-borrow #reference-note-panel{margin-top:12px}
 #reference-use.inline-borrow #detail-add{display:none}
+.technique-preview .clip-controls button,.technique-preview .full-video-link{min-height:44px;display:inline-flex;align-items:center}
 .detail-media:has(#source-clip-controls:not([hidden])){flex-direction:column}
 .detail-media:has(#source-clip-controls:not([hidden]))>video{flex:1;min-height:0}
 #source-clip-controls button{white-space:nowrap;text-decoration:none}
