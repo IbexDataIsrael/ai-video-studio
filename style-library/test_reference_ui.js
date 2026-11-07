@@ -1,4 +1,4 @@
-// Analysis handoff regressions; no browser packages or owner data required.
+// Reference intake and borrowing regressions; no browser packages or owner data required.
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const {readFileSync}=require('node:fs');
@@ -63,4 +63,75 @@ test('a late cover refreshes browsing without reopening a closed or different re
   const h=await pendingCover();h.context.active=state==='different'?entry('two'):null;h.node('#style-dialog').open=state==='different';if(state==='projects')h.context.window.Studio.currentSection='projects';
   await h.complete();assert.deepEqual(h.opened,[],state);assert.equal(h.rendered.length,state==='projects'?1:2,state);if(state!=='projects')assert.equal(h.node('#gallery').innerHTML,'assets/reference-previews/cover.jpg');if(state==='different')assert.equal(h.context.active.id,'two');
  }
+});
+
+async function techniqueNotes(options={}){
+ const nodes=new Map(),events={},storage=new Map(),writes=[],picks=new Set(options.picks||[]);
+ const node=selector=>{
+  if(!nodes.has(selector)){
+   const field={value:'',focus(){}};
+   const el={isConnected:true,hidden:false,open:false,textContent:'',dataset:{},
+    addEventListener(name,fn){this[name]=fn;},insertAdjacentHTML(){},replaceChildren(){this.innerHTML='';},contains(n){return n===field||n===this.save;},
+    querySelector(s){if(s==='[data-borrow-note]')return field;if(s==='.reference-note-composer')return {open:true};return null;},
+    set innerHTML(value){this.html=value;const text=value.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/);if(text)field.value=text[1];},
+    get innerHTML(){return this.html||'';}};
+   el.save={hasAttribute:name=>name==='data-note-save',closest(){return this;}};
+   el.field=field;nodes.set(selector,el);
+  }return nodes.get(selector);
+ };
+ node('#style-dialog').open=true;
+ const response=data=>({ok:true,headers:{get:()=> 'application/json'},json:async()=>data});
+ const context={window:{},$:node,active:null,sourceExcerpt:null,referenceNotes:{},selected:picks,
+  source:()=>({media_path:'references/test.mp4'}),isTech:()=>false,isCarousel:()=>false,
+  esc:String,exact:String,URL,URLSearchParams,crypto:{randomUUID:()=> 'request-fixture'},
+  document:{addEventListener:(name,fn)=>events[name]=fn},
+  localStorage:{getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)},
+  saveSelection(){storage.set('selection',JSON.stringify([...picks]));},
+  fetch:async(url,init)=>{
+   const body=init?.body?JSON.parse(init.body):null,params=new URL(url,'http://fixture').searchParams;
+   const data={reference_id:body?.reference_id||params.get('id'),example_id:body?.example_id||params.get('example'),
+    context_revision:'current',notes:[],earlier_notes:[],has_video:true,slide_count:0,start:1,end:3};
+   if(body){writes.push(body);if(options.wait)await options.wait;
+    if(options.fail)return {ok:false,headers:{get:()=> 'application/json'},json:async()=>({error:'Source changed.'})};
+    data.notes=[{...body,id:'note-fixture'}];}
+   return response(data);
+  }};
+ runInNewContext(readFileSync(join(__dirname,'dist/reference-notes-ui.js'),'utf8'),context);
+ const mount=async(id='tech-one',exampleId='first')=>{
+  context.active={id:'video'};context.sourceExcerpt={technique:{id},example:{id:exampleId}};
+  context.window.ReferenceNotes.mountCurrent();await new Promise(resolve=>setImmediate(resolve));
+ };
+ await mount();
+ const save=text=>{node('#reference-note-panel').field.value=text;return events.click({target:node('#reference-note-panel').save});};
+ return {picks,writes,storage,context,mount,save,panel:node('#reference-note-panel')};
+}
+test('saving technique direction selects the exact example once and preserves earlier picks',async()=>{
+ const h=await techniqueNotes({picks:['tech-other@chosen']});
+ assert.equal(h.picks.size,1);
+ await h.save('Keep the grayscale portrait.');
+ assert.deepEqual([...h.picks],['tech-other@chosen','tech-one@first']);
+ assert.equal(h.writes[0].example_id,'first');
+ assert.match(h.panel.innerHTML,/Technique added to your selection/);
+ assert.match(h.panel.innerHTML,/This technique/);
+ await h.save('Keep the newspaper texture too.');
+ assert.deepEqual(JSON.parse(h.storage.get('selection')),['tech-other@chosen','tech-one@first']);
+ assert.match(h.panel.innerHTML,/This technique is in your selection/);
+});
+test('failed or empty note saves leave the technique unselected and retain the draft',async()=>{
+ const h=await techniqueNotes({fail:true});
+ await h.save('');assert.equal(h.writes.length,0);assert.equal(h.picks.size,0);
+ await h.save('Keep my direction.');assert.equal(h.picks.size,0);
+ assert.equal(h.panel.field.value,'Keep my direction.');
+ assert.match(h.panel.innerHTML,/Source changed/);
+});
+test('a late note save selects its original example after the user previews another',async()=>{
+ let finish;const wait=new Promise(resolve=>finish=resolve),h=await techniqueNotes({wait});
+ const saving=h.save('Use this first example.');await h.mount('tech-two','second');finish();await saving;
+ assert.deepEqual([...h.picks],['tech-one@first']);
+ assert.doesNotMatch(h.panel.innerHTML,/Use this first example/);
+});
+test('a full selection keeps the saved note and explains why the technique was not added',async()=>{
+ const h=await techniqueNotes({picks:Array.from({length:60},(_,i)=>'tech-'+i+'@chosen')});
+ await h.save('Keep this note.');assert.equal(h.picks.size,60);assert.equal(h.writes.length,1);
+ assert.match(h.panel.innerHTML,/Note saved\. Your selection is full/);
 });

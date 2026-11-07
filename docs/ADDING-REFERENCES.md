@@ -12,7 +12,7 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 ## Borrow a technique
 
-**Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. Save a note when you want that direction to travel with the example in future edits.
+**Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. **Save note** keeps that direction with the exact example for future edits and adds the technique to your current selection. Saving again keeps one selection item.
 
 Use **Copy full reference** below the description to copy the video link and saved notes. To include new direction for the whole video, choose **Add full video to selection** from Reference options and write it in **Selection**. You can find earlier notes and drafts under **About this reference** and edit drafts in **Selection**.
 

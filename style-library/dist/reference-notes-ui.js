@@ -32,7 +32,7 @@ window.ReferenceNotes=(()=>{
  }
  async function load(t){const params=new URLSearchParams({id:t.reference_id});if(t.example_id)params.set('example',t.example_id);return reply(await fetch('/reference-notes?'+params,{cache:'no-store'}));}
  function scope(p){const d=draft(p);return d.time!==null?'✓ Note time: '+exact(d.time):p.target.slide?'Slide '+p.target.slide:p.data?.example_id?'Selected example · '+exact(p.data.start)+'–'+exact(p.data.end):'Whole reference';}
- function notePosition(n){return n.time!==null?'At '+exact(n.time):n.slide?'Slide '+n.slide:'Whole reference';}
+ function notePosition(n){return n.time!==null?'At '+exact(n.time):n.slide?'Slide '+n.slide:n.example_id?'This technique':'Whole reference';}
  function cards(notes,p){return notes.map(n=>'<article class="reference-saved-note"><span>'+esc(notePosition(n))+(n.focus?' · '+esc(n.focus):'')+'</span><p>'+esc(n.text)+'</p>'+(n.time!==null&&!p.combined?'<button class="text-button" data-note-seek="'+n.time+'">View moment</button>':'')+'</article>').join('');}
  async function legacyFor(t){
   const old=referenceNotes?.[token(t)];if(!old||typeof old!=='object')return null;
@@ -58,6 +58,7 @@ window.ReferenceNotes=(()=>{
   const showFocus=p.combined&&!p.target.example_id&&(!wholeVideo||d.focus.trim());
   const help=wholeVideo&&(d.time!==null||d.focus.trim())
    ?'Save this earlier note to include its timestamp or focus.'
+   :p.target.example_id&&!p.combined?'Save your note to keep it with this technique and add it to your selection.'
    :p.target.example_id||wholeVideo?'Your direction goes with this pick when you copy. Save the note if you want to reuse it.':'Save your note, then copy it to your editing chat.';
   const open=p.forceOpen??wasOpen??((p.combined||!p.target.example_id)&&(hasDraft(p)||!!saved)),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
   if(historyOnly)paintVideoNoteHistory(p,notes);
@@ -98,6 +99,12 @@ window.ReferenceNotes=(()=>{
    const result=await reply(await fetch('/reference-notes',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference-note'},body:JSON.stringify(request)}));
    if(!legacy){const latest=draft(p);if(latest.text===d.text&&latest.time===d.time&&latest.focus===d.focus)drafts.delete(key(p.target));remember();}
    requests.delete(signature);if(legacy)p.forceOpen=true;p.message='✓ Note saved with your studio. Ready to copy for chat.';
+   if(!legacy&&!p.combined&&p.target.example_id){
+    const pick=token(p.target);
+    if(selected.has(pick))p.message='✓ Note saved. This technique is in your selection.';
+    else if(selected.size>=60)p.message='✓ Note saved. Your selection is full. Remove a pick, then add this technique with +.';
+    else{selected.add(pick);saveSelection();p.message='✓ Note saved. Technique added to your selection.';}
+   }
    for(const other of panels.values())if(other.target.reference_id===p.target.reference_id&&other.target.example_id===p.target.example_id){other.data=result;paint(other);}
   }catch(error){p.message=error.message+(/draft.*kept/i.test(error.message)?'':' Your draft is kept.');}
   finally{p.busy=false;paint(p);}
