@@ -520,16 +520,16 @@ $('#detail-media').addEventListener('click',event=>{
 });
 $('#return-to-technique').addEventListener('click',returnToTechnique);
 $('#detail-quick-copy').addEventListener('click',()=>copyQuickReference());
-function previewTechniqueExample(id){
+function previewTechniqueExample(id,keyboard=false){
  if(!active||!isTech(active))return;
  if(example(active,false).id===id){const x=example(active,false);setVideoRange?.(x,x.start,true);return;}
- showTechnique(active.id,id,{play:true});render();$('#example-list [data-example="'+id+'"]')?.focus({preventScroll:true});
+ showTechnique(active.id,id,{play:true});render();$('#example-list [data-example="'+id+'"]')?.focus({preventScroll:!keyboard});
 }
 $('#example-list').addEventListener('click',event=>{
  const add=event.target.closest('[data-select-excerpt]');if(add)return toggleSelection(add.dataset.selectExcerpt);
  const b=event.target.closest('[data-example]');if(b)previewTechniqueExample(b.dataset.example);
 });
-$('#example-list').addEventListener('keydown',event=>{if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const buttons=[...$('#example-list').querySelectorAll('[data-example]')],at=buttons.indexOf(event.target.closest('[data-example]'));if(at<0)return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(at+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)+buttons.length)%buttons.length;previewTechniqueExample(buttons[next].dataset.example);});
+$('#example-list').addEventListener('keydown',event=>{if(!['ArrowDown','ArrowUp','ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;const buttons=[...$('#example-list').querySelectorAll('[data-example]')],at=buttons.indexOf(event.target.closest('[data-example]'));if(at<0)return;event.preventDefault();const next=event.key==='Home'?0:event.key==='End'?buttons.length-1:(at+(['ArrowDown','ArrowRight'].includes(event.key)?1:-1)+buttons.length)%buttons.length;previewTechniqueExample(buttons[next].dataset.example,true);});
 $('#detail-links').addEventListener('click',event=>{if(event.target.closest('[data-copy-original]'))return copyQuickReference(true);const b=event.target.closest('[data-source-video]');if(b)active&&isTech(active)?openTechniqueSource():showStyle(b.dataset.sourceVideo);});
 $('#detail-media').addEventListener('click',event=>{if(!active||!isCarousel(active))return;const direct=event.target.closest('[data-carousel-slide]'),step=event.target.closest('[data-carousel-step]');if(direct)showCarouselSlide(active,Number(direct.dataset.carouselSlide));else if(step)showCarouselSlide(active,Number($('#detail-media').dataset.slideIndex)+Number(step.dataset.carouselStep));});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.dataset.close==='style-dialog'?closeStyle():$('#'+b.dataset.close).close()));
