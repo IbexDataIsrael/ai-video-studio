@@ -18,6 +18,18 @@ class Quiet(Handler):
     def log_message(self,*args):pass
 
 class ReferenceTests(unittest.TestCase):
+    def test_carousel_intake_retains_format_without_changing_duplicate_or_owner_data(self):
+        saved = intake.save(self.body | {'format': 'carousel'})
+        e = self.data()['entries'][0]
+        self.assertEqual(e['reference_format'], 'carousel')
+        self.assertEqual(e['analysis_status'], 'not_analyzed')
+        self.assertNotIn('slides', e)
+        before = self.catalog.read_bytes()
+        self.assertTrue(intake.save(self.body)['duplicate'])
+        self.assertEqual(self.catalog.read_bytes(), before)
+        with self.assertRaises(intake.IntakeError):
+            intake.save(self.body | {'url': 'https://example.com/other', 'format': 'unknown'})
+
     def test_ui_reference_creation_date_survives_duplicate_intake_and_edits(self):
         from datetime import datetime
         saved=intake.save(self.body)

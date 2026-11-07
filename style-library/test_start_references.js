@@ -32,6 +32,11 @@ test('restoring a project draft keeps distinct examples and filters malformed or
  const rows=h.api.restore([base,base,{...base,example_id:'second',note:'Keep me'},null,{reference_id:'bad'}]);assert.equal(rows.length,2);assert.equal(rows[1].example_id,'second');assert.equal(rows[1].note,'Keep me');
 });
 test('an empty inspiration choice requires no library request',async()=>{const h=library();await h.api.validate([]);assert.equal(h.api.text([]),'');assert.equal(h.calls.length,0);});
+test('importing carousel inspiration preserves separate slides and the whole reference',()=>{
+ const h=library();h.entries.push({id:'carousel',asset_type:'carousel',slides:[{},{}]});h.context.isCarousel=e=>e.asset_type==='carousel';
+ h.context.selected=new Set(['carousel@slide:1','carousel@slide:2','carousel']);
+ assert.deepEqual(JSON.parse(JSON.stringify(h.api.selectedTargets())).map(r=>r.slide),[1,2,null]);
+});
 test('project inspiration retains exact saved-note revisions through draft restore and copying',async()=>{
  const h=library(),row=await h.api.capture({reference_id:'type',example_id:'second',slide:null});
  assert.deepEqual(h.calls.at(-1).body.references[0].note_revisions,{'note-id':'exact-note-revision'});

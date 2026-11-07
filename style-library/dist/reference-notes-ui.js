@@ -13,11 +13,12 @@ window.ReferenceNotes=(()=>{
  try{slides=JSON.parse(localStorage.getItem('ai-video-studio-reference-slides-v1')||'{}');}catch{}
  if(!slides||typeof slides!=='object'||Array.isArray(slides))slides={};
  const key=t=>JSON.stringify([t.reference_id,t.example_id,t.slide,...(t.selection_id?[t.selection_id]:[])]);
- const sameNotes=(a,b)=>a.reference_id===b.reference_id&&a.example_id===b.example_id&&(a.selection_id??null)===(b.selection_id??null);
- const token=t=>t.reference_id+(t.example_id?'@'+t.example_id:'');
+ const sameNotes=(a,b)=>a.reference_id===b.reference_id&&a.example_id===b.example_id&&(a.slide??null)===(b.slide??null)&&(a.selection_id??null)===(b.selection_id??null);
+ const token=t=>t.slide?slideToken(t.reference_id,t.slide):t.reference_id+(t.example_id?'@'+t.example_id:'');
  const draft=p=>drafts.get(key(p.target))||{text:'',time:null,focus:''};
  const hasDraft=p=>!!(draft(p).text?.trim()||draft(p).focus?.trim()||draft(p).time!==null);
- const applicable=p=>(p.data?.notes||[]).filter(n=>n.slide===null||n.slide===p.target.slide);
+ const carousel=t=>{const e=source(t.reference_id);return !!e&&isCarousel(e);};
+ const applicable=p=>(p.data?.notes||[]).filter(n=>carousel(p.target)?n.slide===p.target.slide:n.slide===null||n.slide===p.target.slide);
  function remember(){try{localStorage.setItem('ai-video-studio-reference-drafts-v2',JSON.stringify(Object.fromEntries(drafts)));localStorage.setItem('ai-video-studio-reference-note-edits-v1',JSON.stringify(Object.fromEntries([...edits].map(([id,e])=>[id,{text:e.text,revision:e.revision,contextRevision:e.contextRevision,selectionId:e.selectionId??null}]))));}catch{}}
  function hasClearUndo(){return !!clearUndo&&clearUndo.toSession===noteSession;}
  function hasWork(){return [...drafts.values()].some(d=>d.text?.trim()||d.focus?.trim()||d.time!==null)||edits.size>0;}
@@ -41,7 +42,7 @@ window.ReferenceNotes=(()=>{
  function clearSelection(){
   if(hasClearUndo()){discardClearUndo();updateSelection();return;}
   retain();const next=crypto.randomUUID();
-  clearUndo={toSession:next,noteSession,hasNotes:hasBorrowingNotes,picks:[...selected],moments:[...selectedMoments],drafts:[...drafts],edits:[...edits].map(([id,e])=>[id,{text:e.text,revision:e.revision,contextRevision:e.contextRevision,selectionId:e.selectionId??null}])};
+  clearUndo={toSession:next,noteSession,hasNotes:hasBorrowingNotes,picks:[...selected],slide_picks:1,moments:[...selectedMoments],drafts:[...drafts],edits:[...edits].map(([id,e])=>[id,{text:e.text,revision:e.revision,contextRevision:e.contextRevision,selectionId:e.selectionId??null}])};
   try{localStorage.setItem(undoKey,JSON.stringify(clearUndo));}catch{}
   noteSession=next;hasBorrowingNotes=false;selected.clear();selectedMoments.clear();drafts.clear();edits.clear();
   refreshSession();remember();saveSelection();
@@ -50,7 +51,7 @@ window.ReferenceNotes=(()=>{
   if(!hasClearUndo())return;
   const prior=clearUndo;discardClearUndo();noteSession=prior.noteSession??null;hasBorrowingNotes=!!prior.hasNotes;
   selectedMoments.clear();for(const [id,m] of prior.moments||[])selectedMoments.set(id,m);
-  selected=new Set(prior.picks.filter(selectionItem));
+  selected=new Set((prior.slide_picks===1?prior.picks:normalizeSlidePicks(prior.picks)).filter(selectionItem));
   drafts.clear();for(const [k,d] of prior.drafts)drafts.set(k,d);
   edits.clear();for(const [id,e] of prior.edits)edits.set(id,e);
   refreshSession();remember();saveSelection();
@@ -61,28 +62,28 @@ window.ReferenceNotes=(()=>{
   if(!active)return null;
   if(sourceExcerpt)return {reference_id:sourceExcerpt.technique.id,example_id:sourceExcerpt.example.id,slide:null,selection_id:noteSession};
   const x=isTech(active)?example(active,false):null;
-  const slide=isCarousel(active)?Number($('#detail-media').dataset.slideIndex)+1:null;
+  const slide=isCarousel(active)&&!!active.slides?.length?Number($('#detail-media').dataset.slideIndex)+1:null;
   return {reference_id:active.id,example_id:x?.id||null,slide,selection_id:noteSession};
  }
- function targetFor(id,exampleId=null){
+ function targetFor(id,exampleId=null,slide=null){
   const e=item(id);return {reference_id:id,example_id:isTech(e)?exampleId||example(e,false).id:null,
-   slide:isCarousel(e)&&Number.isInteger(slides[id])?slides[id]:null,selection_id:noteSession};
+   slide,selection_id:noteSession};
  }
  function isWholeVideo(target){
   const entry=source(target.reference_id);
   return !target.example_id&&!!entry?.media_path&&!isCarousel(entry);
  }
- const singleDirection=t=>!!t.example_id||!!t.reference_id&&isWholeVideo(t);
+ const singleDirection=t=>!!t.example_id||!!t.reference_id&&(isWholeVideo(t)||carousel(t));
  async function reply(response){
   if(!response.headers.get('Content-Type')?.includes('application/json'))throw Error('Could not reach reference notes. Restart the local studio and try again.');
   const value=await response.json();if(!response.ok)throw Error(value.error||'Reference notes are unavailable.');return value;
  }
  async function load(t){const params=new URLSearchParams({id:t.reference_id});if(t.example_id)params.set('example',t.example_id);if(t.selection_id)params.set('selection',t.selection_id);const data=await reply(await fetch('/reference-notes?'+params,{cache:'no-store'}));if((t.selection_id??null)===noteSession&&data.notes.length&&!hasBorrowingNotes){hasBorrowingNotes=true;persistSelection();updateSelection();}return data;}
- function scope(p){const d=draft(p);return d.time!==null?'✓ Note time: '+exact(d.time):p.target.slide?'Slide '+p.target.slide:p.data?.example_id?'Selected example · '+exact(p.data.start)+'–'+exact(p.data.end):'Whole reference';}
+ function scope(p){const d=draft(p);return d.time!==null?'✓ Note time: '+exact(d.time):p.target.slide?'Slide '+p.target.slide:p.data?.example_id?'Selected example · '+exact(p.data.start)+'–'+exact(p.data.end):carousel(p.target)?'Whole carousel':'Whole reference';}
  function notePosition(n){return n.time!==null?'At '+exact(n.time):n.slide?'Slide '+n.slide:n.example_id?'This technique':'Whole reference';}
  function cards(notes,p){return notes.map(n=>{
   const editable=!!p.data&&n.context_revision===p.data.context_revision,e=edits.get(n.id),id=esc(n.id);
-  const compact=singleDirection(p.target||{})&&notes.length===1&&n.time===null&&!n.slide&&!n.focus;
+  const compact=singleDirection(p.target||{})&&notes.length===1&&n.time===null&&(n.slide??null)===(p.target?.slide??null)&&!n.focus;
   const stale=e&&(e.revision!==n.content_revision||e.contextRevision!==p.data?.context_revision);
   const disabled=e?.busy?' disabled':'';
   const body=e&&editable
@@ -123,15 +124,15 @@ window.ReferenceNotes=(()=>{
  function paint(p){
   if(panels.get(p.el)!==p)return;
   const wasOpen=p.el.querySelector('.reference-note-composer')?.open,d=draft(p),notes=applicable(p),saved=notes.length,editing=notes.some(n=>edits.has(n.id));
-  const wholeVideo=isWholeVideo(p.target),historyOnly=wholeVideo&&!p.combined;
-  const prompt=wholeVideo?'How would you like to use this video?':p.target.example_id&&p.combined?'How would you like to use this?':'What would you like to borrow?';
-  const title=p.target.example_id||wholeVideo?(hasDraft(p)?'Edit direction':'Add direction'):'Add a note';
-  const showFocus=p.combined&&!p.target.example_id&&(!wholeVideo||d.focus.trim());
+  const wholeVideo=isWholeVideo(p.target),isCarousel=carousel(p.target),wholeCarousel=isCarousel&&!p.target.slide,historyOnly=wholeVideo&&!p.combined;
+  const prompt=wholeCarousel?'How would you like to use this carousel?':isCarousel?'What would you like to borrow from this slide?':wholeVideo?'How would you like to use this video?':p.target.example_id&&p.combined?'How would you like to use this?':'What would you like to borrow?';
+  const title=singleDirection(p.target)?(hasDraft(p)?'Edit direction':'Add direction'):'Add a note';
+  const showFocus=p.combined&&!p.target.example_id&&(isCarousel?!!d.focus.trim():!wholeVideo||d.focus.trim());
   const help=editing?'Save changes to update this note, or Cancel to keep the saved wording.':wholeVideo&&(d.time!==null||d.focus.trim())
    ?'Save this earlier note to include its timestamp or focus.'
-   :p.target.example_id&&!p.combined?'Save your note for this edit and add the technique to your selection.'
-   :p.target.example_id||wholeVideo?'Your direction goes with this pick when you copy. Save it to keep it with this edit.':'Save your note, then copy it to your editing chat.';
-  const open=p.forceOpen??wasOpen??((p.combined||!p.target.example_id)&&(hasDraft(p)||!!saved)),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
+   :isCarousel&&!p.combined?'Save direction for this edit and add this slide to your selection.':p.target.example_id&&!p.combined?'Save your note for this edit and add the technique to your selection.'
+   :singleDirection(p.target)?'Your direction goes with this pick when you copy. Save it to keep it with this edit.':'Save your note, then copy it to your editing chat.';
+  const open=p.forceOpen??wasOpen??((p.combined||!singleDirection(p.target))&&(hasDraft(p)||!!saved)),disabled=p.loading||p.busy,stale=hasDraft(p)&&d.contextRevision&&p.data&&d.contextRevision!==p.data.context_revision;p.forceOpen=undefined;
   if(historyOnly)paintVideoNoteHistory(p,notes);
   else if(singleDirection(p.target)&&saved)paintDirection(p,notes,open);
   else p.el.innerHTML='<details class="reference-note-composer"'+(open?' open':'')+'><summary>'+(saved?'Borrowing notes ('+saved+')':title)+'</summary><div class="reference-note-body">'+(stale?'<div class="reference-stale-draft"><p>This draft belongs to an earlier source. Review it before using it here.</p><button class="secondary" data-note-rebase>Use draft with this source</button><small>Clears the earlier timestamp.</small></div>':'')+'<div class="reference-note-context'+(d.time!==null?' is-attached':'')+'"><span>'+esc(scope(p))+'</span>'+(d.time!==null?'<button class="text-button" data-note-remove-time>Remove timestamp</button>':'')+'</div><label class="sr-only" for="borrow-'+p.id+'">'+esc(prompt)+'</label><textarea id="borrow-'+p.id+'" data-borrow-note rows="3" maxlength="2000" placeholder="'+esc(prompt)+'"'+(disabled?' disabled':'')+'>'+esc(d.text)+'</textarea>'+(showFocus?'<label class="reference-focus-label">Moment or slide <span>optional</span><input data-borrow-focus maxlength="1000" value="'+esc(d.focus||'')+'" placeholder="e.g. 0:02–0:05, or slide 2"'+(disabled?' disabled':'')+'></label>':d.focus?'<p class="reference-focus-existing">Moment: '+esc(d.focus)+'</p>':'')+'<div class="feedback-actions">'+(p.data?.has_video&&!p.combined&&!p.target.example_id?'<button class="secondary" data-note-timestamp'+(disabled?' disabled':'')+'>Add timestamp</button>':'')+'<button class="primary" data-note-save'+(disabled||stale?' disabled':'')+'>'+(p.busy?'Saving…':'Save note')+'</button><button class="text-button" data-note-clear'+(!hasDraft(p)?' hidden':'')+(disabled?' disabled':'')+'>Clear draft</button></div><p class="reference-note-status" role="status">'+esc(p.message|| (p.loading?'Loading saved notes…':help))+'</p>'+(saved?'<div class="reference-saved-notes"><h4>Saved for this edit ('+saved+')</h4>'+cards(notes,p)+'</div>':'')+'</div></details>';
@@ -139,10 +140,10 @@ window.ReferenceNotes=(()=>{
   if(p.legacy&&!p.data?.notes.some(n=>n.legacy_key===p.legacy.key))p.el.insertAdjacentHTML('beforeend','<details class="reference-legacy-note"><summary>Earlier browser note</summary>'+(p.legacy.focus?'<p><strong>Moment:</strong> '+esc(p.legacy.focus)+'</p>':'')+'<p>'+esc(p.legacy.borrow||p.legacy.focus)+'</p>'+
    (historyOnly?'<p>Add the full video to Selection to save this note.</p>':singleDirection(p.target)&&saved?'<p>Use Edit to include this wording in your direction.</p>':'<button class="secondary" data-note-import'+(disabled?' disabled':'')+'>Save earlier note</button>')+'</details>');
   if(p.data?.earlier_notes.length)p.el.insertAdjacentHTML('beforeend','<details class="reference-earlier-notes"><summary>Earlier source notes ('+p.data.earlier_notes.length+')</summary><p>Kept for context. These notes refer to an earlier source and are not included when you copy.</p>'+cards(p.data.earlier_notes,{combined:true})+'</details>');
-  if(!p.combined){$('#detail-quick-copy').disabled=disabled||!p.data;$('#detail-quick-copy').textContent=p.target.example_id?'Copy this technique for chat':p.data?.has_video&&!p.data.slide_count?'Copy full reference':'Copy for chat';
+  if(!p.combined){$('#detail-quick-copy').disabled=disabled||!p.data;$('#detail-quick-copy').textContent=p.target.example_id?'Copy this technique for chat':isCarousel?(p.target.slide?'Copy this slide for chat':'Copy full carousel'):p.data?.has_video&&!p.data.slide_count?'Copy full reference':'Copy for chat';
    $('#detail-quick-hint').textContent=p.target.example_id&&p.data
     ?p.data.example_label+' · '+exact(p.data.start)+'–'+exact(p.data.end)
-    :saved?saved+' saved '+(saved===1?'note':'notes'):'Copy this reference into your editing chat.';}
+    :isCarousel?scope(p):saved?saved+' saved '+(saved===1?'note':'notes'):'Copy this reference into your editing chat.';}
  }
  let panelCount=0;
  async function mount(el,t,combined=false){
@@ -161,11 +162,11 @@ window.ReferenceNotes=(()=>{
  }
  function confirmTechnique(p,verb){
   p.message='✓ Note '+verb+' with your studio. Ready to copy for chat.';
-  if((p.target.selection_id??null)!==noteSession||p.combined||!p.target.example_id)return;
-  const pick=token(p.target);
-  if(selected.has(pick))p.message='✓ Note '+verb+'. This technique is in your selection.';
-  else if(selected.size>=60)p.message='✓ Note '+verb+'. Your selection is full. Remove a pick, then add this technique with +.';
-  else{selected.add(pick);saveSelection();p.message='✓ Note '+verb+'. Technique added to your selection.';}
+  if((p.target.selection_id??null)!==noteSession||p.combined||!(p.target.example_id||carousel(p.target)))return;
+  const pick=token(p.target),label=carousel(p.target)?(p.target.slide?'Slide':'Carousel'):'Technique';
+  if(selected.has(pick))p.message='✓ Note '+verb+'. This '+label.toLowerCase()+' is in your selection.';
+  else if(selected.size>=60)p.message='✓ Note '+verb+'. Your selection is full. Remove a pick, then add this item with +.';
+  else{selected.add(pick);saveSelection();p.message='✓ Note '+verb+'. '+label+' added to your selection.';}
  }
  function syncPanels(target,data,message=''){
   for(const p of panels.values())if(sameNotes(p.target,target)){
@@ -261,7 +262,7 @@ window.ReferenceNotes=(()=>{
   const d=draft(p);
   const wholeVideo=isWholeVideo(p.target);
   if(wholeVideo&&(d.time!==null||d.focus.trim()))return handoff;
-  if((!p.target.example_id&&!wholeVideo)||d.time!==null||d.focus.trim())throw Error('Save or clear your draft before copying.');
+  if((!singleDirection(p.target))||d.time!==null||d.focus.trim())throw Error('Save or clear your draft before copying.');
   if(d.contextRevision!==p.data.context_revision)throw Error('Review the earlier-source draft before copying.');
   return {...handoff,direction:d.text.trim()};
  }
@@ -396,7 +397,7 @@ window.ReferenceNotes=(()=>{
    const pick=selectionItem(token);
    if(!pick)throw Error('A selected item is unavailable. Review your selection.');
    if(pick.moment)return {moment:pick.moment};
-   const target=targetFor(pick.entry.id,pick.x?.id);
+   const target=targetFor(pick.entry.id,pick.x?.id,pick.slide??null);
    if(detail&&key(detail.target)===key(target)&&$('#style-dialog').open)return detail;
    return {target,data:await load(target),useDraft:true};
   })),status,button,valid);
@@ -407,19 +408,19 @@ window.ReferenceNotes=(()=>{
   $('#copy-status').textContent='Loading saved notes…';$('#copy-again').disabled=true;$('#copy-again').textContent='Copy for chat';
   $('#reference-message-preview').open=false;$('#brief-text').value='';
   const picks=briefIds.map(selectionItem);
-  $('#handoff-items').innerHTML=picks.map(({entry:e,x,moment},i)=>{
-   const title=moment?'Moment at '+exact(moment.time):x?.label||e.title;
-   const detail=moment?e.title:x?e.title+' · '+exact(x.start)+'–'+exact(x.end):e.creator;
+  $('#handoff-items').innerHTML=picks.map(({entry:e,x,moment,slide},i)=>{
+   const title=moment?'Moment at '+exact(moment.time):slide?'Slide '+slide+' · '+(e.slides[slide-1].title||e.title):x?.label||e.title;
+   const detail=moment||slide?e.title:x?e.title+' · '+exact(x.start)+'–'+exact(x.end):e.creator;
    const token=briefIds[i],editor=moment
     ?'<label class="selection-moment-note">How would you like to use this?<textarea maxlength="2000" rows="2" data-selection-moment="'+esc(token)+'">'+esc(moment.text)+'</textarea></label>'
     :'<div data-selection-notes="'+i+'"></div>';
-   return '<section class="handoff-item"><div class="handoff-item-head"><img src="'+esc(x?.poster||e.poster)+'" alt=""><div><h3>'+
+   return '<section class="handoff-item"><div class="handoff-item-head"><img src="'+esc(x?.poster||(slide?e.slides[slide-1].poster:e.poster))+'" alt=""><div><h3>'+
     esc(title)+'</h3><p>'+esc(detail)+'</p></div><button class="remove-reference" data-selection-remove="'+esc(token)+
     '" aria-label="Remove '+esc(title)+' from selection">Remove</button></div>'+editor+'</section>';
   }).join('');
   if(!$('#brief-dialog').open)$('#brief-dialog').showModal();
-  const loaded=await Promise.all(picks.map(({entry:e,x,moment},i)=>moment
-   ?{moment}:mount($('#handoff-items [data-selection-notes="'+i+'"]'),targetFor(e.id,x?.id),true)));
+  const loaded=await Promise.all(picks.map(({entry:e,x,moment,slide},i)=>moment
+   ?{moment}:mount($('#handoff-items [data-selection-notes="'+i+'"]'),targetFor(e.id,x?.id,slide??null),true)));
   if(run!==selectionRun)return;
   selectionPanels=loaded;$('#copy-again').disabled=!loaded.length;$('#copy-status').textContent='';
  }

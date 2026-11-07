@@ -468,7 +468,7 @@ test('timestamp selections survive reload alongside an earlier exact technique p
  assert.equal(reopened.run('selectionSummary([...selected].map(selectionItem))'),'1 technique · 1 moment');
  assert.equal(reopened.run("selectionItem('moment:one').moment.text"),'Use this.');
  reopened.run("removeSelection('moment:one');saveSelection();");
- assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{},note_session:null,has_notes:false});
+ assert.deepEqual(JSON.parse(storage.get(v3)),{picks:['tech-demo@first'],moments:{},note_session:null,has_notes:false,slide_picks:1});
  assert.equal(storage.get(v2),'["tech-demo@first"]');
 });
 test('editing request scope survives reload and reset storage events refresh other tabs',async()=>{
@@ -548,6 +548,27 @@ test('technique detail keeps the selection footer visible at zero',async()=>{
  await h.vm.window.refreshReferenceCatalog();h.run("active=item('family');updateSelection()");
  assert.equal(h.node('#detail-selection').hidden,false);assert.equal(h.node('#detail-copy-selection').disabled,true);
  h.run("toggleSelection('family@one')");assert.equal(h.node('#detail-copy-selection').disabled,false);
+});
+test('carousel picks retain exact slides across browsing and reload alongside the whole carousel',async()=>{
+ const catalog={entries:[{id:'carousel',asset_type:'carousel',slides:[{}, {}, {}]}],techniques:[]};
+ const h=referenceCatalogHarness(catalog);await h.vm.window.refreshReferenceCatalog();
+ h.run("toggleSelection('carousel@slide:2');toggleSelection('carousel@slide:3');toggleSelection('carousel');");
+ h.node('#detail-media').dataset={slideIndex:0};h.run("active=source('carousel');updateSelection()");
+ assert.equal(h.run('activeSelectionToken()'),'carousel@slide:1');
+ assert.equal(h.run("selectionItem('carousel@slide:2').slide"),2);
+ assert.equal(h.run("selectionItem('carousel@slide:4')"),null);
+ assert.equal(h.run("selectionSummary([...selected].map(selectionItem))"),'2 slides · 1 reference');
+ const next=referenceCatalogHarness(catalog,h.storage);await next.vm.window.refreshReferenceCatalog();
+ assert.deepEqual(JSON.parse(next.storage.get('ai-video-studio-selection-v3')).picks,['carousel@slide:2','carousel@slide:3','carousel']);
+});
+test('earlier carousel choices are pinned once while new whole-carousel picks stay whole',async()=>{
+ const catalog={entries:[{id:'carousel',asset_type:'carousel',slides:[{},{}]}],techniques:[]};
+ const storage=new Map([['ai-video-studio-selection-v3',JSON.stringify({picks:['carousel'],moments:{}})],['ai-video-studio-reference-slides-v1','{"carousel":2}']]);
+ const h=referenceCatalogHarness(catalog,storage);await h.vm.window.refreshReferenceCatalog();
+ assert.equal(h.run("selected.has('carousel@slide:2')"),true);
+ h.run("toggleSelection('carousel')");
+ const next=referenceCatalogHarness(catalog,storage);await next.vm.window.refreshReferenceCatalog();
+ assert.equal(next.run("selected.has('carousel')"),true);assert.equal(next.run("selected.has('carousel@slide:2')"),true);
 });
 test('full-video return context pins the exact matching source and clamps its excerpt time',async()=>{
  const h=referenceCatalogHarness({entries:[{id:'video',media_path:'references/source.mp4',version:'v1',source_sha256:'hash'}],techniques:[{id:'family',examples:[{id:'one',style_id:'video',source_path:'references/source.mp4',source_version:'v1',source_sha256:'hash',start:4,end:7}]}]});

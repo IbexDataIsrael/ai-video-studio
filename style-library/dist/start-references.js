@@ -16,8 +16,8 @@ window.StartReferences=(()=>{
   if(isTech(e)&&!x)throw Error('Choose the exact technique example again.');
   if(!isTech(e)&&t.example_id)throw Error('This reference has changed. Choose it again.');
   const s=x?source(x.style_id):e;if(!s)throw Error('The example’s source is unavailable.');
-  if(t.slide&&(!isCarousel(e)||t.slide>e.slides.length))throw Error('Choose the carousel slide again.');
-  return {title:e.title,label:x?.label||'',creator:s.creator,poster:x?.poster||e.poster,kind:x?'technique':isCarousel(e)?'carousel':'video',
+  if(t.slide&&(!isCarousel(e)||t.slide>(e.slides?.length||0)))throw Error('Choose the carousel slide again.');
+  return {title:e.title,label:x?.label||(t.slide?'Slide '+t.slide:''),creator:s.creator,poster:x?.poster||(t.slide?e.slides[t.slide-1].poster:e.poster),kind:x?'technique':isCarousel(e)?'carousel':'video',
    url:referenceUrl(e.id,x?.id||null,t.slide?t.slide-1:null),media:s.media_path?'/media/'+encodeURIComponent(s.id):null,
    start:x?.start||0,end:x?.end??s.duration??null,status:s.analysis_status,description:e.summary||'',removed:isRemoved(s)};
  }
@@ -28,7 +28,7 @@ window.StartReferences=(()=>{
   const details=resolve(t),params=new URLSearchParams({id:t.reference_id});if(t.example_id)params.set('example',t.example_id);
   if(t.selection_id)params.set('selection',t.selection_id);
   const data=await json(await fetch('/reference-notes?'+params,{cache:'no-store'}));
-  const notes=(data.notes||[]).filter(n=>n.slide===null||n.slide===(t.slide||null));
+  const notes=(data.notes||[]).filter(n=>isCarousel(item(t.reference_id))?n.slide===(t.slide||null):n.slide===null||n.slide===(t.slide||null));
   const row={...target(t),context_revision:data.context_revision,note_ids:notes.map(n=>n.id),note_revisions:Object.fromEntries(notes.map(n=>[n.id,n.content_revision])),note:'',details};
   const result=await handoff([row]);row.message=result.text.split('\n').slice(2).join('\n').trim();return row;
  }
@@ -54,14 +54,14 @@ window.StartReferences=(()=>{
   }).map(r=>isLink(r)?link(r.url,r.note):({...r,...noteValue(r)}));
  }
  function selectedTargets(){
-  let slides={};try{slides=JSON.parse(localStorage.getItem('ai-video-studio-reference-slides-v1')||'{}');}catch{}
   return [...selected].map(token=>{
-   const [id,exampleId]=token.split('@'),e=item(id);
-   if(!e||exampleId&&!e.examples?.some(x=>x.id===exampleId))return null;
-   return {reference_id:id,example_id:isTech(e)?exampleId||example(e,false).id:null,
-    slide:isCarousel(e)&&Number.isInteger(slides?.[id])?slides[id]:null,selection_id:noteSession};
+   const [id,part]=token.split('@'),e=item(id);if(!e)return null;
+   const slide=isCarousel(e)&&/^slide:[1-9]\d*$/.test(part||'')?Number(part.slice(6)):null;
+   if(part&&(slide?slide>(e.slides?.length||0):!e.examples?.some(x=>x.id===part)))return null;
+   return {reference_id:id,example_id:isTech(e)?part||example(e,false).id:null,slide,selection_id:noteSession};
   }).filter(Boolean);
  }
+
  function create({dialog,get,set,showPicker,state=()=>{},level=()=>{},getDrafts=()=>({}),setDrafts=()=>{},getLinkDraft=()=>'',setLinkDraft=()=>{}}){
   const summary=dialog.querySelector('#start-reference-summary'),host=dialog.querySelector('#start-picker');
   let kind='videos',collection='all',query='',family=null,preview=null,loading=false,busy=false,run=0,visible=false,message='',browseScroll=0,browseFocus=null,noteRun=0,noteLoading=false,noteError='';
@@ -202,5 +202,5 @@ window.StartReferences=(()=>{
   summary.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;if(noteClick(b))return;if(b.hasAttribute('data-ref-paste')){linkOpen=!linkOpen;summaryRender();summary.querySelector(linkOpen?'#start-video-link':'[data-ref-paste]')?.focus();return;}if(b.hasAttribute('data-ref-add-link'))return addLink();if(b.dataset.refWatch)return watch({reference_id:b.dataset.refWatch,example_id:b.dataset.exampleId||null,slide:null});if(b.hasAttribute('data-ref-browse'))open();if(b.hasAttribute('data-ref-import'))add(selectedTargets());if(b.dataset.refRemove!==undefined){const row=get()[Number(b.dataset.refRemove)];if(row&&!isLink(row))stash(row);set(get().filter((_,i)=>i!==Number(b.dataset.refRemove)));summaryRender();}});
   return {render:summaryRender,open,hide,back,watch,get visible(){return visible;},get busy(){return busy;}};
  }
- return {create,restore,text,validate,capture,resolve,targetKey,noteValue,link};
+ return {create,restore,text,validate,capture,resolve,targetKey,noteValue,link,selectedTargets};
 })();

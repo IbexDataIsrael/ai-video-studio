@@ -300,10 +300,26 @@ class ReferenceNoteTests(unittest.TestCase):
         selected = notes.handoff({'references': [source | {'direction': 'Borrow the pacing.'}]}, origin)['text']
         self.assertIn('#style=video\nAt 0:02: Borrow the card entrance.', direct)
         self.assertEqual(selected, direct + '\nWhat to borrow: Borrow the pacing.')
-        for reference_id in ('link', 'carousel'):
+        for reference_id in ('link',):
             with self.subTest(reference_id=reference_id), self.assertRaises(notes.NoteError):
                 row = self.row(notes.current(reference_id)) | {'direction': 'Borrow the pacing.'}
                 notes.handoff({'references': [row]}, origin)
+
+    def test_carousel_directions_pin_slides_and_keep_independent_notes(self):
+        first = notes.save(self.body('carousel', slide=1, text='Use this opening layout.'))
+        with self.assertRaisesRegex(notes.NoteError, 'choose Edit'):
+            notes.save(self.body('carousel', slide=1, text='An accidental second note.'))
+        whole = notes.save(self.body('carousel', text='Use this overall progression.'))
+        rows = [self.row(first, slide=1) | {'direction': 'Keep the hierarchy.'},
+                self.row(whole) | {'direction': 'Keep the sequence.'}]
+        text = notes.handoff({'references': rows}, 'http://fixture')['text']
+        self.assertIn('#style=carousel&slide=1', text)
+        self.assertIn('Keep the hierarchy.', text)
+        self.assertIn('#style=carousel\n', text)
+        edited = notes.edit(self.edit_body(first, 'Revised slide direction.'))
+        note = next(n for n in edited['notes'] if n['slide'] == 1)
+        self.assertEqual(note['id'], first['notes'][0]['id'])
+        self.assertEqual(note['history'][0]['before']['text'], 'Use this opening layout.')
 
     def test_changed_source_keeps_earlier_notes_and_rejects_stale_copy_save(self):
         body = self.body(time=1)

@@ -1,6 +1,7 @@
 /* Link capture with optional public cover retrieval. Analysis stays a chat handoff. */
 window.ReferenceIntake=(()=>{
- let editing=null,revision=null,busy=false,opening=0,justSaved=null,analysisCopying=null,lastAnalysisCopy=null;
+ let editing=null,revision=null,busy=false,opening=0,justSaved=null,analysisCopying=null,lastAnalysisCopy=null,intakeFormat='video';
+ const carousel=e=>e.asset_type==='carousel'||e.reference_format==='carousel';
  const dialog=$('#reference-dialog'),form=$('#reference-form');
  const fields={url:$('#reference-url'),title:$('#reference-title'),creator:$('#reference-creator'),note:$('#reference-note')};
  function setBusy(value){busy=value;dialog.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=value);$('#reference-save').textContent=value?'Saving…':editing?'Save details':'Save reference';}
@@ -16,7 +17,7 @@ window.ReferenceIntake=(()=>{
  }
  function details(e){
   const pending=e.analysis_status==='not_analyzed';
-  const unavailable=!!e.source_url&&!e.media_path&&(e.analysis_issue==='video_unavailable'||!pending&&!!e.analysis_status);
+  const unavailable=!!e.source_url&&!e.media_path&&!e.slides?.length&&(['video_unavailable','carousel_unavailable'].includes(e.analysis_issue)||!pending&&!!e.analysis_status);
   const fresh=pending&&justSaved===e.id;
   if(justSaved!==e.id)justSaved=null;
   detailHierarchy(pending,unavailable);
@@ -25,8 +26,8 @@ window.ReferenceIntake=(()=>{
   renderAnalysisCopy(e);
   $('.analysis-next-description').textContent=unavailable
    ?'Attach a local copy when you paste the request into your editing chat.'
-   :'Find techniques you can borrow from this video.';
-  $('#reference-analysis-title').textContent=unavailable?'Video unavailable in Studio.':fresh?'Reference saved. Next: analyze it.':'Next: analyze this reference.';
+   :carousel(e)?'Find design techniques you can borrow from these slides.':'Find techniques you can borrow from this video.';
+  $('#reference-analysis-title').textContent=unavailable?(carousel(e)?'Carousel unavailable in Studio.':'Video unavailable in Studio.'):fresh?'Reference saved. Next: analyze it.':'Next: analyze this reference.';
   $('#detail-analyze').hidden=!e.source_url||pending||unavailable;
   $('#detail-edit-reference').hidden=!(e.collection==='reference'&&e.source_url);
   $('#reference-user-note').hidden=!e.reference_note;
@@ -40,7 +41,7 @@ window.ReferenceIntake=(()=>{
   try{return await response.json();}catch{throw Error(fallback);}
  }
  async function open(id=null){
-  pausePreview();$('#reference-more').open=false;const token=++opening;editing=id;revision=null;form.reset();setBusy(false);
+  pausePreview();$('#reference-more').open=false;intakeFormat=typeof view!=='undefined'&&view==='carousels'?'carousel':'video';const token=++opening;editing=id;revision=null;form.reset();setBusy(false);
   fields.url.readOnly=!!id;$('#reference-form-title').textContent=id?'Edit your reference.':'Save a reference.';
   $('#reference-intro').hidden=!id;
   $('#reference-intro').textContent=id?'Update the title, creator or why you saved it.':'';
@@ -62,7 +63,7 @@ window.ReferenceIntake=(()=>{
   event.preventDefault();if(busy||!form.reportValidity())return;
   const body=editing
    ?{action:'edit',id:editing,revision,title:fields.title.value,creator:fields.creator.value,note:fields.note.value}
-   :{action:'create',url:fields.url.value};
+   :{action:'create',url:fields.url.value,...(intakeFormat==='carousel'?{format:'carousel'}:{})};
   setBusy(true);$('#reference-error').textContent='';let result;
   try{
    const response=await fetch('/references',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference'},body:JSON.stringify(body)});
@@ -95,7 +96,8 @@ window.ReferenceIntake=(()=>{
  }
  function analysisRequest(e){
   const action=e.analysis_status==='not_analyzed'?'Analyze this reference':'Review the saved analysis of this reference';
-  return action+' and update its existing library entry. Review the entire playable video, including any earlier timestamp observations. Save each distinct reusable technique you can verify as a playable excerpt. Group related examples into existing techniques and create a new family for a different move. Keep my saved notes, and record any limits.\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
+  const instruction=carousel(e)?'Inspect every available slide, including motion slides. Identify useful design and storytelling techniques with their exact slide numbers. Save source-backed slide previews when accessible. Keep this reference in Carousels, preserve its original link and my notes, and report anything you cannot verify.':'Review the entire playable video, including any earlier timestamp observations. Save each distinct reusable technique you can verify as a playable excerpt. Group related examples into existing techniques and create a new family for a different move. Keep my saved notes, and record any limits.';
+  return action+' and update its existing library entry. '+instruction+'\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
  }
  function renderAnalysisCopy(e){
   const button=$('#reference-analyze'),copied=lastAnalysisCopy?.id===e.id&&lastAnalysisCopy.text===analysisRequest(e);

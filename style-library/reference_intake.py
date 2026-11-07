@@ -146,9 +146,11 @@ def save(body):
     if not isinstance(body,dict):raise IntakeError('Use the Add reference form.')
     action=body.get('action');fields={'action','url','title','creator','note'} if action=='create' else {'action','id','revision','title','creator','note'}
     # Accept the original create shape too, so an open older browser can finish saving.
-    if (action not in {'create','edit'} or
-            (set(body)!=fields and not (action=='create' and set(body)=={'action','url'}))):
+    allowed = [fields, {'action','url'}, fields | {'format'}, {'action','url','format'}] if action=='create' else [fields]
+    if action not in {'create','edit'} or set(body) not in allowed:
         raise IntakeError('Use a valid reference save request.')
+    if 'format' in body and body['format'] not in ('video','carousel'):
+        raise IntakeError('Choose a video or carousel reference.')
     title=text(body.get('title',''),'Title',120)
     name=text(body.get('creator',''),'Creator',80)
     note=text(body.get('note',''),'What caught your eye',1000,True)
@@ -172,6 +174,8 @@ def save(body):
                    'traits':{},'keep':[],'avoid':[],'moments':[],'notes':[],
                    'analysis_status':'not_analyzed','evidence':'Link and user notes only. The video, style, sound and creator have not been independently verified.',
                    'added_via':'studio_ui','created_at':datetime.now(timezone.utc).isoformat()}
+            if body.get('format')=='carousel':
+                entry.update(reference_format='carousel', evidence='Link and user notes only. Slides, design and creator have not been independently verified.')
             entries.insert(0,entry)
         else:
             reference_id=body['id']

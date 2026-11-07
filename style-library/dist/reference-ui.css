@@ -13,6 +13,13 @@
 #reference-technique-count{border-radius:20px;padding:2px 7px;background:#e8ecdc;color:#536346;font-size:11px}
 #reference-technique-hint{margin:0 0 13px;color:#536346;font-size:12px;line-height:1.5}
 #reference-technique-list{display:grid;gap:6px}
+#carousel-current-slide{margin:22px 0 6px}
+.full-reference-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px}
+.full-reference-actions>p{flex-basis:100%}
+#download-carousel{color:#536346;font-size:12px;min-height:44px;display:inline-flex;align-items:center}
+.carousel-thumbs{justify-content:flex-start;overflow-x:auto;padding:4px;scrollbar-width:thin}
+.carousel-thumbs button{flex:0 0 54px;min-width:54px;min-height:58px}
+.carousel-controls button{min-width:44px;min-height:44px}
 #technique-examples .example-list{display:grid;grid-template-columns:1fr;gap:6px}
 #technique-example-hint{font-size:12px;line-height:1.5;color:#536346}
 #return-to-technique{min-height:44px;padding:0 0 10px;text-align:left;line-height:1.5;color:#536346}
@@ -98,6 +105,7 @@
 .selection-moment-note{display:block;margin-top:12px;font-size:12px;font-weight:600;color:#4c5c3e}
 .selection-moment-note textarea{display:block;width:100%;margin-top:6px;padding:9px;border:1px solid #d4dcc9;border-radius:5px;background:#fafbf5;color:var(--ink);resize:vertical}
 @media(max-width:730px){
+ .detail-media.carousel-preview{height:52vh}
  .reference-detail-pane{display:block;max-height:none}
  .detail-selection{position:sticky;bottom:0;padding:9px 12px}
  .detail-selection-row{flex-wrap:wrap}

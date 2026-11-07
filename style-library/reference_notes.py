@@ -90,6 +90,7 @@ def context(reference_id, example_id=None):
             'start': example['start'] if example else 0,
             'end': example['end'] if example else entry.get('duration'),
             'has_video': bool(entry.get('media_path')), 'slide_count': len(entry.get('slides', [])),
+            'is_carousel': bool(entry.get('slides')) or entry.get('asset_type') == 'carousel' or entry.get('reference_format') == 'carousel',
             'source': snapshot, 'catalog_hash': hashlib.sha256(catalog_bytes).hexdigest()}
 
 
@@ -171,10 +172,11 @@ def save(body):
                 if previous['text'] != text or previous.get('focus', '') != focus:
                     raise NoteError('This earlier-note request already belongs to another note.', 409)
                 return current(body['reference_id'], body['example_id'], selection_id)
-        if body['example_id'] and any(n.get('reference_id') == body['reference_id'] and
+        if (body['example_id'] or ctx['is_carousel']) and any(n.get('reference_id') == body['reference_id'] and
                 n.get('example_id') == body['example_id'] and n.get('selection_id') == selection_id and
-                n.get('context_revision') == ctx['context_revision'] for n in data['notes']):
-            raise NoteError('This technique already has direction for this edit. Reopen it and choose Edit; your draft is kept.', 409)
+                n.get('slide') == slide and n.get('context_revision') == ctx['context_revision'] for n in data['notes']):
+            label = 'technique' if body['example_id'] else 'slide' if slide else 'carousel'
+            raise NoteError(f'This {label} already has direction for this edit. Reopen it and choose Edit; your draft is kept.', 409)
         if len(data['notes']) >= 5000:
             raise NoteError('Ask your assistant to archive older reference notes first.', 409)
         data['notes'].append({'id': body['request_id'], 'created_at': datetime.now(timezone.utc).isoformat(),
@@ -259,8 +261,8 @@ def handoff(body, base_url):
             direction = clean_text(row.get('direction', ''), 'Borrowing direction', 2000)
             ctx = context(row['reference_id'], row['example_id'])
             selection_id = selection_scope(row.get('selection_id'))
-            if direction and not row['example_id'] and (not ctx['has_video'] or ctx['slide_count']):
-                raise NoteError('Choose a video or an exact technique for this direction.', 400)
+            if direction and not row['example_id'] and not ctx['has_video'] and not ctx['is_carousel']:
+                raise NoteError('Choose a video, carousel or exact technique for this direction.', 400)
             ids, slide = row['note_ids'], row['slide']
             if (not isinstance(ids, list) or len(ids) > 5000 or any(not isinstance(i, str) for i in ids) or
                     len(ids) != len(set(ids)) or row['context_revision'] != ctx['context_revision']):

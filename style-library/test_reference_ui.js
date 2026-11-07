@@ -26,6 +26,12 @@ test('pending reference has a direct next step without automatic copying',()=>{
  assert.equal(h.node('#reference-analysis-title').textContent,'Video unavailable in Studio.');
  assert.match(h.node('.analysis-next-description').textContent,/Attach a local copy/);
 });
+test('carousel analysis names slides and an available carousel never shows a video-unavailable banner',async()=>{
+ const h=harness();h.context.active={...entry('carousel'),reference_format:'carousel'};h.details(h.context.active);await h.click();
+ assert.match(h.copies[0],/Inspect every available slide/);assert.doesNotMatch(h.copies[0],/entire playable video/);
+ h.context.active={...h.context.active,asset_type:'carousel',slides:[{path:'slide.png'}],analysis_status:'analyzed'};
+ h.details(h.context.active);assert.equal(h.node('#reference-analysis-next').hidden,true);
+});
 test('explicit copy identifies this exact source and original note without changing analysis',async()=>{
  const h=harness();h.details(h.context.active);await h.click();
  assert.equal(h.copies.length,1);assert.match(h.copies[0],/#style=one/);assert.match(h.copies[0],/Borrow the card reveal/);assert.match(h.copies[0],/Save each distinct reusable technique/);assert.equal(h.context.active.analysis_status,'not_analyzed');assert.equal(h.node('#reference-analyze').textContent,'Copied ✓');assert.equal(h.node('#analysis-dialog').open,false);
