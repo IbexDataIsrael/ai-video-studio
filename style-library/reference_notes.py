@@ -171,6 +171,10 @@ def save(body):
                 if previous['text'] != text or previous.get('focus', '') != focus:
                     raise NoteError('This earlier-note request already belongs to another note.', 409)
                 return current(body['reference_id'], body['example_id'], selection_id)
+        if body['example_id'] and any(n.get('reference_id') == body['reference_id'] and
+                n.get('example_id') == body['example_id'] and n.get('selection_id') == selection_id and
+                n.get('context_revision') == ctx['context_revision'] for n in data['notes']):
+            raise NoteError('This technique already has direction for this edit. Reopen it and choose Edit; your draft is kept.', 409)
         if len(data['notes']) >= 5000:
             raise NoteError('Ask your assistant to archive older reference notes first.', 409)
         data['notes'].append({'id': body['request_id'], 'created_at': datetime.now(timezone.utc).isoformat(),

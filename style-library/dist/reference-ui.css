@@ -80,6 +80,12 @@
 .reference-note-edit-actions button{min-height:44px}
 .reference-note-conflict{margin:10px 0;padding:10px;background:#eef1e4;border-radius:5px;font-size:12px}
 .reference-note-conflict p{margin:0 0 8px;white-space:pre-wrap}
+.reference-direction-body .reference-saved-note:first-child{padding-top:0}
+.reference-direction-note{display:flex;align-items:flex-start;gap:16px}
+.reference-direction-note>p{flex:1;min-width:0;margin:0}
+.reference-direction-note>button{min-height:44px;flex:none}
+.reference-note-status:empty{display:none}
+.reference-preserved-draft{margin-top:14px;padding-top:12px;border-top:1px solid #dce4d0}
 .reference-note-body:has([data-note-edit-text])>[data-borrow-note],.reference-note-body:has([data-note-edit-text])>.feedback-actions,.reference-note-body:has([data-note-edit-text])>.reference-focus-label,.reference-note-body:has([data-note-edit-text])>.reference-note-context{display:none}
 #selection-bar .selected-previews:empty{display:none}
 .video-moment-actions{justify-content:flex-end;margin-top:8px}

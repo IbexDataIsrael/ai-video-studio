@@ -12,9 +12,11 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 ## Borrow a technique
 
-**Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. **Save note** keeps that direction with the exact example for this edit and adds the technique to your current selection. Saving again keeps one selection item.
+**Copy this technique for chat** copies the open excerpt. Choose **Add direction** to describe how you want to use it. **Save note** keeps that direction with the exact example for this edit and adds the technique to your current selection. The saved text appears under **Your direction**, with **Edit** for further changes. You can include several instructions in that one field.
 
 Choose **Edit** beside a saved note in the reference or in **Selection**. **Save changes** updates that same note. **Cancel** keeps the saved wording. The note keeps its timestamp, exact example and earlier wording. An unfinished edit is retained if you leave the reference or reload. Save or cancel it before copying that note. If another window changed the note, review the latest wording before choosing **Use my edit**.
+
+Notes already entered in earlier versions remain visible and editable under **Your direction**. An older unfinished addition stays under **Unfinished direction**. Use Edit to incorporate it or discard that draft before copying. Separately selected timestamped moments keep their own direction.
 
 Use **Copy full reference** below the description to copy the video link and saved notes. To include new direction for the whole video, choose **Add full video to selection** from Reference options and write it in **Selection**. You can find earlier notes and drafts under **About this reference** and edit drafts in **Selection**.
 

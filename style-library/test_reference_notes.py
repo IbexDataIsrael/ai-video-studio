@@ -187,6 +187,36 @@ class ReferenceNoteTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(notes.NoteError):
                 notes.save(self.body(selection_id=value))
 
+    def test_a_technique_has_one_new_direction_per_edit_and_retries_keep_its_identity(self):
+        original = self.body('tech-demo', 'first')
+        first = notes.save(original)
+        before = (self.base / 'reference-notes.json').read_bytes()
+        with self.assertRaisesRegex(notes.NoteError, 'choose Edit'):
+            notes.save(self.body('tech-demo', 'first', text='An additional direction.'))
+        self.assertEqual(before, (self.base / 'reference-notes.json').read_bytes())
+        updated = notes.edit(self.edit_body(first))
+        self.assertEqual(len(updated['notes']), 1)
+        self.assertEqual(updated['notes'][0]['id'], first['notes'][0]['id'])
+        self.assertEqual(notes.save(original)['notes'], updated['notes'])
+        self.assertEqual(len(notes.save(self.body('tech-demo', 'second'))['notes']), 1)
+        self.assertEqual(len(notes.save(self.body('tech-demo', 'first', selection_id=str(uuid.uuid4())))['notes']), 1)
+
+    def test_existing_multiple_directions_keep_each_record_and_copy_without_a_migration(self):
+        notes.save(self.body('tech-demo', 'first'))
+        path = self.base / 'reference-notes.json';data = json.loads(path.read_text())
+        second = copy.deepcopy(data['notes'][0]);second['id'] = str(uuid.uuid4());second['text'] = 'Another earlier instruction.'
+        data['notes'].append(second);path.write_text(json.dumps(data));before = path.read_bytes()
+        current = notes.current('tech-demo', 'first')
+        self.assertEqual(len(current['notes']), 2);self.assertEqual(before, path.read_bytes())
+        request = self.edit_body(current) | {'note_id': second['id'], 'revision': current['notes'][1]['content_revision'], 'text': 'The revised second instruction.'}
+        updated = notes.edit(request)
+        self.assertEqual(updated['notes'][0], current['notes'][0])
+        self.assertEqual(updated['notes'][1]['id'], second['id'])
+        row = self.row(updated) | {'note_revisions': {n['id']: n['content_revision'] for n in updated['notes']}}
+        copied = notes.handoff({'references': [row]}, 'http://127.0.0.1:4870')['text']
+        self.assertIn('Borrow the card entrance.', copied)
+        self.assertIn('The revised second instruction.', copied)
+
     def test_read_and_handoff_without_notes_do_not_create_owner_files(self):
         state = notes.current('video')
         text = notes.handoff({'references': [self.row(state)]}, 'http://127.0.0.1:4870')['text']

@@ -46,6 +46,8 @@ Normal browsing/counts/search omit removed entries. Techniques with no visible s
 
 ## Reference borrowing notes
 
+Each newly borrowed technique has one editable direction per exact example and request. Save the first note, then edit it. Existing multiple note records retain their IDs, source positions and histories and remain visible/editable. Updates do not consolidate them. Earlier unfinished additions stay recoverable and require review or explicit discard before copying alongside saved direction.
+
 Borrowing notes are specific to an editing request. The browser selection records note_session, and saved note records and new API handoffs carry its optional selection_id. Only notes matching that request are shown, edited or copied. Clear rotates the request and clears its browser picks, moments and drafts; Undo restores it. Earlier unscoped notes remain in the initial request until the owner clears it. Keep all records and history during updates. A project draft that already captured a reference retains its exact request scope. Clearing the library selection does not rewrite that draft or any production project.
 
 Saved borrowing notes can be edited inline in reference details and Selection. Edits retain the note's ID, position, source snapshot and original save request, adding updated_at and append-only history. Keep these records during updates and registrations. New handoffs include note_revisions so changed saved text must be reviewed before copying an older selection. Earlier-source notes stay outside current copying and editing.

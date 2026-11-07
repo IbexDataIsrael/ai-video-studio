@@ -90,7 +90,7 @@ async function techniqueNotes(options={}){
   fetch:async(url,init)=>{
    const body=init?.body?JSON.parse(init.body):null,params=new URL(url,'http://fixture').searchParams;
    const data={reference_id:body?.reference_id||params.get('id'),example_id:body?.example_id||params.get('example'),
-    context_revision:'current',notes:[],earlier_notes:[],has_video:true,slide_count:0,start:1,end:3};
+    context_revision:'current',notes:options.notes||[],earlier_notes:[],has_video:true,slide_count:0,start:1,end:3};
    if(body){writes.push(body);if(options.wait)await options.wait;
     if(options.fail)return {ok:false,headers:{get:()=> 'application/json'},json:async()=>({error:'Source changed.'})};
     data.notes=[{...body,id:'note-fixture'}];}
@@ -112,10 +112,19 @@ test('saving technique direction selects the exact example once and preserves ea
  assert.deepEqual([...h.picks],['tech-other@chosen','tech-one@first']);
  assert.equal(h.writes[0].example_id,'first');
  assert.match(h.panel.innerHTML,/Technique added to your selection/);
- assert.match(h.panel.innerHTML,/This technique/);
+ assert.match(h.panel.innerHTML,/<summary>Your direction<\/summary>/);
+ assert.doesNotMatch(h.panel.innerHTML,/data-borrow-note|data-note-save|Saved for this edit|Borrowing notes/);
  await h.save('Keep the newspaper texture too.');
  assert.deepEqual(JSON.parse(h.storage.get('selection')),['tech-other@chosen','tech-one@first']);
- assert.match(h.panel.innerHTML,/This technique is in your selection/);
+ assert.equal(h.writes.length,1);assert.match(h.panel.innerHTML,/Use Edit to update your direction/);
+});
+test('existing multiple notes stay readable and editable without another note composer',async()=>{
+ const notes=['First instruction.','Second instruction.'].map((text,i)=>({id:'old-'+i,text,example_id:'first',slide:null,time:null,focus:'',context_revision:'current'}));
+ const h=await techniqueNotes({notes});
+ for(const n of notes){assert.ok(h.panel.innerHTML.includes(n.text));assert.ok(h.panel.innerHTML.includes('data-note-edit="'+n.id+'"'));}
+ assert.equal((h.panel.innerHTML.match(/<summary>Your direction<\/summary>/g)||[]).length,1);
+ assert.doesNotMatch(h.panel.innerHTML,/data-borrow-note|data-note-save|Saved for this edit|Borrowing notes/);
+ assert.equal(h.writes.length,0);
 });
 test('failed or empty note saves leave the technique unselected and retain the draft',async()=>{
  const h=await techniqueNotes({fail:true});
