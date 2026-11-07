@@ -14,6 +14,8 @@ During analysis, the assistant reviews the full playable source and saves each d
 
 **Copy this technique for chat** copies the open excerpt. You can add direction beside the excerpt before copying. **Save note** keeps that direction with the exact example for future edits and adds the technique to your current selection. Saving again keeps one selection item.
 
+Choose **Edit** beside a saved note in the reference or in **Selection**. **Save changes** updates that same note. **Cancel** keeps the saved wording. The note keeps its timestamp, exact example and earlier wording. An unfinished edit is retained if you leave the reference or reload. Save or cancel it before copying that note. If another window changed the note, review the latest wording before choosing **Use my edit**.
+
 Use **Copy full reference** below the description to copy the video link and saved notes. To include new direction for the whole video, choose **Add full video to selection** from Reference options and write it in **Selection**. You can find earlier notes and drafts under **About this reference** and edit drafts in **Selection**.
 
 Use **+** to collect excerpts across videos. Video cards show how many excerpts or moments you picked from each source. The card’s **+** selects the full video. In the bottom bar, **Add moment** shows the current time and pauses there when you open the note editor. Choose **Add to selection** with or without a note, or **Cancel** to return to your earlier picks. **Undo** removes the moment you just added. **Copy for chat** copies all your picks. Open **Selection** to review or edit them. The two selection copy paths include the same items and notes.

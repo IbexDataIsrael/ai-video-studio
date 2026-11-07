@@ -67,6 +67,92 @@ class ReferenceNoteTests(unittest.TestCase):
         return {k: state[k] for k in ['reference_id', 'example_id', 'context_revision']} | {
             'slide': slide, 'note_ids': [n['id'] for n in state['notes'] if n['slide'] in (None, slide)]}
 
+    def edit_body(self, state, text='Use a softer entrance.'):
+        note = state['notes'][0]
+        return {k: state[k] for k in ('reference_id', 'example_id', 'context_revision')} | {
+            'note_id': note['id'], 'revision': note['content_revision'], 'text': text, 'request_id': str(uuid.uuid4())}
+
+    def test_edit_preserves_identity_position_source_and_recoverable_wording(self):
+        state = notes.save(self.body('tech-demo', 'first', time=2.5, focus='Opening'))
+        notes.save(self.body('video', text='An unrelated saved note.'))
+        before = json.loads((self.base / 'reference-notes.json').read_text())
+        sources = self.catalog.read_bytes(), self.media.read_bytes(), self.registry.read_bytes()
+        result = notes.edit(self.edit_body(state))
+        edited = result['notes'][0]
+        self.assertNotEqual(edited['content_revision'], state['notes'][0]['content_revision'])
+        raw = json.loads((self.base / 'reference-notes.json').read_text())
+        self.assertEqual(raw['notes'][0]['history'][0]['before'], before['notes'][0])
+        self.assertEqual(raw['notes'][1], before['notes'][1])
+        for key, value in before['notes'][0].items():
+            if key != 'text': self.assertEqual(raw['notes'][0][key], value, key)
+        self.assertEqual(edited['text'], 'Use a softer entrance.')
+        self.assertEqual(sources, (self.catalog.read_bytes(), self.media.read_bytes(), self.registry.read_bytes()))
+        row = self.row(result) | {'note_revisions': {edited['id']: edited['content_revision']}}
+        copied = notes.handoff({'references': [row]}, 'http://127.0.0.1:4870')['text']
+        self.assertIn('Use a softer entrance.', copied)
+        self.assertNotIn('Borrow the card entrance.', copied)
+        self.assertIn('example=first', copied)
+
+    def test_edit_retries_are_idempotent_and_never_revert_a_later_edit(self):
+        first = notes.save(self.body())
+        request = self.edit_body(first)
+        second = notes.edit(request)
+        self.assertEqual(second, notes.edit(request))
+        third = notes.edit(self.edit_body(second, 'The latest direction.'))
+        self.assertEqual(third, notes.edit(request))
+        self.assertEqual(len(third['notes'][0]['history']), 2)
+        with self.assertRaises(notes.NoteError): notes.edit(request | {'text': 'Different request'})
+
+    def test_stale_wrong_scope_and_invalid_edits_preserve_saved_work(self):
+        first = notes.save(self.body('tech-demo', 'first'))
+        request = self.edit_body(first)
+        notes.edit(request)
+        before = (self.base / 'reference-notes.json').read_bytes()
+        for delta in ({'revision': first['notes'][0]['content_revision']}, {'reference_id': 'video', 'example_id': None},
+                      {'example_id': 'second'}, {'context_revision': 'old'}, {'text': ''}, {'text': 'x' * 2001},
+                      {'time': 3}, {'revision': []}, {'request_id': 'bad'}, {'note_id': str(uuid.uuid4())}):
+            with self.subTest(delta=delta), self.assertRaises(notes.NoteError):
+                notes.edit(request | {'request_id': str(uuid.uuid4())} | delta)
+        self.assertEqual(before, (self.base / 'reference-notes.json').read_bytes())
+
+    def test_note_revisions_reject_unseen_edits_in_handoffs(self):
+        state = notes.save(self.body())
+        old = self.row(state) | {'note_revisions': {n['id']: n['content_revision'] for n in state['notes']}}
+        notes.handoff({'references': [self.row(state)]}, 'http://127.0.0.1:4870')
+        latest = notes.edit(self.edit_body(state))
+        for row in (old, self.row(latest), self.row(latest) | {'note_revisions': {}}, self.row(latest) | {'note_revisions': None}):
+            with self.subTest(row=row), self.assertRaises(notes.NoteError):
+                notes.handoff({'references': [row]}, 'http://127.0.0.1:4870')
+        fresh = self.row(latest) | {'note_revisions': {n['id']: n['content_revision'] for n in latest['notes']}}
+        self.assertIn('softer entrance', notes.handoff({'references': [fresh]}, 'http://127.0.0.1:4870')['text'])
+
+    def test_source_change_during_edit_is_guarded_and_keeps_the_note(self):
+        state = notes.save(self.body(time=0))
+        before = (self.base / 'reference-notes.json').read_bytes()
+        commit = storage.commit
+        def changed(*args, **kwargs):
+            self.media.write_bytes(b'external-new-source')
+            return commit(*args, **kwargs)
+        with patch.object(storage, 'commit', side_effect=changed), self.assertRaises(storage.ReviewError):
+            notes.edit(self.edit_body(state))
+        self.assertEqual(before, (self.base / 'reference-notes.json').read_bytes())
+        with self.assertRaises(notes.NoteError): notes.edit(self.edit_body(state))
+
+    def test_concurrent_edits_accept_one_revision_without_losing_the_original(self):
+        state = notes.save(self.body())
+        bodies = [self.edit_body(state, text) for text in ('Direction A', 'Direction B')]
+        errors = []
+        def edit(body):
+            try: notes.edit(body)
+            except notes.NoteError as error: errors.append(error)
+        threads = [threading.Thread(target=edit, args=(body,)) for body in bodies]
+        for thread in threads: thread.start()
+        for thread in threads: thread.join()
+        self.assertEqual(len(errors), 1)
+        result = notes.current('video')['notes'][0]
+        self.assertEqual(len(result['history']), 1)
+        self.assertEqual(result['history'][0]['before']['text'], state['notes'][0]['text'])
+
     def test_read_and_handoff_without_notes_do_not_create_owner_files(self):
         state = notes.current('video')
         text = notes.handoff({'references': [self.row(state)]}, 'http://127.0.0.1:4870')['text']
@@ -271,6 +357,17 @@ class ReferenceNoteTests(unittest.TestCase):
             self.assertEqual(copied[0], 200)
             self.assertIn(origin, json.loads(copied[1])['text'])
             self.assertEqual(before, (self.base / 'reference-notes.json').read_bytes())
+            edit_headers = valid | {'X-Studio-Action': 'reference-note-edit'}
+            edit_body = json.dumps(self.edit_body(json.loads(raw)))
+            for field in ('Origin', 'X-Studio-Action'):
+                headers = edit_headers.copy(); headers.pop(field)
+                self.assertEqual(request(headers, edit_body, '/reference-note-edit')[0], 403)
+            self.assertEqual(request(edit_headers | {'Origin': 'https://attacker.invalid'}, edit_body, '/reference-note-edit')[0], 403)
+            self.assertEqual(request(edit_headers | {'Content-Type': 'text/plain'}, edit_body, '/reference-note-edit')[0], 415)
+            self.assertEqual(request(edit_headers, 'x' * 16385, '/reference-note-edit')[0], 413)
+            status, edited = request(edit_headers, edit_body, '/reference-note-edit')
+            self.assertEqual(status, 200)
+            self.assertEqual(json.loads(edited)['notes'][0]['text'], 'Use a softer entrance.')
             self.assertEqual(request({'Origin': 'https://attacker.invalid'}, '', '/reference-notes?id=video', 'GET')[0], 403)
         finally:
             server.shutdown(); server.server_close(); thread.join()

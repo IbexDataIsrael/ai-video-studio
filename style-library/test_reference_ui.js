@@ -72,10 +72,10 @@ async function techniqueNotes(options={}){
    const field={value:'',focus(){}};
    const el={isConnected:true,hidden:false,open:false,textContent:'',dataset:{},
     addEventListener(name,fn){this[name]=fn;},insertAdjacentHTML(){},replaceChildren(){this.innerHTML='';},contains(n){return n===field||n===this.save;},
-    querySelector(s){if(s==='[data-borrow-note]')return field;if(s==='.reference-note-composer')return {open:true};return null;},
+    querySelector(s){if(s==='[data-borrow-note]')return field;if(s==='.reference-note-composer')return {open:true};return null;},querySelectorAll(){return [];},
     set innerHTML(value){this.html=value;const text=value.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/);if(text)field.value=text[1];},
     get innerHTML(){return this.html||'';}};
-   el.save={hasAttribute:name=>name==='data-note-save',closest(){return this;}};
+   el.save={dataset:{},hasAttribute:name=>name==='data-note-save',closest(){return this;}};
    el.field=field;nodes.set(selector,el);
   }return nodes.get(selector);
  };

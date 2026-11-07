@@ -1,7 +1,8 @@
 /* Shared reference/technique note, selection and explicit-copy experience. */
 window.ReferenceNotes=(()=>{
- const panels=new Map(),drafts=new Map(),requests=new Map();let detail=null,selectionPanels=[],selectionRun=0,copyBusy=false,slides={};
+ const panels=new Map(),drafts=new Map(),requests=new Map(),edits=new Map(),editRequests=new Map();let detail=null,selectionPanels=[],selectionRun=0,copyBusy=false,slides={};
  try{const raw=JSON.parse(localStorage.getItem('ai-video-studio-reference-drafts-v2')||'{}');for(const [k,v] of Object.entries(raw))if(v&&typeof v.text==='string')drafts.set(k,{...v,time:typeof v.time==='number'&&Number.isFinite(v.time)?v.time:null,focus:typeof v.focus==='string'?v.focus:''});}catch{}
+ try{const raw=JSON.parse(localStorage.getItem('ai-video-studio-reference-note-edits-v1')||'{}');for(const [id,e] of Object.entries(raw))if(e&&typeof e.text==='string'&&typeof e.revision==='string'&&typeof e.contextRevision==='string')edits.set(id,e);}catch{}
  try{slides=JSON.parse(localStorage.getItem('ai-video-studio-reference-slides-v1')||'{}');}catch{}
  if(!slides||typeof slides!=='object'||Array.isArray(slides))slides={};
  const key=t=>JSON.stringify([t.reference_id,t.example_id,t.slide]);
@@ -9,8 +10,8 @@ window.ReferenceNotes=(()=>{
  const draft=p=>drafts.get(key(p.target))||{text:'',time:null,focus:''};
  const hasDraft=p=>!!(draft(p).text?.trim()||draft(p).focus?.trim()||draft(p).time!==null);
  const applicable=p=>(p.data?.notes||[]).filter(n=>n.slide===null||n.slide===p.target.slide);
- function remember(){try{localStorage.setItem('ai-video-studio-reference-drafts-v2',JSON.stringify(Object.fromEntries(drafts)));}catch{}}
- function retain(){for(const [el,p] of panels){if(!el.isConnected){panels.delete(el);continue;}if(p.combined?!$('#brief-dialog').open:!$('#style-dialog').open||$('#brief-dialog').open)continue;const text=p.el.querySelector('[data-borrow-note]'),focus=p.el.querySelector('[data-borrow-focus]');if(text){const d={...draft(p),text:text.value,contextRevision:draft(p).contextRevision||p.data?.context_revision};if(focus)d.focus=focus.value;drafts.set(key(p.target),d);}}remember();}
+ function remember(){try{localStorage.setItem('ai-video-studio-reference-drafts-v2',JSON.stringify(Object.fromEntries(drafts)));localStorage.setItem('ai-video-studio-reference-note-edits-v1',JSON.stringify(Object.fromEntries([...edits].map(([id,e])=>[id,{text:e.text,revision:e.revision,contextRevision:e.contextRevision}]))));}catch{}}
+ function retain(){for(const [el,p] of panels){if(!el.isConnected){panels.delete(el);continue;}if(p.combined?!$('#brief-dialog').open:!$('#style-dialog').open||$('#brief-dialog').open)continue;const text=p.el.querySelector('[data-borrow-note]'),focus=p.el.querySelector('[data-borrow-focus]');if(text){const d={...draft(p),text:text.value,contextRevision:draft(p).contextRevision||p.data?.context_revision};if(focus)d.focus=focus.value;drafts.set(key(p.target),d);}for(const field of p.el.querySelectorAll('[data-note-edit-text]')){const e=edits.get(field.dataset.noteEditText);if(e&&!e.busy)e.text=field.value;}}remember();}
  function currentTarget(){
   if(!active)return null;
   if(sourceExcerpt)return {reference_id:sourceExcerpt.technique.id,example_id:sourceExcerpt.example.id,slide:null};
@@ -33,7 +34,20 @@ window.ReferenceNotes=(()=>{
  async function load(t){const params=new URLSearchParams({id:t.reference_id});if(t.example_id)params.set('example',t.example_id);return reply(await fetch('/reference-notes?'+params,{cache:'no-store'}));}
  function scope(p){const d=draft(p);return d.time!==null?'✓ Note time: '+exact(d.time):p.target.slide?'Slide '+p.target.slide:p.data?.example_id?'Selected example · '+exact(p.data.start)+'–'+exact(p.data.end):'Whole reference';}
  function notePosition(n){return n.time!==null?'At '+exact(n.time):n.slide?'Slide '+n.slide:n.example_id?'This technique':'Whole reference';}
- function cards(notes,p){return notes.map(n=>'<article class="reference-saved-note"><span>'+esc(notePosition(n))+(n.focus?' · '+esc(n.focus):'')+'</span><p>'+esc(n.text)+'</p>'+(n.time!==null&&!p.combined?'<button class="text-button" data-note-seek="'+n.time+'">View moment</button>':'')+'</article>').join('');}
+ function cards(notes,p){return notes.map(n=>{
+  const editable=!!p.data&&n.context_revision===p.data.context_revision,e=edits.get(n.id),id=esc(n.id);
+  const stale=e&&(e.revision!==n.content_revision||e.contextRevision!==p.data?.context_revision);
+  const disabled=e?.busy?' disabled':'';
+  const body=e&&editable
+   ?'<textarea data-note-edit-text="'+id+'" aria-label="Edit saved note" rows="3" maxlength="2000"'+disabled+'>'+esc(e.text)+'</textarea>'+
+    (stale?'<div class="reference-note-conflict"><p>This note changed elsewhere. Latest saved note:</p><p>'+esc(n.text)+'</p><button class="secondary" data-note-edit-rebase="'+id+'"'+disabled+'>Use my edit</button></div>':'')+
+    '<div class="reference-note-edit-actions"><button class="primary" data-note-update="'+id+'"'+(e.busy||stale?' disabled':'')+'>'+(e.busy?'Saving…':'Save changes')+'</button><button class="text-button" data-note-cancel-edit="'+id+'"'+disabled+'>Cancel</button></div>'+
+    (e.error?'<p class="reference-note-error" role="alert">'+esc(e.error)+'</p>':'')
+   :'<p>'+esc(n.text)+'</p>'+(e?'<div class="reference-note-conflict"><p>Unfinished edit for the earlier source:</p><p>'+esc(e.text)+'</p><button class="text-button" data-note-cancel-edit="'+id+'">Discard edit</button></div>':'');
+  return '<article class="reference-saved-note" data-saved-note="'+id+'"><div class="reference-saved-note-head"><span>'+esc(notePosition(n))+(n.focus?' · '+esc(n.focus):'')+'</span>'+
+   (editable&&!e?'<button class="text-button" data-note-edit="'+id+'" aria-label="Edit saved note">Edit</button>':'')+'</div>'+body+
+   (n.time!==null&&!p.combined?'<button class="text-button" data-note-seek="'+n.time+'">View moment</button>':'')+'</article>';
+ }).join('');}
  async function legacyFor(t){
   const old=referenceNotes?.[token(t)];if(!old||typeof old!=='object')return null;
   const value={focus:typeof old.focus==='string'?old.focus:'',borrow:typeof old.borrow==='string'?old.borrow:''};if(!value.focus.trim()&&!value.borrow.trim())return null;
@@ -47,16 +61,16 @@ window.ReferenceNotes=(()=>{
   p.el.innerHTML='<details class="reference-note-history"'+(open?' open':'')+'><summary>Reference notes</summary>'+
    cards(notes,p)+(unfinished?'<article class="reference-saved-note"><span>Unfinished note · '+esc(scope(p))+'</span>'+
    (d.focus.trim()?'<p>'+esc(d.focus)+'</p>':'')+(d.text.trim()?'<p>'+esc(d.text)+'</p>':'')+'</article>':'')+
-   '<p>To edit or add direction, add the full video to Selection.</p></details>';
+   '<p>Add the full video to Selection to write new direction.</p></details>';
  }
  function paint(p){
   if(panels.get(p.el)!==p)return;
-  const wasOpen=p.el.querySelector('.reference-note-composer')?.open,d=draft(p),notes=applicable(p),saved=notes.length;
+  const wasOpen=p.el.querySelector('.reference-note-composer')?.open,d=draft(p),notes=applicable(p),saved=notes.length,editing=notes.some(n=>edits.has(n.id));
   const wholeVideo=isWholeVideo(p.target),historyOnly=wholeVideo&&!p.combined;
   const prompt=wholeVideo?'How would you like to use this video?':p.target.example_id&&p.combined?'How would you like to use this?':'What would you like to borrow?';
   const title=p.target.example_id||wholeVideo?(hasDraft(p)?'Edit direction':'Add direction'):'Add a note';
   const showFocus=p.combined&&!p.target.example_id&&(!wholeVideo||d.focus.trim());
-  const help=wholeVideo&&(d.time!==null||d.focus.trim())
+  const help=editing?'Save changes to update this note, or Cancel to keep the saved wording.':wholeVideo&&(d.time!==null||d.focus.trim())
    ?'Save this earlier note to include its timestamp or focus.'
    :p.target.example_id&&!p.combined?'Save your note to keep it with this technique and add it to your selection.'
    :p.target.example_id||wholeVideo?'Your direction goes with this pick when you copy. Save the note if you want to reuse it.':'Save your note, then copy it to your editing chat.';
@@ -87,6 +101,38 @@ window.ReferenceNotes=(()=>{
   if(t.slide){slides[t.reference_id]=t.slide;try{localStorage.setItem('ai-video-studio-reference-slides-v1',JSON.stringify(slides));}catch{}}
   const el=$('#reference-note-panel');mount(el,t).then(p=>{if(panels.get(el)===p)detail=p;});detail=panels.get(el);
  }
+ function confirmTechnique(p,verb){
+  p.message='✓ Note '+verb+' with your studio. Ready to copy for chat.';
+  if(p.combined||!p.target.example_id)return;
+  const pick=token(p.target);
+  if(selected.has(pick))p.message='✓ Note '+verb+'. This technique is in your selection.';
+  else if(selected.size>=60)p.message='✓ Note '+verb+'. Your selection is full. Remove a pick, then add this technique with +.';
+  else{selected.add(pick);saveSelection();p.message='✓ Note '+verb+'. Technique added to your selection.';}
+ }
+ function syncPanels(target,data,message=''){
+  for(const p of panels.values())if(p.target.reference_id===target.reference_id&&p.target.example_id===target.example_id){
+   if(data)p.data=data;
+   p.message=message;paint(p);
+  }
+ }
+ async function updateNote(p,id){
+  retain();const e=edits.get(id),note=applicable(p).find(n=>n.id===id);
+  if(!e||e.busy||!note||e.revision!==note.content_revision||e.contextRevision!==p.data.context_revision)return;
+  if(!e.text.trim()){e.error='Write a note before saving.';paint(p);p.el.querySelector('[data-note-edit-text="'+id+'"]')?.focus();return;}
+  const body={reference_id:p.target.reference_id,example_id:p.target.example_id,note_id:id,context_revision:e.contextRevision,revision:e.revision,text:e.text};
+  const signature=JSON.stringify(body);let request=editRequests.get(signature);
+  if(!request){request={...body,request_id:crypto.randomUUID()};editRequests.set(signature,request);}
+  e.busy=true;e.error='';syncPanels(p.target);
+  try{
+   const result=await reply(await fetch('/reference-note-edit',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference-note-edit'},body:JSON.stringify(request)}));
+   edits.delete(id);editRequests.delete(signature);remember();confirmTechnique(p,'updated');syncPanels(p.target,result,p.message);
+  }catch(error){
+   e.error=error.message+(/edit is kept/i.test(error.message)?'':' Your edit is kept.');
+   try{syncPanels(p.target,await load(p.target));}catch{}
+  }finally{
+   e.busy=false;for(const other of panels.values())if(other.target.reference_id===p.target.reference_id&&other.target.example_id===p.target.example_id)paint(other);
+  }
+ }
  async function save(p,legacy=false){
   if(p.loading||p.busy||!p.data)return;retain();
   const d=draft(p),text=legacy?p.legacy?.borrow||p.legacy?.focus:d.text;
@@ -98,13 +144,7 @@ window.ReferenceNotes=(()=>{
   try{
    const result=await reply(await fetch('/reference-notes',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference-note'},body:JSON.stringify(request)}));
    if(!legacy){const latest=draft(p);if(latest.text===d.text&&latest.time===d.time&&latest.focus===d.focus)drafts.delete(key(p.target));remember();}
-   requests.delete(signature);if(legacy)p.forceOpen=true;p.message='✓ Note saved with your studio. Ready to copy for chat.';
-   if(!legacy&&!p.combined&&p.target.example_id){
-    const pick=token(p.target);
-    if(selected.has(pick))p.message='✓ Note saved. This technique is in your selection.';
-    else if(selected.size>=60)p.message='✓ Note saved. Your selection is full. Remove a pick, then add this technique with +.';
-    else{selected.add(pick);saveSelection();p.message='✓ Note saved. Technique added to your selection.';}
-   }
+   requests.delete(signature);if(legacy){p.forceOpen=true;p.message='✓ Note saved with your studio. Ready to copy for chat.';}else confirmTechnique(p,'saved');
    for(const other of panels.values())if(other.target.reference_id===p.target.reference_id&&other.target.example_id===p.target.example_id){other.data=result;paint(other);}
   }catch(error){p.message=error.message+(/draft.*kept/i.test(error.message)?'':' Your draft is kept.');}
   finally{p.busy=false;paint(p);}
@@ -116,11 +156,25 @@ window.ReferenceNotes=(()=>{
   drafts.set(key(p.target),{...draft(p),time,contextRevision:p.data.context_revision});remember();p.message='Timestamp set to '+exact(time)+'. Write your note, then save.';paint(p);p.el.querySelector('[data-borrow-note]')?.focus();
  }
  document.addEventListener('input',event=>{
+  if(event.target.matches('[data-note-edit-text]')){retain();return;}
   if(!event.target.matches('[data-borrow-note],[data-borrow-focus]'))return;retain();const p=[...panels.values()].find(p=>p.el.contains(event.target));if(p)p.el.querySelector('[data-note-clear]').hidden=!hasDraft(p);
  });
  document.addEventListener('click',event=>{
-  const node=event.target.closest('[data-note-rebase],[data-note-save],[data-note-import],[data-note-timestamp],[data-note-remove-time],[data-note-clear],[data-note-seek],[data-note-retry]');if(!node)return;
+  const node=event.target.closest('[data-note-edit],[data-note-update],[data-note-cancel-edit],[data-note-edit-rebase],[data-note-rebase],[data-note-save],[data-note-import],[data-note-timestamp],[data-note-remove-time],[data-note-clear],[data-note-seek],[data-note-retry]');if(!node)return;
   const p=[...panels.values()].find(p=>p.el.contains(node));if(!p)return;
+  if(node.dataset.noteEdit!==undefined){
+   const n=applicable(p).find(n=>n.id===node.dataset.noteEdit);if(!n||p.loading||p.busy)return;
+   retain();edits.set(n.id,{text:n.text,revision:n.content_revision,contextRevision:p.data.context_revision});remember();p.message='';paint(p);p.el.querySelector('[data-note-edit-text="'+n.id+'"]')?.focus();return;
+  }
+  if(node.dataset.noteUpdate!==undefined)return updateNote(p,node.dataset.noteUpdate);
+  if(node.dataset.noteCancelEdit!==undefined){
+   const id=node.dataset.noteCancelEdit;if(edits.get(id)?.busy)return;
+   retain();edits.delete(id);remember();p.message='';paint(p);p.el.querySelector('[data-note-edit="'+id+'"]')?.focus();return;
+  }
+  if(node.dataset.noteEditRebase!==undefined){
+   const id=node.dataset.noteEditRebase,e=edits.get(id),n=applicable(p).find(n=>n.id===id);if(!e||!n||e.busy)return;
+   retain();e.revision=n.content_revision;e.contextRevision=p.data.context_revision;e.error='';remember();paint(p);return;
+  }
   if(node.hasAttribute('data-note-retry')){retain();mount(p.el,p.target,p.combined).then(next=>{if(detail===p)detail=next;selectionPanels=selectionPanels.map(v=>v===p?next:v);});return;}
   if(node.hasAttribute('data-note-rebase')){retain();drafts.set(key(p.target),{...draft(p),time:null,contextRevision:p.data.context_revision});p.message='Draft kept for this source. Review the text, then save.';remember();paint(p);return;}
   if(node.hasAttribute('data-note-save'))return save(p);
@@ -136,7 +190,9 @@ window.ReferenceNotes=(()=>{
    return {reference_id,example_id:null,slide:null,context_revision,note_ids:[],moment:{time,text:text.trim()}};
   }
   if(p.loading||p.busy||!p.data)throw Error('Wait for your saved notes to load, or retry the reference.');
-  const handoff={...p.target,context_revision:p.data.context_revision,note_ids:applicable(p).map(n=>n.id)};
+  const notes=applicable(p);
+  if(notes.some(n=>edits.has(n.id)))throw Error('Save or cancel your note edit before copying.');
+  const handoff={...p.target,context_revision:p.data.context_revision,note_ids:notes.map(n=>n.id),note_revisions:Object.fromEntries(notes.map(n=>[n.id,n.content_revision]))};
   if((!p.el&&!p.useDraft)||!hasDraft(p))return handoff;
   const d=draft(p);
   const wholeVideo=isWholeVideo(p.target);
@@ -163,7 +219,7 @@ window.ReferenceNotes=(()=>{
  function copyCurrent(){const p=detail;if(p)return copy([p],$('#detail-quick-status'),$('#detail-quick-copy'),()=>detail===p&&$('#style-dialog').open);}
  function copyFullReference(entry){
   const target=targetFor(entry.id);
-  return copy(async()=>[{target,data:await load(target)}],
+  return copy(async()=>[{target,data:detail&&key(detail.target)===key(target)?detail.data:await load(target)}],
    $('#full-reference-copy-status'),$('#copy-full-reference'),()=>active===entry&&$('#style-dialog').open);
  }
  async function copyCard(id,exampleId,button){
@@ -274,8 +330,9 @@ window.ReferenceNotes=(()=>{
    const pick=selectionItem(token);
    if(!pick)throw Error('A selected item is unavailable. Review your selection.');
    if(pick.moment)return {moment:pick.moment};
-   const target=targetFor(pick.entry.id,pick.x?.id),data=await load(target);
-   return {target,data,useDraft:true};
+   const target=targetFor(pick.entry.id,pick.x?.id);
+   if(detail&&key(detail.target)===key(target)&&$('#style-dialog').open)return detail;
+   return {target,data:await load(target),useDraft:true};
   })),status,button,valid);
  }
  async function openSelection(tokens){

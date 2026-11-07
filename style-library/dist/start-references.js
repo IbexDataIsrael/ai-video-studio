@@ -22,12 +22,12 @@ window.StartReferences=(()=>{
    start:x?.start||0,end:x?.end??s.duration??null,status:s.analysis_status,description:e.summary||'',removed:isRemoved(s)};
  }
  async function json(response){const data=await response.json();if(!response.ok)throw Error(data.error||'Could not load this reference. Try again.');return data;}
- async function handoff(rows){return json(await fetch('/reference-handoff',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference-handoff'},body:JSON.stringify({references:rows.map(r=>({...target(r),context_revision:r.context_revision,note_ids:r.note_ids}))})}));}
+ async function handoff(rows){return json(await fetch('/reference-handoff',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference-handoff'},body:JSON.stringify({references:rows.map(r=>({...target(r),context_revision:r.context_revision,note_ids:r.note_ids,...(r.note_revisions?{note_revisions:r.note_revisions}:{})}))})}));}
  async function capture(t){
   const details=resolve(t),params=new URLSearchParams({id:t.reference_id});if(t.example_id)params.set('example',t.example_id);
   const data=await json(await fetch('/reference-notes?'+params,{cache:'no-store'}));
   const notes=(data.notes||[]).filter(n=>n.slide===null||n.slide===(t.slide||null));
-  const row={...target(t),context_revision:data.context_revision,note_ids:notes.map(n=>n.id),note:'',details};
+  const row={...target(t),context_revision:data.context_revision,note_ids:notes.map(n=>n.id),note_revisions:Object.fromEntries(notes.map(n=>[n.id,n.content_revision])),note:'',details};
   const result=await handoff([row]);row.message=result.text.split('\n').slice(2).join('\n').trim();return row;
  }
  function text(rows){
