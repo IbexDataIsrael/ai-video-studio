@@ -524,14 +524,24 @@ test('Videos and Techniques keep the same exact examples, request scope and fami
  assert.deepEqual(JSON.parse(h.storage.get('ai-video-studio-selection-v3')).picks,['family@first','family@second']);
  assert.equal(h.run('hasBorrowingNotes'),true);
 });
-test('example rows separate preview from collection and skip a chooser for a sole example',async()=>{
+test('example rows start collapsed and a sole example keeps its compact preview toggle',async()=>{
  const h=referenceCatalogHarness({entries:[{id:'video',title:'Original video',creator:'Creator'}],techniques:[{id:'family',examples:[{id:'one',label:'One',style_id:'video',start:1,end:2,poster:'one.jpg'},{id:'two',label:'Two',style_id:'video',start:3,end:4,poster:'two.jpg'}]}]});
  await h.vm.window.refreshReferenceCatalog();
  const rows=JSON.parse(h.run("JSON.stringify(techniqueExampleRows(item('family'),item('family').examples[0]))"));
- assert.equal(rows.single,false);assert.match(rows.html,/data-example="one"[^>]*aria-expanded="true"/);assert.match(rows.html,/data-select-excerpt="family@two"/);assert.match(rows.html,/Creator · Original video/);assert.doesNotMatch(rows.html,/role="radio"/);
+ assert.equal(rows.single,false);assert.match(rows.html,/data-example="one"[^>]*aria-expanded="false"/);assert.match(rows.html,/data-select-excerpt="family@two"/);assert.match(rows.html,/Creator · Original video/);assert.doesNotMatch(rows.html,/role="radio"|aria-expanded="true"/);
  h.run("item('family').examples.pop()");
  const single=JSON.parse(h.run("JSON.stringify(techniqueExampleRows(item('family'),item('family').examples[0]))"));
- assert.equal(single.single,true);assert.doesNotMatch(single.html,/data-example=/);assert.match(single.html,/data-select-excerpt="family@one"/);
+ assert.equal(single.single,true);assert.match(single.html,/data-example="one"[^>]*aria-expanded="false"/);assert.match(single.html,/data-select-excerpt="family@one"/);
+});
+test('preview controls toggle without replacing picks or direction and keyboard navigation keeps them open',async()=>{
+ const h=referenceCatalogHarness({entries:[{id:'video'}],techniques:[{id:'family',default_example:'one',examples:[{id:'one',style_id:'video',start:2,end:3}]}]});
+ await h.vm.window.refreshReferenceCatalog();h.vm.calls=[];
+ h.vm.window.ReferenceNotes={retain:()=>h.vm.calls.push('retain'),mountCurrent:()=>h.vm.calls.push('mount')};
+ h.run("active=item('family');selected.add('family@one');positionBorrowControls=()=>{};updateQuickCopy=()=>{};setVideoRange=()=>calls.push('play');previewTechniqueExample('one');");
+ assert.equal(h.run('techniqueExampleOpen'),true);
+ h.run("previewTechniqueExample('one')");assert.equal(h.run('techniqueExampleOpen'),false);
+ assert.equal(h.run("selected.has('family@one')"),true);assert.equal(JSON.stringify(h.vm.calls),'["retain","play","mount","retain"]');
+ h.run("previewTechniqueExample('one',true);previewTechniqueExample('one',true)");assert.equal(h.run('techniqueExampleOpen'),true);
 });
 test('technique detail keeps the selection footer visible at zero',async()=>{
  const h=referenceCatalogHarness({entries:[{id:'video'}],techniques:[{id:'family',default_example:'one',examples:[{id:'one',style_id:'video'}]}]});

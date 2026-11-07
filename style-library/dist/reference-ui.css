@@ -15,7 +15,6 @@
 #reference-technique-list{display:grid;gap:6px}
 #technique-examples .example-list{display:grid;grid-template-columns:1fr;gap:6px}
 #technique-example-hint{font-size:12px;line-height:1.5;color:#536346}
-.reference-excerpt .reference-example-info:hover{background:transparent}
 #return-to-technique{min-height:44px;padding:0 0 10px;text-align:left;line-height:1.5;color:#536346}
 #technique-examples+#reference-techniques{margin:0}
 .reference-excerpt{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:9px;padding:4px}
