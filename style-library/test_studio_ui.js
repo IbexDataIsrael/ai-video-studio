@@ -11,7 +11,7 @@ test('library sorting uses original added dates, with stable undated entries and
  const nodes=new Map(),node=key=>{if(!nodes.has(key))nodes.set(key,{value:'all'});return nodes.get(key);};
  node('#search').value='';node('#library-sort').value='newest';
  const context={$:node,view:'videos',collection:'mine',entries,techniques:[],viewEntries:()=>entries,matchesSource:()=>true,
-  savedCollectionId:'all',rememberFilters(){},collectionMatchesReference:()=>true,referenceCategories:()=>[],renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
+  savedCollectionId:'all',rememberFilters(){},activeLibraryFilters:()=>[],collectionMatchesReference:()=>true,referenceCategories:()=>[],renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
  runInNewContext(app.slice(start,end),context);context.render();
  assert.equal(node('#gallery').innerHTML,'[newer][older][undated-one][undated-two]');
  node('#library-sort').value='oldest';context.render();
@@ -427,7 +427,7 @@ function referenceCatalogHarness(initial,storage=new Map()){
  const nodes=new Map(),events={};
  const node=selector=>{
   if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,parentElement:{hidden:false},options:[{value:'all'}],
-   addEventListener(){},setAttribute(){},close(){}});
+   addEventListener(){},setAttribute(){},close(){},focus(){this.focused=true;}});
   return nodes.get(selector);
  };
  let catalog=initial;
@@ -790,10 +790,10 @@ test('collection matching controls card count, poster, copy, plus and detail row
 test('filters survive format switches and reload; clearing filters retains exact edit picks and notes',()=>{
  const f=collectionFixture(),h=referenceCatalogHarness(f);h.vm.history={replaceState(){}};
  h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];savedCollectionId="col-demo";renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);noteSession="11111111-1111-4111-8111-111111111111";hasBorrowingNotes=true;');
- h.node('#creator').value='Guest';h.node('#search').value='third';h.node('#technique').value='Motion';
+ h.node('#creator').value='Guest';h.node('#search').value='third';h.node('#technique').value='Motion';h.node('#library-sort').value='name';
  h.run('setView("techniques");setView("carousels");');assert.equal(h.run('savedCollectionId'),'col-demo');assert.equal(h.node('#creator').value,'Guest');assert.equal(h.node('#search').value,'third');assert.match(h.node('#empty p').textContent,/collection has no matching/);
  const reloaded=referenceCatalogHarness(f,h.storage);assert.equal(reloaded.run('libraryFilters.saved'),'col-demo');assert.equal(reloaded.run('libraryFilters.creator'),'Guest');
- h.run('clearFilters()');assert.equal(h.run('savedCollectionId'),'all');assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('noteSession'),'11111111-1111-4111-8111-111111111111');
+ h.run('clearFilters()');assert.equal(h.run('savedCollectionId'),'all');assert.equal(h.node('#search').value,'third');assert.equal(h.node('#library-sort').value,'name');assert.equal(h.run('activeLibraryFilters().length'),0);assert.equal(h.node('#toggle-filters').focused,true);assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('noteSession'),'11111111-1111-4111-8111-111111111111');
 });
 test('exact slides, moments and archived examples stay pinned rather than widening source scope',()=>{
  const f=collectionFixture(),e=f.entries[2],slide={kind:'slide',reference_id:e.id,slide:1,source:collectionModel.snapshot(e,null,1)};
@@ -816,4 +816,25 @@ test('closing reference details resets transient menus without clearing exact pi
  assert.equal(menus.every(menu=>!menu.open),true);assert.equal(otherDisclosure.open,true);
  assert.equal(retained,1);assert.equal(h.run('selected.has("video")'),true);
  assert.equal(h.run('noteSession'),scope);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('choices.family'),'exact-example');
+});
+
+test('the advanced filter badge excludes collection, source, search and sort; clearing filters is available outside its panel',()=>{
+ const h=referenceCatalogHarness({entries:[],techniques:[]});
+ const choose=(id,value,label=value)=>{const n=h.node(id);n.value=value;n.selectedIndex=0;n.options=[{textContent:label}];};
+ choose('#saved-collection-filter','col-demo','Creator pack');choose('#creator','all');choose('#technique','all');choose('#tag-filter','all');choose('#analysis-filter','preview');
+ h.node('#search').value='specific idea';h.node('#library-sort').value='oldest';
+ h.run('collection="mine";savedCollectionId="col-demo";view="techniques";renderActiveFilters()');
+ assert.equal(h.node('#filter-count').textContent,'');assert.equal(h.node('#reset-filters').hidden,false);
+ assert.match(h.node('#active-filters').innerHTML,/My work/);assert.match(h.node('#active-filters').innerHTML,/Collection: Creator pack/);
+ assert.doesNotMatch(h.node('#active-filters').innerHTML,/Search:|Clear all|oldest|preview/);assert.equal(h.node('#clear-library-search').hidden,false);
+ choose('#creator','Guest');choose('#technique','Motion');h.run('renderActiveFilters()');assert.equal(h.node('#filter-count').textContent,'2');
+ h.run('view="videos";renderActiveFilters()');assert.equal(h.node('#filter-count').textContent,'3');
+});
+test('search-only empty results offer Clear search, which preserves filters, sorting and edit picks',()=>{
+ const f=collectionFixture(),h=referenceCatalogHarness(f);h.vm.history={replaceState(){}};
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';view="techniques";renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);hasBorrowingNotes=true;');
+ h.node('#search').value='no matching words';h.node('#search').focus=()=>{};h.node('#library-sort').value='oldest';h.run('render()');
+ assert.equal(h.node('#reset').textContent,'Clear search');assert.equal(h.node('#reset').hidden,false);
+ h.node('#creator').value='Guest';h.run('render()');assert.equal(h.node('#reset').textContent,'Clear filters');
+ h.run('clearLibrarySearch()');assert.equal(h.node('#search').value,'');assert.equal(h.node('#creator').value,'Guest');assert.equal(h.node('#library-sort').value,'oldest');assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);
 });

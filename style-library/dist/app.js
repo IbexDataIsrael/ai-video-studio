@@ -269,8 +269,8 @@ function render(){
  const date=e=>{const value=Date.parse(e.created_at||e.added_at||e.added_on||'');return Number.isFinite(value)?value:null;};
  visible.sort((a,b)=>{if(mode==='name')return a.title.localeCompare(b.title);const x=date(a),y=date(b);if(x===null&&y===null)return 0;if(x===null)return 1;if(y===null)return -1;return mode==='oldest'?x-y:y-x;});
  renderActiveFilters();
- const noun=view==='videos'?'video':view==='carousels'?'carousel':'technique';$('#result-count').textContent=visible.length+' '+noun+(visible.length===1?'':'s')+(collection==='mine'?' from my work':collection==='reference'?' from other creators':'');
- $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':(savedCollectionId!=='all'?'This collection has no matching '+noun+'s with these filters. Your collection and selections are kept.':'Try another search or clear a filter.');$('#reset').hidden=isNew;$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
+ const noun=view==='videos'?'video':view==='carousels'?'carousel':'technique',filtered=activeLibraryFilters().length>0;$('#result-count').textContent=visible.length+' '+noun+(visible.length===1?'':'s')+(collection==='mine'?' from my work':collection==='reference'?' from other creators':'');
+ $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':(savedCollectionId!=='all'?'This collection has no matching '+noun+'s with these filters. Your collection and selections are kept.':filtered?'Try another search or clear a filter.':query.length?'Try another search or clear it to browse your library.':'There are no '+noun+'s to show yet.');$('#reset').hidden=isNew||!filtered&&!query.length;$('#reset').textContent=filtered?'Clear filters':'Clear search';$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
 }
 function setView(next){if(!['videos','carousels','techniques'].includes(next))return;rememberFilters();view=next;updateControls();render();history.replaceState(null,'',viewHash());}
 function pausePreview(){const v=$('#detail-media video');if(v)v.pause();}
@@ -574,19 +574,29 @@ $('.view-switch').addEventListener('click',event=>{const b=event.target.closest(
 $('.collections').addEventListener('click',event=>{const b=event.target.closest('[data-collection]');if(!b)return;rememberFilters();collection=b.dataset.collection;libraryFilters.source=collection;updateControls();render();});
 $('#gallery').addEventListener('click',event=>{const moment=event.target.closest('[data-select-moment]');if(moment)return window.ReferenceNotes?.toggleTimestamp(source(moment.dataset.id),Number(moment.dataset.selectMoment),'Moment at '+exact(Number(moment.dataset.selectMoment)),moment,true);const copy=event.target.closest('[data-copy-reference]');if(copy){if(copy.dataset.copySlide)return window.ReferenceNotes?.copyCard(copy.dataset.copyReference,null,copy,Number(copy.dataset.copySlide));if(copy.dataset.copyMoment!==undefined)return window.ReferenceNotes?.copyMoment(source(copy.dataset.copyReference),Number(copy.dataset.copyMoment),copy);return copyCardReference(copy.dataset.copyReference,copy.dataset.copyExample||null,copy);}const b=event.target.closest('.select-card');if(b)return toggleSelection(b.dataset.selectSlide||exampleToken(b.dataset.id,b.dataset.selectExample));const open=event.target.closest('[data-open]');if(open){const e=item(open.dataset.open);if(e)isTech(e)?showTechnique(e.id):showStyle(e.id);}});
 $('#search').addEventListener('input',render);$('#technique').addEventListener('change',render);$('#creator').addEventListener('change',render);$('#analysis-filter').addEventListener('change',render);$('#library-sort').addEventListener('change',render);
-function clearFilters(){libraryFilters=defaultLibraryFilters();collection='all';savedCollectionId='all';updateControls();render();}
+function clearFilters(){
+ libraryFilters={...defaultLibraryFilters(),search:$('#search').value,sort:$('#library-sort').value};
+ collection='all';savedCollectionId='all';updateControls();render();$('#toggle-filters').focus({preventScroll:true});
+}
+function clearLibrarySearch(){$('#search').value='';render();$('#search').focus();}
+function activeLibraryFilters(){
+ const active=[];
+ if(collection!=='all')active.push(['source',collection==='mine'?'My work':'Other creators']);
+ for(const id of ['saved-collection-filter','creator','technique','tag-filter',...(view==='techniques'?[]:['analysis-filter'])]){
+  const field=$('#'+id);if(field.value!=='all')active.push([id,(id==='saved-collection-filter'?'Collection: ':'')+(field.options[field.selectedIndex]?.textContent||field.value)]);
+ }
+ return active;
+}
 function renderActiveFilters(){
- const applied=[['search',$('#search').value.trim()?'Search: '+$('#search').value.trim():'']];
- if(collection!=='all')applied.push(['source',collection==='mine'?'My work':'Other creators']);
- for(const id of ['saved-collection-filter','creator','technique','tag-filter',...(view==='techniques'?[]:['analysis-filter'])]){const field=$('#'+id);if(field.value!=='all')applied.push([id,(id==='saved-collection-filter'?'Collection: ':'')+field.options[field.selectedIndex].textContent]);}
- const active=applied.filter(([,text])=>text),count=active.filter(([id])=>id!=='search').length;
+ const active=activeLibraryFilters(),count=active.filter(([id])=>['creator','technique','tag-filter','analysis-filter'].includes(id)).length;
  $('#filter-count').textContent=count?String(count):'';
  $('#active-filters').hidden=!active.length;
- $('#active-filters').innerHTML=active.map(([id,text])=>'<button data-clear-filter="'+id+'" aria-label="Remove filter: '+esc(text)+'">'+esc(text)+' <span aria-hidden="true">×</span></button>').join('')+(active.length?'<button class="clear-all" data-clear-all>Clear all</button>':'');
- $('#reset-filters').disabled=!active.length;
+ $('#active-filters').innerHTML=active.map(([id,text])=>'<button data-clear-filter="'+id+'" aria-label="Remove filter: '+esc(text)+'">'+esc(text)+' <span aria-hidden="true">×</span></button>').join('');
+ $('#reset-filters').hidden=!active.length;
+ $('#clear-library-search').hidden=!$('#search').value;
 }
 $('#toggle-filters').addEventListener('click',()=>{const open=$('#toggle-filters').getAttribute('aria-expanded')!=='true';$('#toggle-filters').setAttribute('aria-expanded',String(open));$('#library-filter-panel').hidden=!open;});
-$('#active-filters').addEventListener('click',event=>{if(event.target.closest('[data-clear-all]'))return clearFilters();const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;if(id==='source')collection='all';else if(id==='saved-collection-filter')savedCollectionId='all';else $('#'+id).value=id==='search'?'':'all';rememberFilters();updateControls();render();$('#search').focus();});
+$('#active-filters').addEventListener('click',event=>{const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;if(id==='source')collection='all';else if(id==='saved-collection-filter')savedCollectionId='all';else $('#'+id).value=id==='search'?'':'all';rememberFilters();updateControls();render();$('#search').focus();});
 $('#saved-collection-filter').addEventListener('change',()=>{savedCollectionId=$('#saved-collection-filter').value;rememberFilters();updateControls();render();});
 $('#tag-filter').addEventListener('change',render);
 $('#toggle-detail-scope').addEventListener('click',()=>{
@@ -595,7 +605,8 @@ $('#toggle-detail-scope').addEventListener('click',()=>{
  else if(active)renderReferenceTechniques(active);
  renderDetailFilterScope();
 });
-$('#reset').addEventListener('click',clearFilters);
+$('#reset').addEventListener('click',()=>activeLibraryFilters().length?clearFilters():clearLibrarySearch());
+$('#clear-library-search').addEventListener('click',clearLibrarySearch);
 $('#reset-filters').addEventListener('click',clearFilters);
 $('#clear-selection').addEventListener('click',()=>window.ReferenceNotes?.clearSelection());$('#copy-selection').addEventListener('click',()=>openBrief([...selected]));
 $('#detail-add').addEventListener('click',()=>toggleSelection(activeSelectionToken()));
