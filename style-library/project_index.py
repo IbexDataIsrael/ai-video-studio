@@ -95,6 +95,10 @@ def primary_files(artifact):
 def revision(project):
     """Optimistic guard over navigation, current decisions and exact checkpoint file stats."""
     parts = [json.dumps(project, sort_keys=True)]
+    plan_path = STUDIO / 'projects' / project['id'] / 'technique-plan.json'
+    if plan_path.exists():
+        try: parts.append('technique-plan:' + digest(resolve(project, 'technique-plan.json')))
+        except (OSError, ValueError): parts.append('unavailable-technique-plan')
     for note in project.get('source_notes', []):
         try:
             parts.append(digest(resolve(project, note['path'])))
@@ -122,7 +126,15 @@ def review_options(project):
         'spoken_cut': 'Approve spoken cut', 'storyboard': 'Approve storyboard',
         'final': 'Approve section & mark final' if project.get('format') == 'presentation' else 'Approve & mark final',
     }.get(kind, 'Approve checkpoint')
-    return {'action': action, 'kind': kind, 'label': label, 'artifact_id': artifact['id'],
+    technique_state = None
+    if kind == 'final' and artifact['type'] == 'video':
+        from technique_upkeep import prepared
+        try:
+            plan = prepared(project, artifact)
+            technique_state = {'prepared': plan is not None, 'count': len(plan['examples']) if plan else 0}
+        except (OSError, ValueError, KeyError):
+            technique_state = {'prepared': False, 'count': 0}
+    return {'action': action, 'kind': kind, 'label': label, 'artifact_id': artifact['id'], 'techniques': technique_state,
             'version': artifact.get('version', ''), 'checkpoint': artifact.get('label', 'Review'),
             'revision': revision(project), 'decided_at': previous.get('at'),
             'enabled': not project.get('stale') and artifact.get('available', True) and

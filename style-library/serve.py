@@ -11,6 +11,7 @@ from reference_intake import save as save_reference, current as reference_state,
 from feedback import save as save_feedback, current as feedback_state, save_link as save_feedback_link, change as change_feedback, FeedbackError
 from reference_notes import save as save_reference_note, edit as edit_reference_note, current as reference_notes_state, handoff as reference_handoff, NoteError
 from reference_preview import save as save_reference_preview, PreviewError
+from technique_upkeep import discover as technique_candidates, handoff as technique_handoff
 from project_tools import state as project_tools_state, open_editor, ToolsError
 
 from project_script import current as script_state, save as save_script
@@ -37,6 +38,19 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
+        if self.path == '/technique-request':
+            if not self.trusted(write=True): return
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
+            if self.headers.get('X-Studio-Action') != 'technique-request': return self.send_error(403)
+            if self.headers.get_content_type() != 'application/json': return self.send_error(415)
+            try:
+                size = int(self.headers.get('Content-Length', '0'))
+                if not 0 < size <= 32768: return self.send_error(413)
+                result = technique_handoff(json.loads(self.rfile.read(size)), 'http://' + self.headers['Host'])
+            except json.JSONDecodeError: return self.json_error(400, 'Use a valid technique request.')
+            except ReviewError as error: return self.json_error(error.status, str(error))
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'The video list could not be checked. Your library is unchanged.')
+            return self.text(json.dumps(result), 'application/json', False)
         if self.path in {'/script-brief', '/script-ready', '/writing-voice', '/writing-memory', '/writing-memory-forget', '/script-hooks', '/script-hook', '/script-feedback'}:
             if not self.trusted(write=True): return
             if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
@@ -210,6 +224,10 @@ class Handler(SimpleHTTPRequestHandler):
     def respond(self, head=False):
         if not self.trusted(): return
         route=urlparse(self.path); path=unquote(route.path)
+        if path == '/technique-candidates':
+            if route.query: return self.send_error(400)
+            try: return self.text(json.dumps(technique_candidates()), 'application/json', head)
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'The video list could not be checked. Your library is unchanged.')
         if path in {'/script-brief', '/writing-voice', '/script-hooks', '/script-feedback'}:
             try:
                 query = parse_qs(route.query, keep_blank_values=True)

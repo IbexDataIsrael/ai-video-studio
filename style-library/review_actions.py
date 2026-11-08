@@ -216,6 +216,8 @@ def promote_video(data, entry, project, artifact, event, changes, expected):
 
 
 def final_reference(project, artifact, event, changes, expected):
+    from technique_upkeep import prepared
+    plan = prepared(project, artifact, expected) if artifact['type'] == 'video' else None
     catalog_bytes = CATALOG.read_bytes()
     expected[CATALOG.resolve()] = hashlib.sha256(catalog_bytes).hexdigest()
     data = json.loads(catalog_bytes)
@@ -231,7 +233,7 @@ def final_reference(project, artifact, event, changes, expected):
             entry = matches[0]
             project['reference_id'] = entry['id']
     if entry is None:
-        seed = project.get('reference_entry')
+        seed = plan['reference'] if plan else project.get('reference_entry')
         if not isinstance(seed, dict) or not index.TOKEN.fullmatch(seed.get('id', '')):
             raise ReviewError('Ask your assistant to prepare this project’s library entry before marking it final.')
         if any(e['id'] == seed['id'] for e in data['entries']):
@@ -269,6 +271,21 @@ def final_reference(project, artifact, event, changes, expected):
         project['reference_id'] = entry['id']
     if artifact['type'] == 'video' and entry.get('version') != artifact.get('version'):
         promote_video(data, entry, project, artifact, event, changes, expected)
+    if plan:
+        from technique_examples import register_examples
+        if entry['id'] != plan['reference']['id']:
+            raise ReviewError('The prepared techniques belong to another reference.')
+        # Only the selected final source is promoted. Intake notes, dates and owner identity remain.
+        for key in ['summary', 'traits', 'keep', 'avoid', 'moments', 'evidence', 'duration']:
+            if key in plan['reference']:
+                entry[key] = copy.deepcopy(plan['reference'][key])
+        evidence_path = BASE / 'runtime/source-evidence.json'
+        raw = evidence_path.read_bytes() if evidence_path.exists() else None
+        records = json.loads(raw) if raw else []
+        expected[evidence_path] = hashlib.sha256(raw).hexdigest() if raw else None
+        register_examples(data, entry, plan['examples'], records, index.STUDIO)
+        entry['technique_review_sha256'] = plan['source_sha256']
+        changes[evidence_path] = json_bytes(records)
     if entry['collection'] != 'mine' or entry['version'] != artifact.get('version'):
         raise ReviewError('The library points to another version. Ask your assistant to reconcile it before approval.')
     if artifact['type'] == 'video':

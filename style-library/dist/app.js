@@ -40,13 +40,13 @@ const isRemoved=e=>!!e&&(removedIds.has(e.id)||!!e.archived_from&&removedIds.has
 const browseEntries=()=>entries.filter(e=>!e.archived_from&&!isRemoved(e));
 const exampleToken=(id,exampleId)=>exampleId?id+'@'+exampleId:id;
 const isExampleRemoved=(t,x)=>removedExamples.has(exampleToken(t.id,x.id));
-const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id)));
+const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id))&&!source(x.style_id)?.archived_from);
 const browseTechniques=()=>techniques.filter(t=>browseExamples(t).length);
 const viewEntries=()=>browseEntries().filter(e=>isCarousel(e)===(view==='carousels'));
 const viewHash=()=>view==='techniques'?'#techniques':view==='carousels'?'#carousels':'#videos';
 const creatorKey=e=>e.creator_id||e.creator;
 const matchesSource=e=>!isRemoved(e)&&(collection==='all'||e.collection===collection)&&($('#creator').value==='all'||creatorKey(e)===$('#creator').value);
-const used=t=>t.examples.some(x=>source(x.style_id).collection==='mine');
+const used=t=>browseExamples(t).some(x=>source(x.style_id).collection==='mine');
 function example(t,filtered=true){
  const chosen=t.examples.find(x=>x.id===choices[t.id])||t.examples.find(x=>x.id===t.default_example);
  if(!filtered)return chosen;
@@ -104,6 +104,11 @@ function selectionSummary(picks){
 }
 function familySelectionCount(id){return [...selected].filter(token=>{const pick=selectionItem(token);return pick?.x&&pick.entry.id===id;}).length;}
 function updateSelection(){
+ document.querySelectorAll('[data-add-jump]').forEach(b=>{
+  const chosen=[...selectedMoments.values()].some(m=>m.reference_id===active?.id&&m.time===Number(b.dataset.addJump));
+  b.setAttribute('aria-pressed',String(chosen));b.textContent=chosen?'✓':'+';
+  b.setAttribute('aria-label',(chosen?'Remove moment from selection: ':'Add moment to selection: ')+b.dataset.jumpLabel);
+ });
  const picks=[...selected].map(selectionItem).filter(Boolean),n=picks.length;
  const undo=!!window.ReferenceNotes?.hasClearUndo(),work=hasBorrowingNotes||!!window.ReferenceNotes?.hasWork();
  const visible=!!(n||undo||work)&&(!window.Studio||window.Studio.currentSection==='library');
@@ -366,11 +371,11 @@ function renderReferenceTechniques(e){
  const rows=isCarousel(e)?[]:referenceTechniqueRows(e),current=sourceExcerpt&&activeSelectionToken();
  const count=rows.filter(row=>row.example).length;
  $('#reference-techniques').hidden=!rows.length;
- $('#reference-techniques-label').textContent=count?'Techniques':'Jump points';
+ $('#reference-techniques-label').textContent=count?'Techniques':'Moments';
  $('#reference-technique-count').textContent=count||rows.length;
  $('#reference-technique-hint').hidden=!count;
  $('#reference-technique-list').innerHTML=rows.map(({technique:t,example:x,time,label:pointLabel})=>{
-  if(!x)return '<div class="reference-excerpt"><button class="reference-excerpt-play reference-jump-point" data-jump-point="'+esc(time)+'"><span><strong>'+esc(pointLabel)+'</strong><small>Jump point · '+exact(time)+'</small></span></button></div>';
+  if(!x)return '<div class="reference-excerpt"><button class="reference-excerpt-play reference-jump-point" data-jump-point="'+esc(time)+'"><span><strong>'+esc(pointLabel)+'</strong><small>Moment · '+exact(time)+'</small></span></button><button class="secondary reference-excerpt-add reference-jump-add" data-add-jump="'+esc(time)+'" data-jump-label="'+esc(pointLabel)+'" aria-pressed="false">+</button></div>';
   const token=exampleToken(t.id,x.id),label=x.label;
   return '<div class="reference-excerpt"><button class="reference-excerpt-play" data-play-excerpt="'+esc(token)+'" aria-controls="reference-use" aria-expanded="'+(token===current)+'">'+
    '<img src="'+esc(x.poster)+'" alt="" loading="lazy"><span><strong>'+esc(label)+'</strong><small>'+esc(t.title)+' · '+exact(x.start)+'–'+exact(x.end)+'</small></span></button>'+
@@ -467,7 +472,7 @@ function showStyle(id,resumeAt=null,returnContext=null){
  $('#detail-links').innerHTML=(e.project_id?'<a href="#project='+encodeURIComponent(e.project_id)+'">Open project ↗</a>':'')+(e.archive_path?'<a href="/download/'+encodeURIComponent(e.id)+'" download="'+esc(e.archive_path.split('/').pop())+'">Download all '+e.slides.length+' slides ↓</a>':'')+(e.related_style_id?'<button data-source-video="'+esc(e.related_style_id)+'">Source video ↗</button>':'')+(e.article_url?'<a href="'+esc(e.article_url)+'" target="_blank" rel="noopener noreferrer">Companion article ↗</a>':'')+(e.source_url?'<button data-copy-original>Copy original link</button>':'')+e.notes.slice(0,2).map((n,i)=>'<a href="/notes/'+encodeURIComponent(e.id)+'/'+i+'" target="_blank" rel="noopener">'+(i===0?'Project notes':'Design / review notes')+' ↗</a>').join('');
  $('#detail-context').textContent=['Style ID: '+e.id,hasCarouselSlides(e)?'Carousel: '+e.slides.length+' slides · '+e.aspect_ratio:e.media_path?'Example: '+e.media_path:'Original linked above.',e.composition?'Editable: '+e.composition:'',...e.notes].filter(Boolean).join('\n');
  $('.detail-actions .detail-download')?.remove();
- window.LibraryVisibility?.details(e);window.LibraryVisibility?.exampleDetails();window.ReferenceIntake?.details(e);updateSelection();updateQuickCopy();window.ReferenceNotes?.mountCurrent();if(!$('#style-dialog').open)$('#style-dialog').showModal();
+ window.LibraryVisibility?.details(e);window.LibraryVisibility?.exampleDetails();window.ReferenceIntake?.details(e);window.TechniqueCatalog?.details();updateSelection();updateQuickCopy();window.ReferenceNotes?.mountCurrent();if(!$('#style-dialog').open)$('#style-dialog').showModal();
  const route=new URLSearchParams(location.hash.slice(1)),time=route.get('time');
  const pinned=route.get('style')===id&&time!==null&&Number.isFinite(Number(time))&&Number(time)>=0&&Number(time)<=e.duration;
  const position=Number.isFinite(resumeAt)&&resumeAt>=0&&resumeAt<=e.duration?resumeAt:pinned?Number(time):null;
@@ -475,7 +480,7 @@ function showStyle(id,resumeAt=null,returnContext=null){
  history.replaceState(null,'',referenceHash(id,null,hasCarouselSlides(e)?0:null)+(position!==null?'&time='+encodeURIComponent(position):'')+from);
 }
 function techniqueExampleRows(t,x){
- const examples=t.examples.filter(v=>v.id===x.id||!isExampleRemoved(t,v)),single=examples.length===1;
+ const visible=browseExamples(t),examples=t.examples.filter(v=>v.id===x.id||visible.includes(v)),single=examples.length===1;
  return {single,html:examples.map(v=>{
   const e=source(v.style_id),chosen=v.id===x.id,token=exampleToken(t.id,v.id);
   const content='<img src="'+esc(v.poster)+'" alt="" loading="lazy"><span><strong>'+esc(v.label)+'</strong><small>'+esc(e.creator)+' · '+esc(e.title)+' · '+exact(v.start)+'–'+exact(v.end)+(isRemoved(e)||isExampleRemoved(t,v)?' · removed from library':'')+'</small></span>';
@@ -538,6 +543,8 @@ $('#detail-add').addEventListener('click',()=>toggleSelection(activeSelectionTok
 $('#detail-review-selection').addEventListener('click',()=>openBrief([...selected]));
 $('#detail-copy-selection').addEventListener('click',()=>window.ReferenceNotes?.copySelection());
 $('#reference-technique-list').addEventListener('click',event=>{
+ const moment=event.target.closest('[data-add-jump]');
+ if(moment)return window.ReferenceNotes?.toggleTimestamp(active,Number(moment.dataset.addJump),moment.dataset.jumpLabel,moment);
  const add=event.target.closest('[data-select-excerpt]');
  if(add)return toggleSelection(add.dataset.selectExcerpt);
  const watch=event.target.closest('[data-play-excerpt]');
@@ -658,6 +665,7 @@ window.refreshReferenceCatalog=()=>{
   const browsable=browseEntries(),families=browseTechniques(),carouselCount=browsable.filter(isCarousel).length;
   $('#catalog-count').textContent=(browsable.length-carouselCount)+' full reference'+(browsable.length-carouselCount===1?'':'s')+' · '+carouselCount+' carousel'+(carouselCount===1?'':'s')+' · '+families.length+' technique'+(families.length===1?'':'s');
   window.LibraryVisibility?.refresh();
+  window.TechniqueCatalog?.refresh().catch(()=>{});
   return changed;
  })().finally(()=>{catalogRequest=null;});
  return catalogRequest;

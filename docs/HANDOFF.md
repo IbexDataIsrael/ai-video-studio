@@ -95,3 +95,8 @@ A short recording prompt can include a local studio URL with project=<slug>, scr
 ## Writing memory corrections
 
 A copied #writing-memory=<UUID>&memory-revision=<sha256> link identifies an active writing memory in this installation. Read docs/SCRIPTING.md and resolve scripting.voice_memory_current(memory_id, revision) before applying the correction. Use the creator’s additional feedback, retain the memory ID and existing examples, and save through voice_remember with a new request UUID and the current revision. If the copied revision changed or the note was forgotten, request a fresh copy. Forgetting and restoring are explicit owner actions through voice_forget.
+
+
+## Finished video techniques
+
+Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and final-review preparation. Inspect each distinct reusable move in the exact export. Prepare examples project-locally before final approval; promote only the chosen final version, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.
