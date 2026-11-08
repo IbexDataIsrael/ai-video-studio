@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-beta.12 — Borrow techniques across your reference library — 2026-11-08
+
+- Save a reference with just its link, then copy its analysis request into your editing chat. Analysis captures verified reusable techniques in one chronological list, grouped into reusable families, with creator attribution, the original source link and honest access limits.
+- Preview exact excerpts and collect techniques, timestamped moments, whole references and carousel slides in one shared selection across Videos, Techniques and Carousels. Copy the selection and its direction together for chat; individual examples and full references also have direct copy actions.
+- Keep one editable direction per exact technique or carousel pick for the current editing request. Saving direction selects its example. Clear starts a fresh request, with Undo, while retaining earlier note records and histories. Existing multiple notes and unfinished drafts remain recoverable.
+- Align example rows, collapsed borrowing controls, selection counts, stable toolbars and subtle input focus styling across the library. Carousel slides stay pinned while browsing; full-video navigation returns to the chosen excerpt.
+
+### Upgrading from beta.11
+
+Follow docs/UPDATING.md in the existing studio. Apply reviewed application source only and retain projects, media, catalogs, techniques, removed markers, notes and histories, scripts, feedback, approvals, settings, browser drafts/selections and local source customizations. Empty starter seeds are for first installation only. No owner-data rewrite, renderer upgrade or dependency-pin change is required. Exact slide picks and editing-request note scopes need compatible source after rollback; keep the newer owner and browser records intact.
+
 ## 0.1.0-beta.11 — Safer existing-studio updates — 2026-11-05
 
 - Before media setup installs anything, inspect the pinned renderer’s running preview inventory and stop safely if this installation owns an active preview or the inventory cannot be verified. Other installations are left running. Fresh installs and studio-only mode need no preview check.
