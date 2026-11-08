@@ -12,6 +12,7 @@ from feedback import save as save_feedback, current as feedback_state, save_link
 from reference_notes import save as save_reference_note, edit as edit_reference_note, current as reference_notes_state, handoff as reference_handoff, NoteError
 from reference_preview import save as save_reference_preview, PreviewError
 from technique_upkeep import discover as technique_candidates, handoff as technique_handoff
+from saved_collections import current as collections_state, save as save_collection
 from project_tools import state as project_tools_state, open_editor, ToolsError
 
 from project_script import current as script_state, save as save_script
@@ -38,6 +39,19 @@ class Handler(SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_POST(self):
+        if self.path == '/collections':
+            if not self.trusted(write=True): return
+            if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
+            if self.headers.get('X-Studio-Action') != 'collections': return self.send_error(403)
+            if self.headers.get_content_type() != 'application/json': return self.send_error(415)
+            try:
+                size = int(self.headers.get('Content-Length', '0'))
+                if not 0 < size <= 262144: return self.send_error(413)
+                result = save_collection(json.loads(self.rfile.read(size)))
+            except json.JSONDecodeError: return self.json_error(400, 'Use a valid collection request.')
+            except ReviewError as error: return self.json_error(error.status, str(error))
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'Collections could not be saved. Your library and notes are unchanged.')
+            return self.text(json.dumps(result), 'application/json', False)
         if self.path == '/technique-request':
             if not self.trusted(write=True): return
             if self.headers.get('Transfer-Encoding') or len(self.headers.get_all('Content-Length', [])) != 1: return self.send_error(400)
@@ -224,6 +238,11 @@ class Handler(SimpleHTTPRequestHandler):
     def respond(self, head=False):
         if not self.trusted(): return
         route=urlparse(self.path); path=unquote(route.path)
+        if path == '/collections':
+            if route.query: return self.send_error(400)
+            try: return self.text(json.dumps(collections_state()), 'application/json', head)
+            except ReviewError as error: return self.json_error(error.status, str(error))
+            except (OSError, ValueError, TypeError, KeyError): return self.json_error(503, 'Collections could not be read. Your files are preserved.')
         if path == '/technique-candidates':
             if route.query: return self.send_error(400)
             try: return self.text(json.dumps(technique_candidates()), 'application/json', head)

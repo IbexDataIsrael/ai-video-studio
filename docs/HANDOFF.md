@@ -100,3 +100,7 @@ A copied #writing-memory=<UUID>&memory-revision=<sha256> link identifies an acti
 ## Finished video techniques
 
 Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and final-review preparation. Inspect each distinct reusable move in the exact export. Prepare examples project-locally before final approval; promote only the chosen final version, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.
+
+## Saved collections
+
+Read docs/COLLECTIONS.md for optional personal collections and installed pack memberships. Preserve the private style-library/collections.json across updates, rollback, catalog registration and source changes. Collections pin exact examples, references, slides or moments; they do not change family identity, source provenance, approvals or editing selections. Never include edit-specific directions when saving a collection. No promotion or purchase flow is enabled.

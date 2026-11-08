@@ -11,7 +11,7 @@ test('library sorting uses original added dates, with stable undated entries and
  const nodes=new Map(),node=key=>{if(!nodes.has(key))nodes.set(key,{value:'all'});return nodes.get(key);};
  node('#search').value='';node('#library-sort').value='newest';
  const context={$:node,view:'videos',collection:'mine',entries,techniques:[],viewEntries:()=>entries,matchesSource:()=>true,
-  renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
+  savedCollectionId:'all',rememberFilters(){},collectionMatchesReference:()=>true,referenceCategories:()=>[],renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
  runInNewContext(app.slice(start,end),context);context.render();
  assert.equal(node('#gallery').innerHTML,'[newer][older][undated-one][undated-two]');
  node('#library-sort').value='oldest';context.render();
@@ -426,12 +426,13 @@ test('initial routing waits for deferred studio modules even when local assets r
 function referenceCatalogHarness(initial,storage=new Map()){
  const nodes=new Map(),events={};
  const node=selector=>{
-  if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,options:[{value:'all'}],
+  if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,parentElement:{hidden:false},options:[{value:'all'}],
    addEventListener(){},setAttribute(){},close(){}});
   return nodes.get(selector);
  };
  let catalog=initial;
  const vm=createContext({
+  CollectionModel:require('./dist/collection-model.js'),
   window:{addEventListener:(name,fn)=>events[name]=fn},
   document:{readyState:'interactive',querySelector:selector=>['dialog[open]:not(#style-dialog)','#detail-media video'].includes(selector)?null:node(selector),querySelectorAll:()=>[],
    addEventListener:(name,fn)=>events[name]=fn,body:{classList:{toggle(){}}}},
@@ -439,7 +440,7 @@ function referenceCatalogHarness(initial,storage=new Map()){
   fetch:async()=>({ok:true,json:async()=>catalog}),
  });
  const run=code=>runInContext(code,vm);
- run(readFileSync(join(__dirname,'dist/app.js'),'utf8'));
+ run(readFileSync(join(__dirname,'dist/app.js'),'utf8'));node('#search').value='';
  return {node,events,run,vm,storage,update:value=>{catalog=value;}};
 }
 test('legacy picks retain their exact example and can be joined by a sibling',async()=>{
@@ -754,4 +755,52 @@ test('correct in chat pins the memory and revision and provides manual copying w
  await manual.click('[data-correct-memory]', { correctMemory: 'memory' });
  assert.equal(manual.node('[data-memory-copy]').hidden, false);
  assert.equal(manual.node('[data-memory-copy]').selected, true);
+});
+
+const collectionModel=require('./dist/collection-model.js');
+function collectionFixture(){
+ const entry=(id,creator,kind='video')=>({id,title:id,creator,collection:creator==='Owner'?'mine':'reference',version:'v1',media_path:'references/'+id+'/source.mp4',source_sha256:'hash-'+id,poster:id+'.jpg',palette:['#fff'],tags:['Motion'],traits:{},summary:'',subtitle:'',asset_type:kind,slides:kind==='carousel'?[{path:'references/'+id+'/1.svg',poster:'1.svg'}]:undefined});
+ const entries=[entry('video-a','Owner'),entry('video-b','Guest'),entry('carousel-a','Guest','carousel')];
+ const examples=[['first','video-a'],['second','video-a'],['third','video-b'],['fourth','video-b']].map(([id,style_id],i)=>({id,style_id,label:'Example '+id,poster:id+'.jpg',source_path:'references/'+style_id+'/source.mp4',source_version:'v1',source_sha256:'hash-'+style_id,start:i*2,end:i*2+1}));
+ const family={id:'family',title:'Staggered reveal',summary:'Reveal an idea.',direction:'In stages.',aliases:[],category:'Motion',examples,default_example:'first'};
+ const members=[{kind:'example',technique_id:family.id,example_id:'third',source:collectionModel.snapshot(entries[1],examples[2])}];
+ return {entries,techniques:[family],pack:{id:'col-demo',name:'Creator Pack · demo',kind:'pack',members}};
+}
+test('a collection retains one exact example without importing its family or changing provenance',()=>{
+ const f=collectionFixture(),t=f.techniques[0];
+ assert.deepEqual(t.examples.map(x=>collectionModel.exampleMember(f.pack,t,x,f.entries)),[false,false,true,false]);
+ assert.equal(collectionModel.referenceMember(f.pack,f.entries[1],f.techniques,f.entries),true);
+ assert.equal(collectionModel.referenceMember(f.pack,f.entries[0],f.techniques,f.entries),false);
+ const whole={members:[{kind:'reference',reference_id:'video-a',source:collectionModel.snapshot(f.entries[0])}]};
+ assert.equal(collectionModel.exampleMember(whole,t,t.examples[0],f.entries),false);
+ assert.equal(f.entries[1].collection,'reference');
+ const changed={...t.examples[2],end:99};assert.equal(collectionModel.exampleMember(f.pack,t,changed,f.entries),false);
+ assert.equal(collectionModel.sameSource(f.pack.members[0].source,{...collectionModel.snapshot(f.entries[1],t.examples[2]),sha256:null}),false);
+});
+test('collection matching controls card count, poster, copy, plus and detail rows together',()=>{
+ const f=collectionFixture(),h=referenceCatalogHarness(f);
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];savedCollectionId="col-demo";renderActiveFilters=()=>{};updateSelection=()=>{};');
+ assert.equal(h.run('matchingExamples(techniques[0]).length'),1);
+ const card=h.run('techniqueCard(techniques[0])');assert.match(card,/third.jpg/);assert.match(card,/1 example</);assert.match(card,/data-copy-example="third"/);assert.match(card,/data-select-example="third"/);assert.doesNotMatch(card,/fourth.jpg/);
+ assert.match(h.run('videoCard(entries[1])'),/data-copy-example="third"/);
+ const rows=h.run('techniqueExampleRows(techniques[0],techniques[0].examples[2]).html');assert.match(rows,/Example third/);assert.doesNotMatch(rows,/Example fourth/);
+ h.run('detailScopeAll=true');assert.match(h.run('techniqueExampleRows(techniques[0],techniques[0].examples[2]).html'),/Example fourth/);
+ h.node('#creator').value='Owner';assert.equal(h.run('matchingExamples(techniques[0]).length'),0);
+});
+test('filters survive format switches and reload; clearing filters retains exact edit picks and notes',()=>{
+ const f=collectionFixture(),h=referenceCatalogHarness(f);h.vm.history={replaceState(){}};
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];savedCollectionId="col-demo";renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);noteSession="11111111-1111-4111-8111-111111111111";hasBorrowingNotes=true;');
+ h.node('#creator').value='Guest';h.node('#search').value='third';h.node('#technique').value='Motion';
+ h.run('setView("techniques");setView("carousels");');assert.equal(h.run('savedCollectionId'),'col-demo');assert.equal(h.node('#creator').value,'Guest');assert.equal(h.node('#search').value,'third');assert.match(h.node('#empty p').textContent,/collection has no matching/);
+ const reloaded=referenceCatalogHarness(f,h.storage);assert.equal(reloaded.run('libraryFilters.saved'),'col-demo');assert.equal(reloaded.run('libraryFilters.creator'),'Guest');
+ h.run('clearFilters()');assert.equal(h.run('savedCollectionId'),'all');assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('noteSession'),'11111111-1111-4111-8111-111111111111');
+});
+test('exact slides, moments and archived examples stay pinned rather than widening source scope',()=>{
+ const f=collectionFixture(),e=f.entries[2],slide={kind:'slide',reference_id:e.id,slide:1,source:collectionModel.snapshot(e,null,1)};
+ assert.equal(collectionModel.focus({members:[slide]},e,f.techniques,f.entries).slide,1);
+ assert.equal(collectionModel.referenceMember({members:[slide]},{...e,slides:[]},f.techniques,f.entries),false);
+ const old=f.entries[1],archived={...old,id:'archived-source',archived_from:old.id},x={...f.techniques[0].examples[2],style_id:archived.id};
+ assert.equal(collectionModel.exampleMember(f.pack,{...f.techniques[0],examples:[x]},x,[archived]),true);
+ const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=[{id:"col-slide",members:['+JSON.stringify(slide)+']}];savedCollectionId="col-slide";');
+ assert.match(h.run('cardActions(entries[2])'),/data-copy-slide="1"/);assert.match(h.run('cardActions(entries[2])'),/data-select-slide="carousel-a@slide:1"/);
 });

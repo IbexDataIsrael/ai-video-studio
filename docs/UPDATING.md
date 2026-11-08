@@ -82,3 +82,7 @@ Carousel alignment adds an optional reference_format hint to newly saved carouse
 ### Technique catalog completion
 
 No owner migration or automatic analysis runs during setup or update. The library offers an optional catch-up request for existing sources. Preserve project-local technique-plan.json with its plans, source hashes, catalog coverage hashes, examples, notes and approval histories. Rollback keeps all newer records; use compatible source to publish a prepared plan through final approval.
+
+### Saved collections and consistent filtering
+
+Preserve the optional private style-library/collections.json with all IDs, exact memberships, snapshots, histories, request identities and removed markers. Setup creates no collection seed and runs no owner migration. Updated source reads the file only when present; older source ignores it. Rollback must keep it and all newer owner work so compatible source can resume it later. Keep the browser library-filter key separate from editing picks, notes and Clear/Undo records. See docs/COLLECTIONS.md.

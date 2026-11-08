@@ -1,6 +1,10 @@
 # AI Video Studio — 0.1.0-beta.12
 
-**Unreleased technique completion preview**
+**Unreleased collections and filtering preview**
+
+The codex/library-collections branch is stacked on the technique-completion preview. It adds optional personal and installed-pack collections, exact-example filtering, shared filters across formats and recoverable collection management. No pack promotion is shown. Existing editing picks and owner files remain separate. This preview needs user review before merge, live installation or numbered release. See docs/COLLECTIONS.md.
+
+**Technique completion dependency**
 
 The codex/technique-completion branch adds existing-library completion requests, selectable older timestamp observations and project-local example preparation for the chosen final version. Final approval promotes only the exact matching plan; historical source links stay available. Owner records are preserved without an installation migration. Preview approval is required before merge, live installation or numbered release. See docs/TECHNIQUE-CATALOGING.md.
 

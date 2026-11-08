@@ -3,14 +3,20 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const stamp=t=>Math.floor(t/60)+':'+Math.floor(t%60).toString().padStart(2,'0');
 const exact=t=>Math.floor(t/60)+':'+(t%60).toFixed(2).padStart(5,'0').replace(/0+$/,'').replace(/\.$/,'');
 let removedIds=new Set(),removedExamples=new Set();
-let entries=[],techniques=[],view='videos',collection='mine',active=null,selected=new Set(),choices={},toastTimer;
+let entries=[],techniques=[],view='videos',collection='all',active=null,selected=new Set(),choices={},toastTimer;
 let referenceNotes={},briefIds=[];
 let sourceExcerpt=null,fullVideoTime=0,setVideoRange=null,techniqueReturn=null,techniqueExampleOpen=false,carouselSlideOpen=false;
 let quickCopyTimer;
 const copyIcon='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M15 8V4H4v11h4"/></svg>';
 function referenceHash(id,exampleId=null,slideIndex=null){const e=item(id),params=new URLSearchParams();params.set(isTech(e)?'technique':'style',id);if(isTech(e))params.set('example',exampleId||example(e,false).id);if(isCarousel(e)&&slideIndex!==null)params.set('slide',String(slideIndex+1));return '#'+params.toString();}
 function referenceUrl(id,exampleId=null,slideIndex=null){const url=new URL('./',location.href);url.hash=referenceHash(id,exampleId,slideIndex);return url.href;}
-function cardActions(e,x=null){return '<span class="card-actions"><button class="copy-card" data-copy-reference="'+esc(e.id)+'"'+(x?' data-copy-example="'+esc(x.id)+'"':'')+' aria-label="Copy for chat: '+esc(e.title)+'" title="Copy for chat">'+copyIcon+'</button><button class="select-card" data-id="'+esc(e.id)+'"'+(x?' data-select-example="'+esc(x.id)+'"':'')+' aria-label="Select reference: '+esc(e.title)+'" aria-pressed="false">+</button></span>';}
+function cardActions(e,x=null){
+ const focus=x?null:referenceCollectionFocus(e),id=focus?.kind==='example'?focus.technique_id:e.id,exampleId=x?.id||(focus?.kind==='example'?focus.example_id:null);
+ const slide=focus?.kind==='slide'?focus.slide:null,time=focus?.kind==='moment'?focus.time:null;
+ const extra=exampleId?' data-copy-example="'+esc(exampleId)+'"':slide?' data-copy-slide="'+slide+'"':time!==null?' data-copy-moment="'+time+'"':'';
+ const pick=exampleId?' data-select-example="'+esc(exampleId)+'"':slide?' data-select-slide="'+esc(slideToken(id,slide))+'"':time!==null?' data-select-moment="'+time+'"':'';
+ return '<span class="card-actions"><button class="copy-card" data-copy-reference="'+esc(id)+'"'+extra+' aria-label="Copy for chat: '+esc(e.title)+'" title="Copy for chat">'+copyIcon+'</button><button class="select-card" data-id="'+esc(id)+'"'+pick+' aria-label="Select reference: '+esc(e.title)+'" aria-pressed="false">+</button></span>';
+}
 try{referenceNotes=JSON.parse(localStorage.getItem('ai-video-studio-notes-v1')||'{}');}catch{}
 const selectionKey='ai-video-studio-selection-v3';
 const selectedMoments=new Map();
@@ -37,10 +43,10 @@ const isCarousel=e=>e.asset_type==='carousel'||e.reference_format==='carousel';
 const hasCarouselSlides=e=>!!e&&isCarousel(e)&&!!e.slides?.length;
 const slideToken=(id,slide)=>id+'@slide:'+slide;
 const isRemoved=e=>!!e&&(removedIds.has(e.id)||!!e.archived_from&&removedIds.has(e.archived_from));
-const browseEntries=()=>entries.filter(e=>!e.archived_from&&!isRemoved(e));
+const browseEntries=()=>entries.filter(e=>!isRemoved(e)&&(!e.archived_from||savedCollectionId!=='all'&&collectionMatchesReference(e)));
 const exampleToken=(id,exampleId)=>exampleId?id+'@'+exampleId:id;
 const isExampleRemoved=(t,x)=>removedExamples.has(exampleToken(t.id,x.id));
-const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id))&&!source(x.style_id)?.archived_from);
+const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id))&&(!source(x.style_id)?.archived_from||savedCollectionId!=='all'&&collectionMatchesExample(t,x)));
 const browseTechniques=()=>techniques.filter(t=>browseExamples(t).length);
 const viewEntries=()=>browseEntries().filter(e=>isCarousel(e)===(view==='carousels'));
 const viewHash=()=>view==='techniques'?'#techniques':view==='carousels'?'#carousels':'#videos';
@@ -50,7 +56,7 @@ const used=t=>browseExamples(t).some(x=>source(x.style_id).collection==='mine');
 function example(t,filtered=true){
  const chosen=t.examples.find(x=>x.id===choices[t.id])||t.examples.find(x=>x.id===t.default_example);
  if(!filtered)return chosen;
- const visible=browseExamples(t).filter(x=>matchesSource(source(x.style_id)));
+ const visible=matchingExamples(t);
  return visible.includes(chosen)?chosen:visible[0]||browseExamples(t)[0]||chosen;
 }
 function selectionItem(token){
@@ -133,6 +139,7 @@ function updateSelection(){
   badge.textContent=sourceSummary?sourceSummary+' selected':'';
  });
  document.querySelectorAll('.select-card,[data-select-excerpt],[data-select-slide]').forEach(b=>{
+  if(b.dataset.selectMoment!==undefined){const chosen=[...selectedMoments.values()].some(m=>m.reference_id===b.dataset.id&&m.time===Number(b.dataset.selectMoment));b.setAttribute('aria-pressed',String(chosen));const label=(chosen?'Remove from selection: ':'Add to selection: ')+'Moment at '+exact(Number(b.dataset.selectMoment));b.setAttribute('aria-label',label);b.title=label;b.textContent=chosen?'✓':'+';return;}
   const token=b.dataset.selectSlide||b.dataset.selectExcerpt||exampleToken(b.dataset.id,b.dataset.selectExample);
   const pick=selectionItem(token);if(!pick)return;
   const chosen=selected.has(token);
@@ -185,49 +192,87 @@ window.addEventListener('storage',event=>{
   updateSelection();
  }catch{}
 });
+const filterStorageKey='ai-video-studio-library-filters-v1';
+const defaultLibraryFilters=()=>({source:'all',creator:'all',category:'all',tag:'all',availability:'all',saved:'all',search:'',sort:'newest'});
+let libraryFilters=defaultLibraryFilters(),savedCollections=[],savedCollectionId='all',detailScopeAll=false;
+try{const saved=JSON.parse(localStorage.getItem(filterStorageKey)||'null');if(saved&&typeof saved==='object')for(const k of Object.keys(libraryFilters))if(typeof saved[k]==='string'&&saved[k].length<=300)libraryFilters[k]=saved[k];}catch{}
+collection=['all','mine','reference'].includes(libraryFilters.source)?libraryFilters.source:'all';savedCollectionId=libraryFilters.saved;
+function chosenCollection(){return savedCollections.find(c=>c.id===savedCollectionId&&!c.deleted_at)||null;}
+function renderDetailFilterScope(){
+ const scoped=savedCollectionId!=='all'||collection!=='all'||['creator','technique','tag-filter'].some(id=>$('#'+id).value!=='all')||!!$('#search').value.trim();
+ const t=active&&isTech(active)?active:null;
+ $('#detail-filter-scope').hidden=!scoped||!active||isCarousel(active);
+ const outside=t&&!matchingExamples(t).includes(example(t,false));
+ $('#detail-filter-scope-text').textContent=detailScopeAll?'Showing all available examples.':outside?'This saved example is outside your library filters. Other rows match your filters.':t?'Showing examples matching your library filters.':'Showing techniques and moments included by your library filters.';
+ $('#toggle-detail-scope').textContent=detailScopeAll?'Show matching examples':'Show all examples';
+}
+function collectionMatchesReference(e){return savedCollectionId==='all'||CollectionModel.referenceMember(chosenCollection(),e,techniques,entries);}
+function collectionMatchesExample(t,x){return savedCollectionId==='all'||CollectionModel.exampleMember(chosenCollection(),t,x,entries);}
+function referenceCategories(e){return [...new Set([...(e.categories||[]),...techniques.filter(t=>browseExamples(t).some(x=>x.style_id===e.id&&collectionMatchesExample(t,x))).map(t=>t.category)])];}
+function matchingExamples(t){
+ const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean),category=$('#technique').value,tag=$('#tag-filter').value;
+ return browseExamples(t).filter(x=>{const e=source(x.style_id);return matchesSource(e)&&collectionMatchesExample(t,x)&&
+  (category==='all'||t.category===category)&&(tag==='all'||(e.tags||[]).includes(tag))&&
+  query.every(q=>[t.title,t.summary,t.direction,t.category,...(t.aliases||[]),x.label,e.title,e.creator,e.creator_name||'',e.creator_handle||'',...(e.creator_aliases||[]),...(e.tags||[])].join(' ').toLowerCase().includes(q));});
+}
+function referenceCollectionFocus(e){return savedCollectionId==='all'?null:CollectionModel.focus(chosenCollection(),e,techniques,entries);}
+function filterOptions(node,options,value,allLabel){
+ const rows=[...new Set(options)].sort((a,b)=>a.localeCompare(b));
+ node.innerHTML='<option value="all">'+allLabel+'</option>'+rows.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')+
+  (value!=='all'&&!rows.includes(value)?'<option value="'+esc(value)+'">'+esc(value)+' (no matches)</option>':'');node.value=value;
+}
+function rememberFilters(){
+ libraryFilters={source:collection,creator:$('#creator').value,category:$('#technique').value,tag:$('#tag-filter').value,availability:$('#analysis-filter').value,saved:savedCollectionId,search:$('#search').value,sort:$('#library-sort').value};
+ try{localStorage.setItem(filterStorageKey,JSON.stringify(libraryFilters));}catch{}
+}
 function populateCreators(){
- const current=$('#creator').value,groups=new Map();
- const rows=view!=='techniques'?viewEntries().map(e=>({id:e.id,source:e})):browseTechniques().flatMap(t=>browseExamples(t).map(x=>({id:t.id,source:source(x.style_id)})));
- for(const row of rows){const e=row.source;if(collection!=='all'&&e.collection!==collection)continue;const key=creatorKey(e);if(!groups.has(key))groups.set(key,{name:e.creator,ids:new Set()});groups.get(key).ids.add(row.id);}
- $('#creator').innerHTML='<option value="all">All creators</option>'+[...groups].sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([key,c])=>'<option value="'+esc(key)+'">'+esc(c.name)+' ('+c.ids.size+')</option>').join('');
- $('#creator').value=groups.has(current)?current:'all';
+ const names=new Map(browseEntries().map(e=>[creatorKey(e),e.creator]));
+ const current=libraryFilters.creator;
+ $('#creator').innerHTML='<option value="all">All creators</option>'+[...names].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join('')+
+  (current!=='all'&&!names.has(current)?'<option value="'+esc(current)+'">'+esc(current)+' (no matches)</option>':'');$('#creator').value=current;
 }
 function updateControls(){
  document.querySelectorAll('[data-view]').forEach(b=>{const on=b.dataset.view===view;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
- const names={mine:view==='techniques'?'Used in my work':'My work',reference:'Other creators',all:'All'};
- document.querySelectorAll('[data-collection]').forEach(b=>{const c=b.dataset.collection,on=c===collection;let n=view!=='techniques'?viewEntries().filter(e=>c==='all'||e.collection===c).length:browseTechniques().filter(t=>browseExamples(t).some(x=>c==='all'||source(x.style_id).collection===c)).length;b.innerHTML=names[c]+(c==='all'?'':' <span>'+n+'</span>');b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
- $('#view-description').textContent=view==='videos'?'Choose the overall pacing, look and feel for your next video.':view==='carousels'?'Finished slide sets, including motion. Preview each slide or download the complete carousel.':'Explore techniques through their examples. Collect the ones you want and copy them together for your editing chat.';
- $('#search').placeholder=view==='techniques'?'Search techniques or creators':view==='carousels'?'Search carousels or creators':'Search styles or creators';
- $('#filter-name').textContent=view==='techniques'?'Category':'Technique';
- const options=view!=='techniques'?[...new Set(viewEntries().flatMap(e=>e.tags))]:[...new Set(browseTechniques().map(t=>t.category))];
- $('#technique').innerHTML='<option value="all">'+(view==='techniques'?'All categories':'All techniques')+'</option>'+options.sort().map(t=>'<option>'+esc(t)+'</option>').join('');
- $('#gallery').setAttribute('aria-label',view==='videos'?'Video styles':view==='carousels'?'Carousel styles':'Editing techniques');
- populateCreators();
- $('#creator').parentElement.hidden=$('#creator').options.length<3;
- $('#analysis-filter').parentElement.hidden=view==='techniques';
+ const names={mine:'My work',reference:'Other creators',all:'All'};
+ document.querySelectorAll('[data-collection]').forEach(b=>{const c=b.dataset.collection,on=c===collection;const n=view!=='techniques'?viewEntries().filter(e=>collectionMatchesReference(e)&&(c==='all'||e.collection===c)).length:browseTechniques().filter(t=>browseExamples(t).some(x=>collectionMatchesExample(t,x)&&(c==='all'||source(x.style_id).collection===c))).length;b.innerHTML=names[c]+(c==='all'?'':' <span>'+n+'</span>');b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
+ $('#view-description').textContent=view==='videos'?'Choose the overall pacing, look and feel for your next video.':view==='carousels'?'Explore complete slide sets and the slides you have collected.':'Explore techniques through their examples. Collect the ones you want and copy them together for your editing chat.';
+ $('#search').placeholder='Search your library';$('#search').value=libraryFilters.search;
+ $('#filter-name').textContent='Category';
+ filterOptions($('#technique'),[...techniques.map(t=>t.category),...entries.flatMap(e=>e.categories||[])],libraryFilters.category,'All categories');
+ filterOptions($('#tag-filter'),entries.flatMap(e=>e.tags||[]),libraryFilters.tag,'All tags');
+ const groups=[['personal','Your collections'],['pack','Creator packs']];
+ $('#saved-collection-filter').innerHTML='<option value="all">All collections</option>'+groups.map(([kind,label])=>{
+  const rows=savedCollections.filter(c=>!c.deleted_at&&c.kind===kind);return rows.length?'<optgroup label="'+label+'">'+rows.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('')+'</optgroup>':'';}).join('')+
+  (savedCollectionId!=='all'&&!chosenCollection()?'<option value="'+esc(savedCollectionId)+'">Unavailable collection</option>':'');
+ $('#saved-collection-filter').value=savedCollectionId;
+ $('#analysis-filter').value=['all','pending','preview'].includes(libraryFilters.availability)?libraryFilters.availability:'all';$('#analysis-filter').parentElement.hidden=view==='techniques';
+ $('#library-sort').value=['newest','oldest','name'].includes(libraryFilters.sort)?libraryFilters.sort:'newest';
+ $('#gallery').setAttribute('aria-label',view==='videos'?'Video styles':view==='carousels'?'Carousel styles':'Editing techniques');populateCreators();
 }
 function videoCard(e){
- const carousel=isCarousel(e),preview=hasCarouselSlides(e)?'View carousel · '+e.slides.length+' slides':e.asset_type==='project'?'View project assets':e.media_path?'View style'+(e.duration?' · '+stamp(e.duration):''):'View reference';
- return '<article class="style-card" data-id="'+esc(e.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(e.id)+'" aria-label="View '+esc(e.title)+'">'+(e.poster==='assets/link-reference.svg'?referencePoster(e,true):'<img src="'+esc(e.poster)+'" width="540" height="960" alt="'+esc(carousel?e.title+' — actual carousel cover':e.asset_type==='project'?e.title+' — saved project artwork':e.media_path?e.title+' — actual '+e.version+' video frame':e.title+' — source link, no local video')+'" loading="lazy">')+'<span class="preview-pill"><span class="play-symbol">'+(carousel?'▤':e.media_path?'▶':'↗')+'</span>'+preview+'</span></button><div class="card-badges"><span class="version">'+(e.collection==='mine'?esc(e.version)+(e.delivery_status==='final'?' · FINAL':e.review_status==='review_pending'?' · REVIEW':''):(e.analysis_status==='not_analyzed'?'AWAITING ANALYSIS':'REFERENCE'))+'</span>'+cardActions(e)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(e.title)+'</h2><button data-open="'+esc(e.id)+'" aria-label="View details for '+esc(e.title)+'">↗</button></div><span class="card-source-picks" data-source-picks="'+esc(e.id)+'" hidden></span><p class="card-subtitle">'+esc(e.subtitle)+'</p><div class="tags">'+e.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div><div class="card-palette">'+e.palette.map(c=>'<span class="swatch" style="--swatch:'+esc(c)+'" title="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'" aria-label="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'"></span>').join('')+'<span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
+ const focus=referenceCollectionFocus(e),focusedExample=focus?.kind==='example'?item(focus.technique_id)?.examples.find(x=>x.id===focus.example_id):null,poster=focusedExample?.poster||(focus?.kind==='slide'?e.slides[focus.slide-1].poster:e.poster);
+ const carousel=isCarousel(e),preview=focus?.kind==='slide'?'View slide '+focus.slide:focus?.kind==='moment'?'View moment · '+exact(focus.time):focusedExample?'View included example · '+(focusedExample.end-focusedExample.start).toFixed(1)+'s':hasCarouselSlides(e)?'View carousel · '+e.slides.length+' slides':e.asset_type==='project'?'View project assets':e.media_path?'View style'+(e.duration?' · '+stamp(e.duration):''):'View reference';
+ return '<article class="style-card" data-id="'+esc(e.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(e.id)+'" aria-label="View '+esc(e.title)+'">'+(e.poster==='assets/link-reference.svg'?referencePoster(e,true):'<img src="'+esc(poster)+'" width="540" height="960" alt="'+esc(carousel?e.title+' — actual carousel cover':e.asset_type==='project'?e.title+' — saved project artwork':e.media_path?e.title+' — actual '+e.version+' video frame':e.title+' — source link, no local video')+'" loading="lazy">')+'<span class="preview-pill"><span class="play-symbol">'+(carousel?'▤':e.media_path?'▶':'↗')+'</span>'+preview+'</span></button><div class="card-badges"><span class="version">'+(e.collection==='mine'?esc(e.version)+(e.delivery_status==='final'?' · FINAL':e.review_status==='review_pending'?' · REVIEW':''):(e.analysis_status==='not_analyzed'?'AWAITING ANALYSIS':'REFERENCE'))+'</span>'+cardActions(e)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(e.title)+'</h2><button data-open="'+esc(e.id)+'" aria-label="View details for '+esc(e.title)+'">↗</button></div><span class="card-source-picks" data-source-picks="'+esc(e.id)+'" hidden></span><p class="card-subtitle">'+esc(e.subtitle)+'</p><div class="tags">'+e.tags.slice(0,3).map(t=>'<span class="tag">'+esc(t)+'</span>').join('')+'</div><div class="card-palette">'+e.palette.map(c=>'<span class="swatch" style="--swatch:'+esc(c)+'" title="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'" aria-label="'+(e.asset_type==='link'&&!e.media_path?'Card color: ':'Color palette: ')+esc(c)+'"></span>').join('')+'<span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
 }
 function techniqueCard(t){
  const x=example(t),e=source(x.style_id);
- return '<article class="style-card technique-card" data-id="'+esc(t.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(t.id)+'" aria-label="View '+esc(t.title)+'"><img src="'+esc(x.poster)+'" width="540" height="960" alt="'+esc(t.title+' — '+x.label+' actual source frame')+'" loading="lazy"><span class="preview-pill"><span class="play-symbol">▶</span>View example · '+(x.end-x.start).toFixed(1)+'s</span></button><div class="card-badges"><span class="version '+(used(t)?'used':'')+'">'+(used(t)?'USED IN MY WORK':'TECHNIQUE')+'</span>'+cardActions(t,x)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(t.title)+'</h2><button data-open="'+esc(t.id)+'" aria-label="View details for '+esc(t.title)+'">↗</button></div><span class="card-source-picks" data-family-picks="'+esc(t.id)+'" hidden></span><p class="card-subtitle">'+esc(t.summary)+'</p><div class="tags"><span class="tag">'+esc(t.category)+'</span></div><div class="card-palette"><span class="example-count">'+browseExamples(t).length+' example'+(browseExamples(t).length===1?'':'s')+'</span><span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
+ return '<article class="style-card technique-card" data-id="'+esc(t.id)+'"><div class="card-visual" style="--card-bg:'+esc(e.palette[0])+'"><button class="poster-button" data-open="'+esc(t.id)+'" aria-label="View '+esc(t.title)+'"><img src="'+esc(x.poster)+'" width="540" height="960" alt="'+esc(t.title+' — '+x.label+' actual source frame')+'" loading="lazy"><span class="preview-pill"><span class="play-symbol">▶</span>View example · '+(x.end-x.start).toFixed(1)+'s</span></button><div class="card-badges"><span class="version '+(used(t)?'used':'')+'">'+(used(t)?'USED IN MY WORK':'TECHNIQUE')+'</span>'+cardActions(t,x)+'</div></div><div class="card-info"><div class="card-heading"><h2>'+esc(t.title)+'</h2><button data-open="'+esc(t.id)+'" aria-label="View details for '+esc(t.title)+'">↗</button></div><span class="card-source-picks" data-family-picks="'+esc(t.id)+'" hidden></span><p class="card-subtitle">'+esc(t.summary)+'</p><div class="tags"><span class="tag">'+esc(t.category)+'</span></div><div class="card-palette"><span class="example-count">'+matchingExamples(t).length+' example'+(matchingExamples(t).length===1?'':'s')+'</span><span class="card-source">'+esc(e.creator)+'</span></div></div></article>';
 }
 function render(){
- const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean),filter=$('#technique').value;
+ rememberFilters();
+ const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean),filter=$('#technique').value,tag=$('#tag-filter').value;
  let visible;
- if(view!=='techniques')visible=viewEntries().filter(e=>matchesSource(e)&&(filter==='all'||e.tags.includes(filter))&&query.every(q=>[e.title,e.subtitle,e.creator,e.creator_name||'',e.creator_handle||'',e.source_url||'',e.reference_note||'',...(e.creator_aliases||[]),e.summary,...e.tags,...Object.values(e.traits)].join(' ').toLowerCase().includes(q)));
- else visible=browseTechniques().filter(t=>t.examples.some(x=>matchesSource(source(x.style_id)))&&(filter==='all'||t.category===filter)&&query.every(q=>[t.title,t.summary,t.direction,t.category,...t.aliases,...browseExamples(t).flatMap(x=>{const e=source(x.style_id);return[x.label,e.title,e.creator,e.creator_handle,...(e.creator_aliases||[])];})].join(' ').toLowerCase().includes(q)));
+ if(view!=='techniques')visible=viewEntries().filter(e=>matchesSource(e)&&collectionMatchesReference(e)&&(filter==='all'||referenceCategories(e).includes(filter))&&(tag==='all'||(e.tags||[]).includes(tag))&&query.every(q=>[e.title,e.subtitle,e.creator,e.creator_name||'',e.creator_handle||'',e.source_url||'',e.reference_note||'',...(e.creator_aliases||[]),e.summary,...e.tags,...Object.values(e.traits),...referenceCategories(e)].join(' ').toLowerCase().includes(q)));
+ else visible=browseTechniques().filter(t=>matchingExamples(t).length);
  const mode=$('#library-sort').value,status=$('#analysis-filter').value;
  if(view!=='techniques'&&status!=='all')visible=visible.filter(e=>status==='pending'?e.analysis_status==='not_analyzed':!!e.media_path||hasCarouselSlides(e));
  const date=e=>{const value=Date.parse(e.created_at||e.added_at||e.added_on||'');return Number.isFinite(value)?value:null;};
  visible.sort((a,b)=>{if(mode==='name')return a.title.localeCompare(b.title);const x=date(a),y=date(b);if(x===null&&y===null)return 0;if(x===null)return 1;if(y===null)return -1;return mode==='oldest'?x-y:y-x;});
  renderActiveFilters();
- const noun=view==='videos'?'video':view==='carousels'?'carousel':'technique';$('#result-count').textContent=visible.length+' '+noun+(visible.length===1?'':'s')+(collection==='mine'?(view==='techniques'?' used in my work':' from my work'):collection==='reference'?' from other creators':'');
- $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':'Try another word or technique.';$('#reset').hidden=isNew;$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
+ const noun=view==='videos'?'video':view==='carousels'?'carousel':'technique';$('#result-count').textContent=visible.length+' '+noun+(visible.length===1?'':'s')+(collection==='mine'?' from my work':collection==='reference'?' from other creators':'');
+ $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':(savedCollectionId!=='all'?'This collection has no matching '+noun+'s with these filters. Your collection and selections are kept.':'Try another search or clear a filter.');$('#reset').hidden=isNew;$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
 }
-function setView(next){if(!['videos','carousels','techniques'].includes(next))return;view=next;collection='all';$('#analysis-filter').value='all';$('#search').value='';$('#creator').value='all';updateControls();render();history.replaceState(null,'',viewHash());}
+function setView(next){if(!['videos','carousels','techniques'].includes(next))return;rememberFilters();view=next;updateControls();render();history.replaceState(null,'',viewHash());}
 function pausePreview(){const v=$('#detail-media video');if(v)v.pause();}
 function closeStyle(updateUrl=true){window.ReferenceNotes?.retain();pausePreview();$('#reference-more').open=false;$('#style-dialog').close();active=null;sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;techniqueExampleOpen=false;carouselSlideOpen=false;if(updateUrl)history.replaceState(null,'',viewHash());}
 function bindMedia(e,initialRange=null){
@@ -348,7 +393,9 @@ function referenceTechniqueRows(e){
   .map(x=>({technique:t,example:x,time:x.start})));
  const reviewed=e.source_sha256&&e.technique_review_sha256===e.source_sha256;
  const jumpPoints=reviewed?[]:e.moments||[];
- return [...excerpts,...jumpPoints].sort((a,b)=>a.time-b.time||(a.example?.end??a.time)-(b.example?.end??b.time));
+ const rows=[...excerpts,...jumpPoints];
+ const scoped=detailScopeAll?rows:rows.filter(row=>row.example?matchingExamples(row.technique).includes(row.example):savedCollectionId==='all'||CollectionModel.referenceMembers(chosenCollection(),e,techniques,entries).some(m=>m.kind==='moment'&&m.time===row.time));
+ return scoped.sort((a,b)=>a.time-b.time||(a.example?.end??a.time)-(b.example?.end??b.time));
 }
 function positionBorrowControls(){
  const controls=$('#reference-use'),token=sourceExcerpt&&activeSelectionToken(),technique=active&&isTech(active),carousel=hasCarouselSlides(active);
@@ -365,6 +412,7 @@ function positionBorrowControls(){
  $('#full-reference-actions').hidden=!hasFullReference();
  $('#add-full-reference').hidden=!hasFullReference();
  controls.classList.toggle('inline-borrow',!!row);
+ window.LibraryCollections?.details();
 }
 function renderReferenceTechniques(e){
  $('#reference-techniques').after($('#reference-use'));
@@ -450,7 +498,7 @@ function returnToTechnique(){
  $('#example-list [data-example="'+valid.exampleId+'"]')?.focus({preventScroll:true});
 }
 function showStyle(id,resumeAt=null,returnContext=null){
- const e=source(id);if(!e)return;window.ReferenceNotes?.retain();pausePreview();sourceExcerpt=null;fullVideoTime=0;setVideoRange=null;active=e;$('#style-dialog .reference-deep-details').open=false;
+ const e=source(id);if(!e)return;window.ReferenceNotes?.retain();pausePreview();sourceExcerpt=null;fullVideoTime=0;setVideoRange=null;active=e;detailScopeAll=false;$('#style-dialog .reference-deep-details').open=false;
  techniqueExampleOpen=false;carouselSlideOpen=false;$('#reference-techniques').after($('#reference-use'));
  techniqueReturn=returnContext?techniqueReturnContext(e,returnContext.techniqueId,returnContext.exampleId,returnContext.time,returnContext.scroll):null;
  const back=$('#return-to-technique');back.hidden=!techniqueReturn;
@@ -458,8 +506,9 @@ function showStyle(id,resumeAt=null,returnContext=null){
  $('#detail-about-title').textContent=isCarousel(e)?'About this carousel':'About this reference';
  $('#detail-media').classList.remove('technique-preview');$('#detail-media').classList.toggle('carousel-preview',hasCarouselSlides(e));$('#technique-examples').hidden=true;
  $('#detail-title').textContent=e.title;$('#detail-category').textContent=e.collection==='mine'?(isCarousel(e)?'MY CAROUSEL · ':e.asset_type==='project'?'MY PROJECT · ':'MY VIDEO · ')+e.version+(e.delivery_status==='final'?' · FINAL':''):'OTHER CREATOR · REFERENCE ONLY';$('#detail-subtitle').textContent=e.subtitle;$('#detail-summary').textContent=e.summary;showReferenceCredit(e);
- if(hasCarouselSlides(e))showCarouselSlide(e,0);
- else{$('#detail-media').innerHTML=e.media_path?'<video controls muted playsinline preload="metadata" poster="'+esc(e.poster)+'" src="/media/'+encodeURIComponent(e.id)+'" aria-label="'+esc(e.title)+' video preview"></video><div id="source-clip-controls" class="clip-controls" hidden><button id="source-full-video" class="text-button">← Back to full video</button><button id="replay-example" class="text-button">Replay excerpt</button></div>':'<div class="source-preview">'+referencePoster(e)+(e.project_id?'<a href="#project='+encodeURIComponent(e.project_id)+'">Open approved project assets ↗</a>':e.source_url?'<a href="'+esc(e.source_url)+'" target="_blank" rel="noopener noreferrer">Open original '+(isCarousel(e)?'carousel':'video')+' ↗</a>':'<p>Read the saved project notes for this reference.</p>')+(e.asset_type==='link'&&!e.media_path?(e.poster!=='assets/link-reference.svg'?'<p class="cover-only">Cover image · Open the original to view.</p>':''):'')+'</div>';setVideoRange=bindMedia(e);if(resumeAt!==null)setVideoRange?.(null,resumeAt);
+ const collectionFocus=referenceCollectionFocus(e);
+ if(hasCarouselSlides(e))showCarouselSlide(e,collectionFocus?.kind==='slide'?collectionFocus.slide-1:0);
+ else{$('#detail-media').innerHTML=e.media_path?'<video controls muted playsinline preload="metadata" poster="'+esc(e.poster)+'" src="/media/'+encodeURIComponent(e.id)+'" aria-label="'+esc(e.title)+' video preview"></video><div id="source-clip-controls" class="clip-controls" hidden><button id="source-full-video" class="text-button">← Back to full video</button><button id="replay-example" class="text-button">Replay excerpt</button></div>':'<div class="source-preview">'+referencePoster(e)+(e.project_id?'<a href="#project='+encodeURIComponent(e.project_id)+'">Open approved project assets ↗</a>':e.source_url?'<a href="'+esc(e.source_url)+'" target="_blank" rel="noopener noreferrer">Open original '+(isCarousel(e)?'carousel':'video')+' ↗</a>':'<p>Read the saved project notes for this reference.</p>')+(e.asset_type==='link'&&!e.media_path?(e.poster!=='assets/link-reference.svg'?'<p class="cover-only">Cover image · Open the original to view.</p>':''):'')+'</div>';setVideoRange=bindMedia(e);if(resumeAt!==null)setVideoRange?.(null,resumeAt);else if(collectionFocus?.kind==='moment')setVideoRange?.(null,collectionFocus.time);
  }
  renderCarouselSlide(e);
  $('#copy-full-reference').textContent=isCarousel(e)?'Copy full carousel':'Copy full reference';
@@ -477,10 +526,12 @@ function showStyle(id,resumeAt=null,returnContext=null){
  const pinned=route.get('style')===id&&time!==null&&Number.isFinite(Number(time))&&Number(time)>=0&&Number(time)<=e.duration;
  const position=Number.isFinite(resumeAt)&&resumeAt>=0&&resumeAt<=e.duration?resumeAt:pinned?Number(time):null;
  const from=techniqueReturn?'&from_technique='+encodeURIComponent(techniqueReturn.techniqueId)+'&from_example='+encodeURIComponent(techniqueReturn.exampleId):'';
- history.replaceState(null,'',referenceHash(id,null,hasCarouselSlides(e)?0:null)+(position!==null?'&time='+encodeURIComponent(position):'')+from);
+ if(collectionFocus?.kind==='example'&&resumeAt===null)playSourceExcerpt(exampleToken(collectionFocus.technique_id,collectionFocus.example_id));
+ renderDetailFilterScope();
+ history.replaceState(null,'',referenceHash(id,null,hasCarouselSlides(e)?Number($('#detail-media').dataset.slideIndex)||0:null)+(position!==null?'&time='+encodeURIComponent(position):'')+from);
 }
 function techniqueExampleRows(t,x){
- const visible=browseExamples(t),examples=t.examples.filter(v=>v.id===x.id||visible.includes(v)),single=examples.length===1;
+ const visible=detailScopeAll?browseExamples(t):matchingExamples(t),examples=t.examples.filter(v=>v.id===x.id||visible.includes(v)),single=examples.length===1;
  return {single,html:examples.map(v=>{
   const e=source(v.style_id),chosen=v.id===x.id,token=exampleToken(t.id,v.id);
   const content='<img src="'+esc(v.poster)+'" alt="" loading="lazy"><span><strong>'+esc(v.label)+'</strong><small>'+esc(e.creator)+' · '+esc(e.title)+' · '+exact(v.start)+'–'+exact(v.end)+(isRemoved(e)||isExampleRemoved(t,v)?' · removed from library':'')+'</small></span>';
@@ -489,6 +540,7 @@ function techniqueExampleRows(t,x){
  }).join('')};
 }
 function showTechnique(id,exampleId,position=null){
+ if(!active||active.id!==id||!isTech(active))detailScopeAll=false;
  window.ReferenceNotes?.retain();sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;$('#carousel-current-slide').hidden=true;$('#return-to-technique').hidden=true;$('#reference-credit').hidden=true;$('#reference-techniques').hidden=true;
  techniqueExampleOpen=!!position?.expand;
  // Move the shared editor before replacing its current example row.
@@ -499,10 +551,10 @@ function showTechnique(id,exampleId,position=null){
  const e=source(x.style_id);showReferenceCredit(e);if(legacySelection===false)saveSelection();
  window.ReferenceNotes?.bindMomentControls(null);
  $('#detail-media').classList.remove('carousel-preview');$('#detail-media').classList.add('technique-preview');$('#technique-examples').hidden=false;
- $('#detail-title').textContent=t.title;$('#detail-category').textContent=used(t)?'TECHNIQUE · USED IN MY WORK':'TECHNIQUE · REFERENCE';$('#detail-subtitle').textContent=t.category+' · '+t.examples.length+' example'+(t.examples.length===1?'':'s');$('#detail-summary').textContent=t.summary;
+ $('#detail-title').textContent=t.title;$('#detail-category').textContent=used(t)?'TECHNIQUE · USED IN MY WORK':'TECHNIQUE · REFERENCE';const shown=detailScopeAll?browseExamples(t).length:matchingExamples(t).length;$('#detail-subtitle').textContent=t.category+' · '+(shown<t.examples.length?shown+' of ':'')+t.examples.length+' example'+(t.examples.length===1?'':'s');$('#detail-summary').textContent=t.summary;
  $('#detail-media').innerHTML='<video controls muted playsinline preload="metadata" poster="'+esc(x.poster)+'" src="/media/'+encodeURIComponent(e.id)+'" aria-label="'+esc(t.title)+' example preview"></video><div class="clip-controls"><span>'+esc(x.label)+' · '+exact(x.start)+'–'+exact(x.end)+'<small>Previewing excerpt · '+(x.end-x.start).toFixed(1)+'s</small></span><button id="replay-example">Replay excerpt</button><a class="full-video-link" href="#style='+encodeURIComponent(e.id)+'&time='+encodeURIComponent(x.start)+'">View full video</a></div>';setVideoRange=bindMedia(e,x);
  if(position)setVideoRange?.(x,Math.max(x.start,Math.min(x.end,position.time??x.start)),!!position.play);
- const rows=techniqueExampleRows(t,x);$('#example-list').innerHTML=rows.html;
+ const rows=techniqueExampleRows(t,x);$('#example-list').innerHTML=rows.html;renderDetailFilterScope();
  $('#technique-examples-title').hidden=rows.single;$('#technique-example-hint').hidden=rows.single;
  $('#detail-about-title').textContent='About this technique';positionBorrowControls();
  const own=[...new Set(t.examples.filter(v=>source(v.style_id).collection==='mine').map(v=>source(v.style_id).title))];
@@ -514,13 +566,14 @@ function showTechnique(id,exampleId,position=null){
 }
 function openBrief(ids){return window.ReferenceNotes?.openSelection(ids);}
 $('.view-switch').addEventListener('click',event=>{const b=event.target.closest('[data-view]');if(b)setView(b.dataset.view);});
-$('.collections').addEventListener('click',event=>{const b=event.target.closest('[data-collection]');if(!b)return;collection=b.dataset.collection;const category=$('#technique').value;updateControls();if([...$('#technique').options].some(x=>x.value===category))$('#technique').value=category;render();});
-$('#gallery').addEventListener('click',event=>{const copy=event.target.closest('[data-copy-reference]');if(copy)return copyCardReference(copy.dataset.copyReference,copy.dataset.copyExample||null,copy);const b=event.target.closest('.select-card');if(b)return toggleSelection(exampleToken(b.dataset.id,b.dataset.selectExample));const open=event.target.closest('[data-open]');if(open){const e=item(open.dataset.open);if(e)isTech(e)?showTechnique(e.id):showStyle(e.id);}});
+$('.collections').addEventListener('click',event=>{const b=event.target.closest('[data-collection]');if(!b)return;rememberFilters();collection=b.dataset.collection;libraryFilters.source=collection;updateControls();render();});
+$('#gallery').addEventListener('click',event=>{const moment=event.target.closest('[data-select-moment]');if(moment)return window.ReferenceNotes?.toggleTimestamp(source(moment.dataset.id),Number(moment.dataset.selectMoment),'Moment at '+exact(Number(moment.dataset.selectMoment)),moment,true);const copy=event.target.closest('[data-copy-reference]');if(copy){if(copy.dataset.copySlide)return window.ReferenceNotes?.copyCard(copy.dataset.copyReference,null,copy,Number(copy.dataset.copySlide));if(copy.dataset.copyMoment!==undefined)return window.ReferenceNotes?.copyMoment(source(copy.dataset.copyReference),Number(copy.dataset.copyMoment),copy);return copyCardReference(copy.dataset.copyReference,copy.dataset.copyExample||null,copy);}const b=event.target.closest('.select-card');if(b)return toggleSelection(b.dataset.selectSlide||exampleToken(b.dataset.id,b.dataset.selectExample));const open=event.target.closest('[data-open]');if(open){const e=item(open.dataset.open);if(e)isTech(e)?showTechnique(e.id):showStyle(e.id);}});
 $('#search').addEventListener('input',render);$('#technique').addEventListener('change',render);$('#creator').addEventListener('change',render);$('#analysis-filter').addEventListener('change',render);$('#library-sort').addEventListener('change',render);
-function clearFilters(){ $('#search').value='';$('#technique').value='all';$('#creator').value='all';$('#analysis-filter').value='all';render(); }
+function clearFilters(){libraryFilters=defaultLibraryFilters();collection='all';savedCollectionId='all';updateControls();render();}
 function renderActiveFilters(){
  const applied=[['search',$('#search').value.trim()?'Search: '+$('#search').value.trim():'']];
- for(const id of ['creator','technique',...(view==='techniques'?[]:['analysis-filter'])]){const field=$('#'+id);if(field.value!=='all')applied.push([id,field.options[field.selectedIndex].textContent]);}
+ if(collection!=='all')applied.push(['source',collection==='mine'?'My work':'Other creators']);
+ for(const id of ['saved-collection-filter','creator','technique','tag-filter',...(view==='techniques'?[]:['analysis-filter'])]){const field=$('#'+id);if(field.value!=='all')applied.push([id,(id==='saved-collection-filter'?'Collection: ':'')+field.options[field.selectedIndex].textContent]);}
  const active=applied.filter(([,text])=>text),count=active.filter(([id])=>id!=='search').length;
  $('#filter-count').textContent=count?String(count):'';
  $('#active-filters').hidden=!active.length;
@@ -528,7 +581,15 @@ function renderActiveFilters(){
  $('#reset-filters').disabled=!active.length;
 }
 $('#toggle-filters').addEventListener('click',()=>{const open=$('#toggle-filters').getAttribute('aria-expanded')!=='true';$('#toggle-filters').setAttribute('aria-expanded',String(open));$('#library-filter-panel').hidden=!open;});
-$('#active-filters').addEventListener('click',event=>{if(event.target.closest('[data-clear-all]'))return clearFilters();const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;$('#'+id).value=id==='search'?'':'all';render();$('#search').focus();});
+$('#active-filters').addEventListener('click',event=>{if(event.target.closest('[data-clear-all]'))return clearFilters();const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;if(id==='source')collection='all';else if(id==='saved-collection-filter')savedCollectionId='all';else $('#'+id).value=id==='search'?'':'all';rememberFilters();updateControls();render();$('#search').focus();});
+$('#saved-collection-filter').addEventListener('change',()=>{savedCollectionId=$('#saved-collection-filter').value;rememberFilters();updateControls();render();});
+$('#tag-filter').addEventListener('change',render);
+$('#toggle-detail-scope').addEventListener('click',()=>{
+ detailScopeAll=!detailScopeAll;
+ if(active&&isTech(active))showTechnique(active.id,example(active,false).id);
+ else if(active)renderReferenceTechniques(active);
+ renderDetailFilterScope();
+});
 $('#reset').addEventListener('click',clearFilters);
 $('#reset-filters').addEventListener('click',clearFilters);
 $('#clear-selection').addEventListener('click',()=>window.ReferenceNotes?.clearSelection());$('#copy-selection').addEventListener('click',()=>openBrief([...selected]));
@@ -605,8 +666,8 @@ async function applyRoute(){
  if(token!==libraryRoute)return;
  const hash=location.hash.slice(1),params=new URLSearchParams(hash),styleId=params.get('style'),techId=params.get('technique'),e=source(styleId),t=techniques.find(t=>t.id===techId);
  if($('#brief-dialog').open)$('#brief-dialog').close();
- view=t||hash==='techniques'?'techniques':isCarousel(e||{})||hash==='carousels'?'carousels':'videos';collection=e||t||view!=='videos'||!browseEntries().some(e=>e.collection==='mine'&&!isCarousel(e))?'all':'mine';
- $('#search').value='';$('#creator').value='all';updateControls();render();
+ view=t||hash==='techniques'?'techniques':isCarousel(e||{})||hash==='carousels'?'carousels':'videos';
+ updateControls();render();
  if(e){
   const time=params.has('time')?Number(params.get('time')):null;
   const from=techniqueReturnContext(e,params.get('from_technique'),params.get('from_example'),time);
@@ -675,6 +736,7 @@ async function init(){
  try{const response=await fetch('/site-settings.json');if(response.ok){const settings=await response.json();$('#studio-name').textContent=settings.studio_name;$('#library-nav-label').textContent=settings.library_label;window.studioName=settings.studio_name;$('#studio-monogram').textContent=settings.monogram;$('#studio-footer-monogram').textContent=settings.monogram;document.title=settings.studio_name+' · Projects';const credit=$('#studio-credit');credit.hidden=!settings.credit.name;if(settings.credit.name){credit.textContent='Built by '+settings.credit.name+' ↗';credit.href=settings.credit.url;}}}catch{}
  try{
   await window.refreshReferenceCatalog();
+  await window.LibraryCollections?.refresh();
   applyRoute();
  }catch{$('#result-count').textContent='';$('#load-error').hidden=false;window.Studio?.route();}
 }
