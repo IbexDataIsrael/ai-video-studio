@@ -1,4 +1,6 @@
-# Technique completion — unreleased preview
+# AI Video Studio — 0.1.0-beta.12
+
+**Unreleased technique completion preview**
 
 The codex/technique-completion branch adds existing-library completion requests, selectable older timestamp observations and project-local example preparation for the chosen final version. Final approval promotes only the exact matching plan; historical source links stay available. Owner records are preserved without an installation migration. Preview approval is required before merge, live installation or numbered release. See docs/TECHNIQUE-CATALOGING.md.
 
