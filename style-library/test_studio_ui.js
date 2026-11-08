@@ -804,3 +804,16 @@ test('exact slides, moments and archived examples stay pinned rather than wideni
  const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=[{id:"col-slide",members:['+JSON.stringify(slide)+']}];savedCollectionId="col-slide";');
  assert.match(h.run('cardActions(entries[2])'),/data-copy-slide="1"/);assert.match(h.run('cardActions(entries[2])'),/data-select-slide="carousel-a@slide:1"/);
 });
+
+test('closing reference details resets transient menus without clearing exact picks, notes or example choices',async()=>{
+ const scope='11111111-1111-4111-8111-111111111111';
+ const storage=new Map([['ai-video-studio-selection-v3',JSON.stringify({picks:['video'],note_session:scope,has_notes:true,slide_picks:1})]]);
+ const h=referenceCatalogHarness({entries:[{id:'video'}],techniques:[]},storage);await h.vm.window.refreshReferenceCatalog();
+ const menus=[{open:true},{open:true}],otherDisclosure={open:true};let retained=0;
+ h.vm.document.querySelectorAll=selector=>selector==='#style-dialog .reference-menu[open]'?menus:[];
+ h.vm.window.ReferenceNotes={retain(){retained++;}};
+ h.run('choices.family="exact-example";closeStyle(false)');
+ assert.equal(menus.every(menu=>!menu.open),true);assert.equal(otherDisclosure.open,true);
+ assert.equal(retained,1);assert.equal(h.run('selected.has("video")'),true);
+ assert.equal(h.run('noteSession'),scope);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('choices.family'),'exact-example');
+});

@@ -4,13 +4,13 @@ A technique family groups related behaviors. An example is a specific, source-ba
 
 ## Saving and browsing
 
-Open a reference or expand an example, use its options, then **Save to collection**. Choose a personal collection or create one with a name. Selection options also offers **Save selection to collection** for the exact current examples, whole references, slides and moments. Saving keeps the current editing picks and does not include edit-specific borrowing directions.
+Expand an example and use the quiet **Save to collection** action below its borrowing controls. Whole-reference options also offer **Save to collection**. Choose a personal collection or create one with a name. Selection options also offers **Save selection to collection** for the exact current examples, whole references, slides and moments. Saving keeps the current editing picks and does not include edit-specific borrowing directions.
 
 The Collection selector sits beside Search in Videos, Carousels and Techniques. Source (My work / Other creators / All), Creator, Collection, Category, Tags, Search and Sort persist across tabs and reload. Availability applies only to source formats. Active filter chips can be removed individually. Clear filters keeps editing picks and notes. Empty results retain the chosen filters.
 
 Membership is exact. A collection containing one example in a four-example family shows that example, its poster, count, copy target and + target. The source video appears as context without adding its other examples to the collection. Full-reference membership includes the source in Videos or Carousels but does not silently include every technique from it. Slide and moment memberships retain their positions. Filtered detail panes offer **Show all examples** as an explicit way to browse the wider library. An existing direct link remains available even when outside the current filter.
 
-Library options → **Manage collections** supports names, contents and removal. Removing a member has Undo. Removing a collection keeps its library items and offers Restore, including after reload. Collections are optional; no folder hierarchy or organizational setup is required.
+**Manage**, beside the Collection label above the filter, opens the collection overview for names, contents and removal. Removing a member has Undo. Removing a collection keeps its library items and offers Restore, including after reload. Collections are optional; no folder hierarchy or organizational setup is required.
 
 ## Installed creator packs
 

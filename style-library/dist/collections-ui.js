@@ -100,10 +100,10 @@ window.LibraryCollections=(()=>{
   }catch(error){if(ticket===run&&saveDialog.open){$('#collection-save-error').textContent=error.message;reviewLatest.hidden=false;}}
   finally{if(ticket===run)$('#collection-save-submit').disabled=false;}
  };
- $('#manage-collections').onclick=event=>{event.currentTarget.closest('details').open=false;manage();};$('#close-manage-collections').onclick=()=>manageDialog.close();
+ $('#manage-collections').onclick=manage;$('#close-manage-collections').onclick=()=>manageDialog.close();
  $('#new-empty-collection').onclick=()=>openSave([]);
  $('#save-reference-collection').onclick=event=>{event.currentTarget.closest('details').open=false;openSave([currentMember()]);};
- $('#save-example-collection').onclick=event=>{event.currentTarget.closest('details').open=false;openSave([currentMember()]);};
+ $('#save-example-collection').onclick=()=>openSave([currentMember()]);
  $('#save-selection-collection').onclick=event=>{event.currentTarget.closest('details').open=false;openSave(briefIds.map(memberFor));};
  manageDialog.addEventListener('click',async event=>{
   const open=event.target.closest('[data-open-collection]');if(open)return openCollection(open.dataset.openCollection);
@@ -131,7 +131,7 @@ window.LibraryCollections=(()=>{
  window.addEventListener('focus',()=>refresh().catch(()=>{}));
  function details(){
   const member=currentMember(),label=member?.kind==='example'?'Save this example to collection…':member?.kind==='slide'?'Save this slide to collection…':member?.kind==='moment'?'Save this moment to collection…':'Save full reference to collection…';
-  $('#save-reference-collection').textContent=label;$('#save-example-collection').textContent=label;
+  $('#save-reference-collection').textContent=label;$('#save-example-collection').setAttribute('aria-label',label);
  }
  return {refresh,openSave,manage,memberFor,details};
 })();

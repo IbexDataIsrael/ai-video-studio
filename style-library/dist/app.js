@@ -274,7 +274,8 @@ function render(){
 }
 function setView(next){if(!['videos','carousels','techniques'].includes(next))return;rememberFilters();view=next;updateControls();render();history.replaceState(null,'',viewHash());}
 function pausePreview(){const v=$('#detail-media video');if(v)v.pause();}
-function closeStyle(updateUrl=true){window.ReferenceNotes?.retain();pausePreview();$('#reference-more').open=false;$('#style-dialog').close();active=null;sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;techniqueExampleOpen=false;carouselSlideOpen=false;if(updateUrl)history.replaceState(null,'',viewHash());}
+function closeReferenceMenus(){document.querySelectorAll('#style-dialog .reference-menu[open]').forEach(menu=>menu.open=false);}
+function closeStyle(updateUrl=true){window.ReferenceNotes?.retain();pausePreview();closeReferenceMenus();$('#style-dialog').close();active=null;sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;techniqueExampleOpen=false;carouselSlideOpen=false;if(updateUrl)history.replaceState(null,'',viewHash());}
 function bindMedia(e,initialRange=null){
  const video=$('#detail-media video');if(!video)return null;
  video.muted=true;
@@ -359,6 +360,7 @@ async function copyQuickReference(original=false){
  }
 }
 function showCarouselSlide(e,index){
+ closeReferenceMenus();
  if(!hasCarouselSlides(e))return;
  window.ReferenceNotes?.retain();$('#reference-techniques').after($('#reference-use'));carouselSlideOpen=false;
  const i=Math.max(0,Math.min(e.slides.length-1,index)),s=e.slides[i];pausePreview();
@@ -435,7 +437,7 @@ function playSourceExcerpt(token){
  const pick=selectionItem(token),video=$('#detail-media video');
  if(!pick?.x||!video||!active||pick.x.style_id!==active.id||pick.x.source_version!==active.version||pick.x.source_path!==active.media_path)return;
  if(sourceExcerpt&&activeSelectionToken()===token)return returnToFullVideo();
- window.ReferenceNotes?.retain();
+ closeReferenceMenus();window.ReferenceNotes?.retain();
  if(!sourceExcerpt)fullVideoTime=video.currentTime;
  sourceExcerpt={technique:pick.entry,example:pick.x};
  $('#source-clip-controls').hidden=false;
@@ -446,6 +448,7 @@ function playSourceExcerpt(token){
  updateSelection();updateQuickCopy();window.ReferenceNotes?.mountCurrent();
 }
 function returnToFullVideo(focus=true){
+ closeReferenceMenus();
  if(!sourceExcerpt)return;
  const token=activeSelectionToken();
  window.ReferenceNotes?.retain();sourceExcerpt=null;
@@ -498,6 +501,7 @@ function returnToTechnique(){
  $('#example-list [data-example="'+valid.exampleId+'"]')?.focus({preventScroll:true});
 }
 function showStyle(id,resumeAt=null,returnContext=null){
+ closeReferenceMenus();
  const e=source(id);if(!e)return;window.ReferenceNotes?.retain();pausePreview();sourceExcerpt=null;fullVideoTime=0;setVideoRange=null;active=e;detailScopeAll=false;$('#style-dialog .reference-deep-details').open=false;
  techniqueExampleOpen=false;carouselSlideOpen=false;$('#reference-techniques').after($('#reference-use'));
  techniqueReturn=returnContext?techniqueReturnContext(e,returnContext.techniqueId,returnContext.exampleId,returnContext.time,returnContext.scroll):null;
@@ -540,6 +544,7 @@ function techniqueExampleRows(t,x){
  }).join('')};
 }
 function showTechnique(id,exampleId,position=null){
+ closeReferenceMenus();
  if(!active||active.id!==id||!isTech(active))detailScopeAll=false;
  window.ReferenceNotes?.retain();sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;$('#carousel-current-slide').hidden=true;$('#return-to-technique').hidden=true;$('#reference-credit').hidden=true;$('#reference-techniques').hidden=true;
  techniqueExampleOpen=!!position?.expand;
@@ -634,6 +639,7 @@ $('#detail-media').addEventListener('keydown',event=>{
  showCarouselSlide(active,next);$('#detail-media [data-carousel-slide="'+next+'"]')?.focus({preventScroll:true});
 });
 function previewTechniqueExample(id,keyboard=false){
+ closeReferenceMenus();
  if(!active||!isTech(active))return;
  if(example(active,false).id===id){
   window.ReferenceNotes?.retain();techniqueExampleOpen=keyboard||!techniqueExampleOpen;positionBorrowControls();
