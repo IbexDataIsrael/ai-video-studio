@@ -95,6 +95,7 @@ class TechniqueUpkeepTests(unittest.TestCase):
         item=upkeep.discover()['items'][0];body={'items':[{k:item[k] for k in ['id','revision']}]}
         before=self.catalog.read_bytes();result=upkeep.handoff(body,'http://127.0.0.1:1')
         self.assertIn(item['source']['source_sha256'],result['text']);self.assertIn('#style=demo-video',result['text'])
+        self.assertIn('Studio folder: '+str(self.root),result['text'])
         self.assertEqual(before,self.catalog.read_bytes());self.assertFalse((self.project/'approval-state.json').exists())
         with self.assertRaises(reviews.ReviewError):upkeep.handoff({'items':body['items']*2},'http://fixture')
         (self.project/'old.mp4').write_bytes(b'new bytes')

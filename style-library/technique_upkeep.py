@@ -80,7 +80,7 @@ def discover():
             if entry.get('project_id'):
                 item['project_id'] = entry['project_id']
             # Notes/removal/analysis edits invalidate a request prepared from earlier context.
-            item['revision'] = signature([entry, snapshot])
+            item['revision'] = signature([str(index.STUDIO.resolve()), entry, snapshot])
             items.append(item)
         for project in projects:
             if project['id'] in represented or project.get('format') != 'video' or project.get('state') != 'final':
@@ -95,7 +95,7 @@ def discover():
                 continue
             items.append({'id': 'project:' + project['id'] + '@' + artifact['id'], 'project_id': project['id'],
                           'artifact_id': artifact['id'], 'title': project['title'], 'group': 'mine', 'examples': 0,
-                          'moments': 0, 'source': snapshot, 'revision': signature([project, snapshot]),
+                          'moments': 0, 'source': snapshot, 'revision': signature([str(index.STUDIO.resolve()), project, snapshot]),
                           'route': {'project': project['id'], 'artifact': artifact['id']}})
         return {'items': items, 'signature': signature(sorted((i['id'], i['revision']) for i in items))}
 
@@ -117,6 +117,7 @@ def handoff(body, base_url):
             raise storage.ReviewError('Choose each video once.')
         chosen.append(item)
     lines = ['Complete the reusable technique catalog for these exact videos in my studio.',
+             'Studio folder: ' + str(index.STUDIO.resolve()),
              'Read docs/TECHNIQUE-CATALOGING.md. Verify each source snapshot below before working. Inspect the full video and reconcile earlier observations; preserve existing examples, notes, removals and approvals. Group distinct verified moves into technique families, without duplicate drafts. Report inaccessible sources or incomplete work. Do not edit or approve the videos.', '']
     for item in chosen:
         lines.extend([item['title'] + ' · ' + item['source']['source_version'], base_url + '/#' + urlencode(item['route']),
