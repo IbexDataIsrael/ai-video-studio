@@ -18,6 +18,18 @@ class Quiet(Handler):
     def log_message(self,*args):pass
 
 class ReferenceTests(unittest.TestCase):
+    def test_carousel_intake_retains_format_without_changing_duplicate_or_owner_data(self):
+        saved = intake.save(self.body | {'format': 'carousel'})
+        e = self.data()['entries'][0]
+        self.assertEqual(e['reference_format'], 'carousel')
+        self.assertEqual(e['analysis_status'], 'not_analyzed')
+        self.assertNotIn('slides', e)
+        before = self.catalog.read_bytes()
+        self.assertTrue(intake.save(self.body)['duplicate'])
+        self.assertEqual(self.catalog.read_bytes(), before)
+        with self.assertRaises(intake.IntakeError):
+            intake.save(self.body | {'url': 'https://example.com/other', 'format': 'unknown'})
+
     def test_ui_reference_creation_date_survives_duplicate_intake_and_edits(self):
         from datetime import datetime
         saved=intake.save(self.body)
@@ -129,6 +141,25 @@ class ReferenceTests(unittest.TestCase):
             restored=intake.set_visibility({'id':id,'action':'restore','revision':removed['revision']})
             self.assertFalse(restored['removed']);self.assertNotIn(id,self.data()['removed_references'])
         self.assertEqual(self.data()['entries'],before['entries']);self.assertEqual(self.index.read_text(),'{"projects":[]}')
+
+    def test_example_visibility_keeps_family_siblings_and_exact_links(self):
+        reference = intake.save({'action':'create','url':'https://example.com/link-only'})['id']
+        self.assertEqual(self.data()['entries'][0]['reference_note'], '')
+        data = self.data()
+        data['techniques'] = [{'id':'tech-demo','examples':[
+            {'id':'first','style_id':reference}, {'id':'second','style_id':reference}]}]
+        self.catalog.write_text(json.dumps(data))
+        state = intake.visibility_state('tech-demo','first')
+        body = {'id':'tech-demo','example_id':'first','action':'remove','revision':state['revision']}
+        removed = intake.set_visibility(body)
+        self.assertTrue(removed['removed'])
+        self.assertEqual(self.data()['techniques'],data['techniques'])
+        self.assertFalse(intake.visibility_state('tech-demo','second')['removed'])
+        self.assertFalse(intake.visibility_state(reference)['removed'])
+        with self.assertRaises(intake.IntakeError):
+            intake.set_visibility(body | {'action':'restore'})
+        intake.set_visibility(body | {'action':'restore','revision':removed['revision']})
+        self.assertFalse(intake.visibility_state('tech-demo','first')['removed'])
 
     def test_visibility_rejects_stale_unknown_and_invalid_requests(self):
         id=intake.save(self.body)['id'];state=intake.visibility_state(id)

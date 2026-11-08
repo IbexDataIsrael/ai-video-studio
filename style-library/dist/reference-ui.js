@@ -1,25 +1,39 @@
 /* Link capture with optional public cover retrieval. Analysis stays a chat handoff. */
 window.ReferenceIntake=(()=>{
- let editing=null,revision=null,busy=false,opening=0,justSaved=null,analysisCopying=null,lastAnalysisCopy=null;
+ let editing=null,revision=null,busy=false,opening=0,justSaved=null,analysisCopying=null,lastAnalysisCopy=null,intakeFormat='video';
+ const carousel=e=>e.asset_type==='carousel'||e.reference_format==='carousel';
  const dialog=$('#reference-dialog'),form=$('#reference-form');
  const fields={url:$('#reference-url'),title:$('#reference-title'),creator:$('#reference-creator'),note:$('#reference-note')};
  function setBusy(value){busy=value;dialog.querySelectorAll('input,textarea,button').forEach(el=>el.disabled=value);$('#reference-save').textContent=value?'Saving…':editing?'Save details':'Save reference';}
- function detailHierarchy(pending,partial=false){
-  $('#reference-analysis-next').hidden=!(pending||partial);$('#reference-analyze').autofocus=pending;$('#detail-summary').hidden=pending;$('#reference-more').open=false;
-  $('#reference-use').classList.toggle('awaiting-analysis',pending);$('#pending-link-heading').hidden=!pending;
-  $('.detail-copy').insertBefore($('#reference-use'),pending?$('.reference-deep-details'):$('#reference-user-note'));
-  $('#detail-quick-copy').classList.toggle('primary',!pending);$('#detail-quick-copy').classList.toggle('secondary',pending);
+ function detailHierarchy(pending,unavailable=false){
+  $('#reference-analysis-next').hidden=!(pending||unavailable);
+  $('#reference-analyze').autofocus=pending&&!unavailable;
+  $('#detail-summary').hidden=pending;
+  $('#reference-more').open=false;
+  $('#reference-use').classList.toggle('awaiting-analysis',pending);
+  $('#pending-link-heading').hidden=!pending;
+  $('#detail-quick-copy').classList.toggle('primary',!pending);
+  $('#detail-quick-copy').classList.toggle('secondary',pending);
  }
  function details(e){
-  const pending=e.analysis_status==='not_analyzed',partial=e.analysis_status==='partial',fresh=pending&&justSaved===e.id;if(justSaved!==e.id)justSaved=null;
-  detailHierarchy(pending,partial);$('#reference-more').hidden=false;
-  $('#reference-analysis-state').textContent=partial?'PARTLY ANALYZED':'AWAITING ANALYSIS';renderAnalysisCopy(e);
-  $('.analysis-next-description').textContent=partial?'Keep the saved findings and ask your assistant to review what’s still missing.':'Have your assistant identify the style, useful moments and techniques you can borrow.';
-  $('#reference-analysis-title').textContent=partial?'Continue analyzing this reference.':fresh?'Reference saved. Next: analyze it.':'Next: analyze this reference.';
-  $('#detail-analyze').hidden=pending||partial;$('#detail-analyze').textContent='Analyze again…';$('#detail-edit-reference').hidden=!(e.collection==='reference'&&e.source_url);
-  $('#reference-user-note').hidden=!e.reference_note;$('#reference-user-note-text').textContent=e.reference_note||'';
+  const pending=e.analysis_status==='not_analyzed';
+  const unavailable=!!e.source_url&&!e.media_path&&!e.slides?.length&&(['video_unavailable','carousel_unavailable'].includes(e.analysis_issue)||!pending&&!!e.analysis_status);
+  const fresh=pending&&justSaved===e.id;
+  if(justSaved!==e.id)justSaved=null;
+  detailHierarchy(pending,unavailable);
+  $('#reference-more').hidden=false;
+  $('#reference-analysis-state').textContent=unavailable?'SOURCE ACCESS':'AWAITING ANALYSIS';
+  renderAnalysisCopy(e);
+  $('.analysis-next-description').textContent=unavailable
+   ?'Attach a local copy when you paste the request into your editing chat.'
+   :carousel(e)?'Find design techniques you can borrow from these slides.':'Find techniques you can borrow from this video.';
+  $('#reference-analysis-title').textContent=unavailable?(carousel(e)?'Carousel unavailable in Studio.':'Video unavailable in Studio.'):fresh?'Reference saved. Next: analyze it.':'Next: analyze this reference.';
+  $('#detail-analyze').hidden=!e.source_url||pending||unavailable;
+  $('#detail-edit-reference').hidden=!(e.collection==='reference'&&e.source_url);
+  $('#reference-user-note').hidden=!e.reference_note;
+  $('#reference-user-note-text').textContent=e.reference_note||'';
   $('.taste').hidden=!(e.keep.length||e.avoid.length);
-  if(e.asset_type==='link'&&!e.media_path){const poster=$('#detail-media img');if(poster)poster.alt=e.poster==='assets/link-reference.svg'?'Video preview unavailable — open the original video':'Cover image for '+e.title+' — open the original video to watch';}
+  if(e.asset_type==='link'&&!e.media_path){const poster=$('#detail-media img');if(poster)poster.alt='Cover image for '+e.title+' — open the original video to watch';}
  }
  function hideDetails(){detailHierarchy(false);$('#reference-more').hidden=true;$('#detail-analyze').hidden=true;$('#detail-edit-reference').hidden=true;$('#reference-user-note').hidden=true;$('.taste').hidden=false;}
  async function reply(response,fallback){
@@ -27,12 +41,15 @@ window.ReferenceIntake=(()=>{
   try{return await response.json();}catch{throw Error(fallback);}
  }
  async function open(id=null){
-  pausePreview();$('#reference-more').open=false;const token=++opening;editing=id;revision=null;form.reset();setBusy(false);
+  pausePreview();$('#reference-more').open=false;intakeFormat=typeof view!=='undefined'&&view==='carousels'?'carousel':'video';const token=++opening;editing=id;revision=null;form.reset();setBusy(false);
   fields.url.readOnly=!!id;$('#reference-form-title').textContent=id?'Edit your reference.':'Save a reference.';
-  $('#reference-intro').textContent=id?'Update the basics. The original source and saved analysis stay with this reference.':'Paste a link. Add what you like. Keep it for your next edit.';
+  $('#reference-intro').hidden=!id;
+  $('#reference-intro').textContent=id?'Update the title, creator or why you saved it.':'';
+  $('#reference-edit-fields').hidden=!id;
+  fields.url.closest('.reference-field').hidden=!!id;
+  fields.url.required=!id;
   $('#reference-error').textContent='';$('#reference-save').disabled=!!id;
   $('#reference-creators').innerHTML=[...new Set(entries.map(e=>e.creator).filter(c=>c&&c!=='Creator not added'))].sort().map(c=>'<option value="'+esc(c)+'"></option>').join('');
-  $('.reference-helper').textContent=id?'Updates the basics while keeping your source and saved analysis.':'Save your link, then copy an analysis request into your editing chat. A cover image is added automatically when available.';
   dialog.showModal();if(!id){fields.url.focus();return;}
   Object.values(fields).forEach(field=>field.disabled=true);
   try{
@@ -44,8 +61,9 @@ window.ReferenceIntake=(()=>{
  }
  form.addEventListener('submit',async event=>{
   event.preventDefault();if(busy||!form.reportValidity())return;
-  const body={action:editing?'edit':'create',title:fields.title.value,creator:fields.creator.value,note:fields.note.value};
-  if(editing){body.id=editing;body.revision=revision;}else body.url=fields.url.value;
+  const body=editing
+   ?{action:'edit',id:editing,revision,title:fields.title.value,creator:fields.creator.value,note:fields.note.value}
+   :{action:'create',url:fields.url.value,...(intakeFormat==='carousel'?{format:'carousel'}:{})};
   setBusy(true);$('#reference-error').textContent='';let result;
   try{
    const response=await fetch('/references',{method:'POST',headers:{'Content-Type':'application/json','X-Studio-Action':'reference'},body:JSON.stringify(body)});
@@ -77,7 +95,9 @@ window.ReferenceIntake=(()=>{
   finally{fetching.delete(id);}
  }
  function analysisRequest(e){
-  return (e.analysis_status==='not_analyzed'?'Analyze this reference':e.analysis_status==='partial'?'Continue analyzing this reference, focusing on the unverified details':'Review the existing analysis of this reference and improve only what you can verify')+' and update its existing library entry with the creator, visual style, useful moments and distinct techniques. Keep my note and report anything you cannot verify.\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
+  const action=e.analysis_status==='not_analyzed'?'Analyze this reference':'Review the saved analysis of this reference';
+  const instruction=carousel(e)?'Inspect every available slide, including motion slides. Identify useful design and storytelling techniques with their exact slide numbers. Save source-backed slide previews when accessible. Keep this reference in Carousels, preserve its original link and my notes, and report anything you cannot verify.':'Review the entire playable video, including any earlier timestamp observations. Save each distinct reusable technique you can verify as a playable excerpt. Group related examples into existing techniques and create a new family for a different move. Keep my saved notes, and record any limits.';
+  return action+' and update its existing library entry. '+instruction+'\n\n'+referenceUrl(e.id)+(e.source_url?'\nOriginal: '+e.source_url:'')+(e.reference_note?'\nWhat caught my eye: '+e.reference_note:'');
  }
  function renderAnalysisCopy(e){
   const button=$('#reference-analyze'),copied=lastAnalysisCopy?.id===e.id&&lastAnalysisCopy.text===analysisRequest(e);
