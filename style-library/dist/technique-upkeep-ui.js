@@ -27,12 +27,12 @@ window.TechniqueCatalog=(()=>{
   })().finally(()=>pending=null);
   return pending;
  }
- function renderList(chosen){
+ function renderList(chosen,visible=items,scoped=false){
   const groups=[['mine','Your finished videos'],['reference','Saved creator references']];
   $('#technique-upkeep-list').innerHTML=groups.map(([group,title])=>{
-   const rows=items.filter(i=>i.group===group);if(!rows.length)return '';
+   const rows=visible.filter(i=>i.group===group);if(!rows.length)return '';
    return '<fieldset><legend>'+title+'</legend>'+rows.map(i=>'<label class="technique-upkeep-row"><input type="checkbox" value="'+esc(i.id)+'" '+(chosen.has(i.id)?'checked':'')+'><span><strong>'+esc(i.title)+'</strong><small>'+esc(i.source.source_version)+' · '+i.examples+' technique'+(i.examples===1?'':'s')+' already saved'+(i.moments?' · '+i.moments+' timestamp'+(i.moments===1?'':'s'):'')+'</small></span></label>').join('')+'</fieldset>';
-  }).join('')||'<p class="technique-upkeep-empty">Your saved videos are up to date. Future finished videos appear here if they still need a technique review.</p>';
+  }).join('')||'<p class="technique-upkeep-empty">'+(scoped?'This video is no longer available for this catch-up request. Open its reference for current source details.':'Your saved videos are up to date. Future finished videos appear here if they still need a technique review.')+'</p>';
   updateCount();
  }
  function updateCount(){
@@ -49,7 +49,7 @@ window.TechniqueCatalog=(()=>{
   try{
    await refresh();if(ticket!==run||!dialog.open)return;
    const selected=items.filter(i=>referenceId?i.reference_id===referenceId:projectId?i.project_id===projectId:true).slice(0,100);
-   renderList(new Set(selected.map(i=>i.id)));
+   renderList(new Set(selected.map(i=>i.id)),referenceId||projectId?selected:items,!!(referenceId||projectId));
    $('#technique-upkeep-status').textContent=items.length>100?'Choose up to 100 videos for each request.':'';
   }catch(error){if(ticket===run&&dialog.open)$('#technique-upkeep-status').textContent=error.message;}
  }

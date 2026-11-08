@@ -29,6 +29,7 @@ test('catch-up dismissal survives completion of some videos and returns for newl
 });
 test('single and bulk review use the same exact selection; copying does not complete or approve',async()=>{
  const h=fixture();h.videos=[h.video('one'),h.video('two')];await h.api.open('two');
+ assert.equal(h.boxes.length,1);
  assert.deepEqual(h.boxes.filter(b=>b.checked).map(b=>b.value),['reference:two']);
  await h.node('#copy-technique-request').onclick();assert.equal(h.writes[0].items.length,1);assert.equal(h.writes[0].items[0].id,'reference:two');
  assert.equal(h.clips.length,1);assert.equal(h.node('#technique-upkeep-notice').hidden,false);assert.equal(h.storage.size,0);
