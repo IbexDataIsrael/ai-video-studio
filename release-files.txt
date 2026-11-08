@@ -136,3 +136,6 @@ style-library/dist/collections-ui.js
 style-library/dist/collections.css
 style-library/test_saved_collections.py
 docs/COLLECTIONS.md
+style-library/dist/filter-model.js
+style-library/dist/library-filter-ui.js
+style-library/test_library_filters.js

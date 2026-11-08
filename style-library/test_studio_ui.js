@@ -11,7 +11,7 @@ test('library sorting uses original added dates, with stable undated entries and
  const nodes=new Map(),node=key=>{if(!nodes.has(key))nodes.set(key,{value:'all'});return nodes.get(key);};
  node('#search').value='';node('#library-sort').value='newest';
  const context={$:node,view:'videos',collection:'mine',entries,techniques:[],viewEntries:()=>entries,matchesSource:()=>true,
-  savedCollectionId:'all',rememberFilters(){},activeLibraryFilters:()=>[],collectionMatchesReference:()=>true,referenceCategories:()=>[],renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
+  hasCollectionFilter:()=>false,referenceMatchesFacets:()=>true,updateFilterWidgets(){},rememberFilters(){},activeLibraryFilters:()=>[],collectionMatchesReference:()=>true,referenceCategories:()=>[],renderActiveFilters(){},updateSelection(){},videoCard:e=>'['+e.id+']'};
  runInNewContext(app.slice(start,end),context);context.render();
  assert.equal(node('#gallery').innerHTML,'[newer][older][undated-one][undated-two]');
  node('#library-sort').value='oldest';context.render();
@@ -418,7 +418,7 @@ test('reload during a version transition never rebases old on-screen text or fee
 test('initial routing waits for deferred studio modules even when local assets respond immediately',async()=>{
  const nodes=new Map(),events={},calls=[];let routes=0;
  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,{value:'',hidden:true,open:false,addEventListener(){},close(){},pause(){}});return nodes.get(selector);};
- const context={window:{addEventListener(){}},document:{readyState:'interactive',querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events[name]=fn},localStorage:{getItem:()=>null},location:{protocol:'http:',hash:'#project=example'},fetch:async url=>{calls.push(url);return {ok:url==='/catalog.json',json:async()=>({entries:[],techniques:[]})};}};
+ const context={LibraryFilterModel:require('./dist/filter-model.js'),window:{addEventListener(){}},document:{readyState:'interactive',querySelector:node,querySelectorAll:()=>[],addEventListener:(name,fn)=>events[name]=fn},localStorage:{getItem:()=>null},location:{protocol:'http:',hash:'#project=example'},fetch:async url=>{calls.push(url);return {ok:url==='/catalog.json',json:async()=>({entries:[],techniques:[]})};}};
  runInNewContext(readFileSync(join(__dirname,'dist/app.js'),'utf8'),context);assert.deepEqual(calls,[]);context.window.Studio={route:()=>{routes++;return true;}};await events.DOMContentLoaded();assert.deepEqual(calls,['/site-settings.json','/catalog.json']);assert.equal(routes,1);
 });
 
@@ -426,13 +426,13 @@ test('initial routing waits for deferred studio modules even when local assets r
 function referenceCatalogHarness(initial,storage=new Map()){
  const nodes=new Map(),events={};
  const node=selector=>{
-  if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,parentElement:{hidden:false},options:[{value:'all'}],
-   addEventListener(){},setAttribute(){},close(){},focus(){this.focused=true;}});
+  if(!nodes.has(selector))nodes.set(selector,{value:'all',hidden:true,open:false,parentElement:{hidden:false},options:[{value:'all'}],listeners:{},
+   addEventListener(name,fn){this.listeners[name]=fn;},setAttribute(){},close(){},focus(){this.focused=true;}});
   return nodes.get(selector);
  };
  let catalog=initial;
  const vm=createContext({
-  CollectionModel:require('./dist/collection-model.js'),
+  CollectionModel:require('./dist/collection-model.js'),LibraryFilterModel:require('./dist/filter-model.js'),
   window:{addEventListener:(name,fn)=>events[name]=fn},
   document:{readyState:'interactive',querySelector:selector=>['dialog[open]:not(#style-dialog)','#detail-media video'].includes(selector)?null:node(selector),querySelectorAll:()=>[],
    addEventListener:(name,fn)=>events[name]=fn,body:{classList:{toggle(){}}}},
@@ -779,21 +779,21 @@ test('a collection retains one exact example without importing its family or cha
 });
 test('collection matching controls card count, poster, copy, plus and detail rows together',()=>{
  const f=collectionFixture(),h=referenceCatalogHarness(f);
- h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];savedCollectionId="col-demo";renderActiveFilters=()=>{};updateSelection=()=>{};');
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];libraryFilters.saved=["col-demo"];renderActiveFilters=()=>{};updateSelection=()=>{};');
  assert.equal(h.run('matchingExamples(techniques[0]).length'),1);
  const card=h.run('techniqueCard(techniques[0])');assert.match(card,/third.jpg/);assert.match(card,/1 example</);assert.match(card,/data-copy-example="third"/);assert.match(card,/data-select-example="third"/);assert.doesNotMatch(card,/fourth.jpg/);
  assert.match(h.run('videoCard(entries[1])'),/data-copy-example="third"/);
  const rows=h.run('techniqueExampleRows(techniques[0],techniques[0].examples[2]).html');assert.match(rows,/Example third/);assert.doesNotMatch(rows,/Example fourth/);
  h.run('detailScopeAll=true');assert.match(h.run('techniqueExampleRows(techniques[0],techniques[0].examples[2]).html'),/Example fourth/);
- h.node('#creator').value='Owner';assert.equal(h.run('matchingExamples(techniques[0]).length'),0);
+ h.run('libraryFilters.creator=["Owner"]');assert.equal(h.run('matchingExamples(techniques[0]).length'),0);
 });
 test('filters survive format switches and reload; clearing filters retains exact edit picks and notes',()=>{
  const f=collectionFixture(),h=referenceCatalogHarness(f);h.vm.history={replaceState(){}};
- h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];savedCollectionId="col-demo";renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);noteSession="11111111-1111-4111-8111-111111111111";hasBorrowingNotes=true;');
- h.node('#creator').value='Guest';h.node('#search').value='third';h.node('#technique').value='Motion';h.node('#library-sort').value='name';
- h.run('setView("techniques");setView("carousels");');assert.equal(h.run('savedCollectionId'),'col-demo');assert.equal(h.node('#creator').value,'Guest');assert.equal(h.node('#search').value,'third');assert.match(h.node('#empty p').textContent,/collection has no matching/);
- const reloaded=referenceCatalogHarness(f,h.storage);assert.equal(reloaded.run('libraryFilters.saved'),'col-demo');assert.equal(reloaded.run('libraryFilters.creator'),'Guest');
- h.run('clearFilters()');assert.equal(h.run('savedCollectionId'),'all');assert.equal(h.node('#search').value,'third');assert.equal(h.node('#library-sort').value,'name');assert.equal(h.run('activeLibraryFilters().length'),0);assert.equal(h.node('#toggle-filters').focused,true);assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('noteSession'),'11111111-1111-4111-8111-111111111111');
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=['+JSON.stringify(f.pack)+'];libraryFilters.saved=["col-demo"];renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);noteSession="11111111-1111-4111-8111-111111111111";hasBorrowingNotes=true;');
+ h.run('libraryFilters.creator=["Guest"]');h.node('#search').value='third';h.run('libraryFilters.category=["Motion"]');h.node('#library-sort').value='name';
+ h.run('setView("techniques");setView("carousels");');assert.equal(h.run('libraryFilters.saved.join()'),'col-demo');assert.equal(h.run('libraryFilters.creator.join()'),'Guest');assert.equal(h.node('#search').value,'third');assert.match(h.node('#empty p').textContent,/collections have no matching/);
+ const reloaded=referenceCatalogHarness(f,h.storage);assert.equal(reloaded.run('libraryFilters.saved.join()'),'col-demo');assert.equal(reloaded.run('libraryFilters.creator.join()'),'Guest');
+ h.run('clearFilters()');assert.equal(h.run('libraryFilters.saved.length'),0);assert.equal(h.node('#search').value,'third');assert.equal(h.node('#library-sort').value,'name');assert.equal(h.run('activeLibraryFilters().length'),0);assert.equal(h.node('#toggle-filters').focused,true);assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);assert.equal(h.run('noteSession'),'11111111-1111-4111-8111-111111111111');
 });
 test('exact slides, moments and archived examples stay pinned rather than widening source scope',()=>{
  const f=collectionFixture(),e=f.entries[2],slide={kind:'slide',reference_id:e.id,slide:1,source:collectionModel.snapshot(e,null,1)};
@@ -801,7 +801,7 @@ test('exact slides, moments and archived examples stay pinned rather than wideni
  assert.equal(collectionModel.referenceMember({members:[slide]},{...e,slides:[]},f.techniques,f.entries),false);
  const old=f.entries[1],archived={...old,id:'archived-source',archived_from:old.id},x={...f.techniques[0].examples[2],style_id:archived.id};
  assert.equal(collectionModel.exampleMember(f.pack,{...f.techniques[0],examples:[x]},x,[archived]),true);
- const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=[{id:"col-slide",members:['+JSON.stringify(slide)+']}];savedCollectionId="col-slide";');
+ const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections=[{id:"col-slide",members:['+JSON.stringify(slide)+']}];libraryFilters.saved=["col-slide"];');
  assert.match(h.run('cardActions(entries[2])'),/data-copy-slide="1"/);assert.match(h.run('cardActions(entries[2])'),/data-select-slide="carousel-a@slide:1"/);
 });
 
@@ -821,13 +821,13 @@ test('closing reference details resets transient menus without clearing exact pi
 test('the advanced filter badge excludes collection, source, search and sort; clearing filters is available outside its panel',()=>{
  const h=referenceCatalogHarness({entries:[],techniques:[]});
  const choose=(id,value,label=value)=>{const n=h.node(id);n.value=value;n.selectedIndex=0;n.options=[{textContent:label}];};
- choose('#saved-collection-filter','col-demo','Creator pack');choose('#creator','all');choose('#technique','all');choose('#tag-filter','all');choose('#analysis-filter','preview');
+ h.run('savedCollections=[{id:"col-demo",name:"Creator pack",members:[]}]');choose('#analysis-filter','preview');
  h.node('#search').value='specific idea';h.node('#library-sort').value='oldest';
- h.run('collection="mine";savedCollectionId="col-demo";view="techniques";renderActiveFilters()');
+ h.run('collection="mine";libraryFilters.saved=["col-demo"];view="techniques";renderActiveFilters()');
  assert.equal(h.node('#filter-count').textContent,'');assert.equal(h.node('#reset-filters').hidden,false);
  assert.match(h.node('#active-filters').innerHTML,/My work/);assert.match(h.node('#active-filters').innerHTML,/Collection: Creator pack/);
  assert.doesNotMatch(h.node('#active-filters').innerHTML,/Search:|Clear all|oldest|preview/);assert.equal(h.node('#clear-library-search').hidden,false);
- choose('#creator','Guest');choose('#technique','Motion');h.run('renderActiveFilters()');assert.equal(h.node('#filter-count').textContent,'2');
+ h.run('libraryFilters.creator=["Guest"];libraryFilters.category=["Motion"]');h.run('renderActiveFilters()');assert.equal(h.node('#filter-count').textContent,'2');
  h.run('view="videos";renderActiveFilters()');assert.equal(h.node('#filter-count').textContent,'3');
 });
 test('search-only empty results offer Clear search, which preserves filters, sorting and edit picks',()=>{
@@ -835,6 +835,52 @@ test('search-only empty results offer Clear search, which preserves filters, sor
  h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';view="techniques";renderActiveFilters=()=>{};updateSelection=()=>{};selected=new Set(["family@first"]);hasBorrowingNotes=true;');
  h.node('#search').value='no matching words';h.node('#search').focus=()=>{};h.node('#library-sort').value='oldest';h.run('render()');
  assert.equal(h.node('#reset').textContent,'Clear search');assert.equal(h.node('#reset').hidden,false);
- h.node('#creator').value='Guest';h.run('render()');assert.equal(h.node('#reset').textContent,'Clear filters');
- h.run('clearLibrarySearch()');assert.equal(h.node('#search').value,'');assert.equal(h.node('#creator').value,'Guest');assert.equal(h.node('#library-sort').value,'oldest');assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);
+ h.run('libraryFilters.creator=["Guest"]');h.run('render()');assert.equal(h.node('#reset').textContent,'Clear filters');
+ h.run('clearLibrarySearch()');assert.equal(h.node('#search').value,'');assert.equal(h.run('libraryFilters.creator.join()'),'Guest');assert.equal(h.node('#library-sort').value,'oldest');assert.equal(h.run('selected.has("family@first")'),true);assert.equal(h.run('hasBorrowingNotes'),true);
+});
+
+const filterModel=require('./dist/filter-model.js');
+test('filter preferences migrate legacy singles into unique arrays without changing the earlier rollback key',()=>{
+ const legacy=JSON.stringify({source:'reference',creator:'Guest',category:'Motion',saved:'col-demo',tag:'legacy tag',search:'paper',sort:'oldest'}),storage=new Map([['ai-video-studio-library-filters-v1',legacy]]),h=referenceCatalogHarness({entries:[],techniques:[]},storage);
+ assert.equal(h.run('libraryFilters.creator.join()'),'Guest');assert.equal(h.run('libraryFilters.saved.join()'),'col-demo');
+ h.node('#search').value='paper';h.node('#library-sort').value='oldest';h.run('rememberFilters()');
+ assert.equal(storage.get('ai-video-studio-library-filters-v1'),legacy);assert.deepEqual(JSON.parse(storage.get('ai-video-studio-library-filters-v2')).creator,['Guest']);
+ assert.deepEqual(filterModel.values(['Guest','Guest','all',null]),['Guest']);assert.deepEqual(filterModel.restore('bad json'),filterModel.defaults());
+ const malformed=filterModel.restore({creator:{},category:[null,3],source:'bad',sort:'bad'});assert.deepEqual(malformed,filterModel.defaults());
+});
+test('creator, category and technique choices use OR within each group and AND across groups',()=>{
+ const f=collectionFixture();f.techniques.push({...f.techniques[0],id:'type',title:'Typed captions',category:'Typography',examples:[f.techniques[0].examples[2]],default_example:'third'});
+ const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';libraryFilters.creator=["Owner","Guest"];libraryFilters.category=["Motion","Typography"];libraryFilters.techniques=["family","type"];');
+ assert.equal(h.run('matchingExamples(techniques[0]).length'),4);assert.equal(h.run('matchingExamples(techniques[1]).length'),1);
+ h.run('libraryFilters.creator=["Owner"]');assert.equal(h.run('matchingExamples(techniques[1]).length'),0);
+ h.run('libraryFilters.creator=["Guest"];libraryFilters.category=["Typography"]');assert.equal(h.run('matchingExamples(techniques[0]).length'),0);assert.equal(h.run('matchingExamples(techniques[1]).length'),1);
+ h.run('libraryFilters.techniques=["family"]');assert.equal(h.run('matchingExamples(techniques[1]).length'),0);
+});
+test('multiple collections combine exact examples once and cannot satisfy a technique filter through an unrelated sibling',()=>{
+ const f=collectionFixture(),t=f.techniques[0],second={...f.pack,id:'col-second',name:'Second',kind:'personal',members:[f.pack.members[0],{kind:'example',technique_id:t.id,example_id:'fourth',source:collectionModel.snapshot(f.entries[1],t.examples[3])}]};
+ f.techniques.push({...t,id:'unrelated',title:'Unrelated effect',category:'Overlay',examples:[{...t.examples[2],id:'overlay'}],default_example:'overlay'});
+ const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';savedCollections='+JSON.stringify([f.pack,second])+';libraryFilters.saved=["col-demo","col-second"];');
+ assert.equal(h.run('matchingExamples(techniques[0]).map(x=>x.id).join()'),'third,fourth');assert.equal(h.run('matchingExamples(techniques[1]).length'),0);
+ h.run('libraryFilters.techniques=["unrelated"]');assert.equal(h.run('referenceMatchesFacets(entries[1])'),false);
+ h.run('libraryFilters.techniques=["family"]');assert.equal(h.run('referenceMatchesFacets(entries[1])'),true);assert.match(h.run('cardActions(entries[1])'),/data-copy-example="third"/);
+});
+test('removing one active chip retains other choices, search, sort and exact editing selections',()=>{
+ const f=collectionFixture(),h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';libraryFilters.creator=["Owner","Guest"];selected=new Set(["family@first"]);hasBorrowingNotes=true;updateSelection=()=>{};');
+ h.node('#search').value='caption';h.node('#library-sort').value='name';
+ h.node('#active-filters').listeners.click({target:{closest:()=>({dataset:{clearFilter:'creator',filterValue:'Owner'}})}});
+ assert.equal(h.run('libraryFilters.creator.join()'),'Guest');assert.equal(h.node('#search').value,'caption');assert.equal(h.node('#library-sort').value,'name');assert.equal(h.run('selected.has("family@first")&&hasBorrowingNotes'),true);
+});
+test('carousel technique filtering requires an explicit association and retains the included slide',()=>{
+ const f=collectionFixture(),e=f.entries[2];e.tags=['Staggered reveal'];e.slides.push({...e.slides[0],path:'references/carousel-a/2.svg',poster:'2.svg',technique_ids:['family']});
+ const h=referenceCatalogHarness(f);h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';libraryFilters.techniques=["family"];');
+ assert.equal(h.run('referenceMatchesFacets({...entries[2],slides:[entries[2].slides[0]]})'),false);assert.equal(h.run('referenceMatchesFacets(entries[2])'),true);
+ assert.match(h.run('cardActions(entries[2])'),/data-copy-slide="2"/);
+ const member={kind:'slide',reference_id:e.id,slide:1,source:collectionModel.snapshot(e,null,1)};
+ h.run('savedCollections=[{id:"col-slide",members:['+JSON.stringify(member)+']}];libraryFilters.saved=["col-slide"];');assert.equal(h.run('referenceMatchesFacets(entries[2])'),false);
+});
+test('source tags remain searchable after the Tags facet is replaced with actual techniques',()=>{
+ const f=collectionFixture(),h=referenceCatalogHarness(f);f.entries[1].tags.push('unusual descriptor');
+ h.run('entries='+JSON.stringify(f.entries)+';techniques='+JSON.stringify(f.techniques)+';');h.node('#search').value='unusual descriptor';
+ assert.equal(h.run('matchingExamples(techniques[0]).map(x=>x.id).join()'),'third,fourth');
+ h.run('libraryFilters.techniques=["missing-family"]');assert.equal(h.run('matchingExamples(techniques[0]).length'),0);assert.match(h.run('filterItems("techniques").find(x=>x.id==="missing-family").label'),/Unavailable/);
 });

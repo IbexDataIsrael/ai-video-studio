@@ -43,15 +43,15 @@ const isCarousel=e=>e.asset_type==='carousel'||e.reference_format==='carousel';
 const hasCarouselSlides=e=>!!e&&isCarousel(e)&&!!e.slides?.length;
 const slideToken=(id,slide)=>id+'@slide:'+slide;
 const isRemoved=e=>!!e&&(removedIds.has(e.id)||!!e.archived_from&&removedIds.has(e.archived_from));
-const browseEntries=()=>entries.filter(e=>!isRemoved(e)&&(!e.archived_from||savedCollectionId!=='all'&&collectionMatchesReference(e)));
+const browseEntries=()=>entries.filter(e=>!isRemoved(e)&&(!e.archived_from||hasCollectionFilter()&&collectionMatchesReference(e)));
 const exampleToken=(id,exampleId)=>exampleId?id+'@'+exampleId:id;
 const isExampleRemoved=(t,x)=>removedExamples.has(exampleToken(t.id,x.id));
-const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id))&&(!source(x.style_id)?.archived_from||savedCollectionId!=='all'&&collectionMatchesExample(t,x)));
+const browseExamples=t=>t.examples.filter(x=>!isExampleRemoved(t,x)&&!isRemoved(source(x.style_id))&&(!source(x.style_id)?.archived_from||hasCollectionFilter()&&collectionMatchesExample(t,x)));
 const browseTechniques=()=>techniques.filter(t=>browseExamples(t).length);
 const viewEntries=()=>browseEntries().filter(e=>isCarousel(e)===(view==='carousels'));
 const viewHash=()=>view==='techniques'?'#techniques':view==='carousels'?'#carousels':'#videos';
 const creatorKey=e=>e.creator_id||e.creator;
-const matchesSource=e=>!isRemoved(e)&&(collection==='all'||e.collection===collection)&&($('#creator').value==='all'||creatorKey(e)===$('#creator').value);
+const matchesSource=e=>!isRemoved(e)&&(collection==='all'||e.collection===collection)&&LibraryFilterModel.matches(libraryFilters.creator,creatorKey(e));
 const used=t=>browseExamples(t).some(x=>source(x.style_id).collection==='mine');
 function example(t,filtered=true){
  const chosen=t.examples.find(x=>x.id===choices[t.id])||t.examples.find(x=>x.id===t.default_example);
@@ -192,44 +192,76 @@ window.addEventListener('storage',event=>{
   updateSelection();
  }catch{}
 });
-const filterStorageKey='ai-video-studio-library-filters-v1';
-const defaultLibraryFilters=()=>({source:'all',creator:'all',category:'all',tag:'all',availability:'all',saved:'all',search:'',sort:'newest'});
-let libraryFilters=defaultLibraryFilters(),savedCollections=[],savedCollectionId='all',detailScopeAll=false;
-try{const saved=JSON.parse(localStorage.getItem(filterStorageKey)||'null');if(saved&&typeof saved==='object')for(const k of Object.keys(libraryFilters))if(typeof saved[k]==='string'&&saved[k].length<=300)libraryFilters[k]=saved[k];}catch{}
-collection=['all','mine','reference'].includes(libraryFilters.source)?libraryFilters.source:'all';savedCollectionId=libraryFilters.saved;
-function chosenCollection(){return savedCollections.find(c=>c.id===savedCollectionId&&!c.deleted_at)||null;}
+const filterStorageKey='ai-video-studio-library-filters-v2';
+const defaultLibraryFilters=LibraryFilterModel.defaults;
+let libraryFilters=defaultLibraryFilters(),savedCollections=[],detailScopeAll=false;
+try{libraryFilters=LibraryFilterModel.restore(localStorage.getItem(filterStorageKey)??localStorage.getItem('ai-video-studio-library-filters-v1'));}catch{}
+collection=libraryFilters.source;
+const hasCollectionFilter=()=>libraryFilters.saved.length>0;
+const hasTechniqueFacets=()=>libraryFilters.category.length>0||libraryFilters.techniques.length>0;
+function chosenCollection(){return hasCollectionFilter()?{members:savedCollections.filter(c=>libraryFilters.saved.includes(c.id)&&!c.deleted_at).flatMap(c=>c.members||[])}:null;}
 function renderDetailFilterScope(){
- const scoped=savedCollectionId!=='all'||collection!=='all'||['creator','technique','tag-filter'].some(id=>$('#'+id).value!=='all')||!!$('#search').value.trim();
+ const scoped=hasCollectionFilter()||collection!=='all'||hasTechniqueFacets()||libraryFilters.creator.length>0||!!$('#search').value.trim();
  const t=active&&isTech(active)?active:null;
  $('#detail-filter-scope').hidden=!scoped||!active||isCarousel(active);
  const outside=t&&!matchingExamples(t).includes(example(t,false));
  $('#detail-filter-scope-text').textContent=detailScopeAll?'Showing all available examples.':outside?'This saved example is outside your library filters. Other rows match your filters.':t?'Showing examples matching your library filters.':'Showing techniques and moments included by your library filters.';
  $('#toggle-detail-scope').textContent=detailScopeAll?'Show matching examples':'Show all examples';
 }
-function collectionMatchesReference(e){return savedCollectionId==='all'||CollectionModel.referenceMember(chosenCollection(),e,techniques,entries);}
-function collectionMatchesExample(t,x){return savedCollectionId==='all'||CollectionModel.exampleMember(chosenCollection(),t,x,entries);}
-function referenceCategories(e){return [...new Set([...(e.categories||[]),...techniques.filter(t=>browseExamples(t).some(x=>x.style_id===e.id&&collectionMatchesExample(t,x))).map(t=>t.category)])];}
+function collectionMatchesReference(e){return !hasCollectionFilter()||CollectionModel.referenceMember(chosenCollection(),e,techniques,entries);}
+function collectionMatchesExample(t,x){return !hasCollectionFilter()||CollectionModel.exampleMember(chosenCollection(),t,x,entries);}
+function familyMatches(t){return LibraryFilterModel.matches(libraryFilters.category,t.category)&&LibraryFilterModel.matches(libraryFilters.techniques,t.id);}
+function referenceExamples(e){return techniques.flatMap(t=>browseExamples(t).filter(x=>x.style_id===e.id&&collectionMatchesExample(t,x)).map(x=>({technique:t,example:x})));}
+// A carousel needs explicit associations. Source tags never establish a technique.
+function carouselTechniqueIds(e,slide=null){return [...new Set([...(e.technique_ids||[]),...(slide?.technique_ids||[])])];}
+function carouselFacetSlides(e){
+ const members=hasCollectionFilter()?CollectionModel.referenceMembers(chosenCollection(),e,techniques,entries):[],whole=members.some(m=>m.kind==='reference');
+ return (e.slides||[]).map((slide,i)=>({slide,index:i+1})).filter(({slide,index})=>
+  (!hasCollectionFilter()||whole||members.some(m=>m.kind==='slide'&&m.slide===index))&&
+  (carouselTechniqueIds(e,slide).some(id=>{const t=item(id);return t&&isTech(t)&&familyMatches(t);})||
+   !libraryFilters.techniques.length&&LibraryFilterModel.matches(libraryFilters.category,(slide.categories||e.categories||[]).find(c=>libraryFilters.category.includes(c)))));
+}
+function referenceCategories(e){return [...new Set([...(e.categories||[]),...(isCarousel(e)?carouselTechniqueIds(e).map(id=>item(id)?.category).filter(Boolean):referenceExamples(e).map(r=>r.technique.category))])];}
+function referenceMatchesFacets(e){
+ if(!hasTechniqueFacets())return true;
+ if(isCarousel(e))return carouselFacetSlides(e).length>0;
+ if(referenceExamples(e).some(r=>familyMatches(r.technique)))return true;
+ const whole=!hasCollectionFilter()||CollectionModel.referenceMembers(chosenCollection(),e,techniques,entries).some(m=>m.kind==='reference');
+ return whole&&!libraryFilters.techniques.length&&(e.categories||[]).some(c=>libraryFilters.category.includes(c));
+}
 function matchingExamples(t){
- const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean),category=$('#technique').value,tag=$('#tag-filter').value;
+ if(!familyMatches(t))return [];
+ const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean);
  return browseExamples(t).filter(x=>{const e=source(x.style_id);return matchesSource(e)&&collectionMatchesExample(t,x)&&
-  (category==='all'||t.category===category)&&(tag==='all'||(e.tags||[]).includes(tag))&&
   query.every(q=>[t.title,t.summary,t.direction,t.category,...(t.aliases||[]),x.label,e.title,e.creator,e.creator_name||'',e.creator_handle||'',...(e.creator_aliases||[]),...(e.tags||[])].join(' ').toLowerCase().includes(q));});
 }
-function referenceCollectionFocus(e){return savedCollectionId==='all'?null:CollectionModel.focus(chosenCollection(),e,techniques,entries);}
-function filterOptions(node,options,value,allLabel){
- const rows=[...new Set(options)].sort((a,b)=>a.localeCompare(b));
- node.innerHTML='<option value="all">'+allLabel+'</option>'+rows.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')+
-  (value!=='all'&&!rows.includes(value)?'<option value="'+esc(value)+'">'+esc(value)+' (no matches)</option>':'');node.value=value;
+function referenceCollectionFocus(e){
+ if(hasTechniqueFacets()){
+  if(isCarousel(e)){const row=carouselFacetSlides(e)[0];return row?{kind:'slide',slide:row.index}:null;}
+  const row=referenceExamples(e).find(r=>familyMatches(r.technique));
+  if(row)return {kind:'example',technique_id:row.technique.id,example_id:row.example.id};
+ }
+ return !hasCollectionFilter()?null:CollectionModel.focus(chosenCollection(),e,techniques,entries);
 }
 function rememberFilters(){
- libraryFilters={source:collection,creator:$('#creator').value,category:$('#technique').value,tag:$('#tag-filter').value,availability:$('#analysis-filter').value,saved:savedCollectionId,search:$('#search').value,sort:$('#library-sort').value};
+ libraryFilters={...libraryFilters,source:collection,availability:$('#analysis-filter').value,search:$('#search').value,sort:$('#library-sort').value};
  try{localStorage.setItem(filterStorageKey,JSON.stringify(libraryFilters));}catch{}
 }
-function populateCreators(){
- const names=new Map(browseEntries().map(e=>[creatorKey(e),e.creator]));
- const current=libraryFilters.creator;
- $('#creator').innerHTML='<option value="all">All creators</option>'+[...names].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join('')+
-  (current!=='all'&&!names.has(current)?'<option value="'+esc(current)+'">'+esc(current)+' (no matches)</option>':'');$('#creator').value=current;
+function setLibraryFacet(key,values){libraryFilters[key]=LibraryFilterModel.values(values);rememberFilters();updateControls();render();}
+function filterItems(key){
+ let items;
+ if(key==='creator')items=[...new Map(browseEntries().map(e=>[creatorKey(e),{id:creatorKey(e),label:e.creator_name||e.creator}])).values()];
+ if(key==='category')items=[...new Set([...techniques.map(t=>t.category),...entries.flatMap(e=>[...(e.categories||[]),...(e.slides||[]).flatMap(s=>s.categories||[])])])].map(id=>({id,label:id}));
+ if(key==='techniques')items=browseTechniques().map(t=>({id:t.id,label:t.title}));
+ if(key==='saved')items=savedCollections.filter(c=>!c.deleted_at).map(c=>({id:c.id,label:c.name,group:c.kind==='pack'?'Creator packs':'Your collections'}));
+ items=items.filter(row=>typeof row.id==='string'&&row.id).sort((a,b)=>(a.group===b.group?0:a.group==='Your collections'?-1:1)||a.label.localeCompare(b.label));
+ for(const id of libraryFilters[key])if(!items.some(row=>row.id===id))items.push({id,label:key==='saved'?'Unavailable collection':key==='techniques'?'Unavailable technique':id,group:key==='saved'?'Unavailable':''});
+ return items;
+}
+function updateFilterWidgets(){
+ const config={};
+ for(const [id,key,label,empty] of [['creator-filter','creator','Creators','All creators'],['category-filter','category','Categories','All categories'],['technique-filter','techniques','Techniques','All techniques'],['saved-collection-filter','saved','Collections','All collections']])config[id]={label,empty,placeholder:'Search '+label.toLowerCase(),values:libraryFilters[key],items:filterItems(key),change:values=>setLibraryFacet(key,values)};
+ window.LibraryFilterUI?.sync(config);
 }
 function updateControls(){
  document.querySelectorAll('[data-view]').forEach(b=>{const on=b.dataset.view===view;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
@@ -237,17 +269,9 @@ function updateControls(){
  document.querySelectorAll('[data-collection]').forEach(b=>{const c=b.dataset.collection,on=c===collection;const n=view!=='techniques'?viewEntries().filter(e=>collectionMatchesReference(e)&&(c==='all'||e.collection===c)).length:browseTechniques().filter(t=>browseExamples(t).some(x=>collectionMatchesExample(t,x)&&(c==='all'||source(x.style_id).collection===c))).length;b.innerHTML=names[c]+(c==='all'?'':' <span>'+n+'</span>');b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});
  $('#view-description').textContent=view==='videos'?'Choose the overall pacing, look and feel for your next video.':view==='carousels'?'Explore complete slide sets and the slides you have collected.':'Explore techniques through their examples. Collect the ones you want and copy them together for your editing chat.';
  $('#search').placeholder='Search your library';$('#search').value=libraryFilters.search;
- $('#filter-name').textContent='Category';
- filterOptions($('#technique'),[...techniques.map(t=>t.category),...entries.flatMap(e=>e.categories||[])],libraryFilters.category,'All categories');
- filterOptions($('#tag-filter'),entries.flatMap(e=>e.tags||[]),libraryFilters.tag,'All tags');
- const groups=[['personal','Your collections'],['pack','Creator packs']];
- $('#saved-collection-filter').innerHTML='<option value="all">All collections</option>'+groups.map(([kind,label])=>{
-  const rows=savedCollections.filter(c=>!c.deleted_at&&c.kind===kind);return rows.length?'<optgroup label="'+label+'">'+rows.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>').join('')+'</optgroup>':'';}).join('')+
-  (savedCollectionId!=='all'&&!chosenCollection()?'<option value="'+esc(savedCollectionId)+'">Unavailable collection</option>':'');
- $('#saved-collection-filter').value=savedCollectionId;
- $('#analysis-filter').value=['all','pending','preview'].includes(libraryFilters.availability)?libraryFilters.availability:'all';$('#analysis-filter').parentElement.hidden=view==='techniques';
- $('#library-sort').value=['newest','oldest','name'].includes(libraryFilters.sort)?libraryFilters.sort:'newest';
- $('#gallery').setAttribute('aria-label',view==='videos'?'Video styles':view==='carousels'?'Carousel styles':'Editing techniques');populateCreators();
+ $('#analysis-filter').value=libraryFilters.availability;$('#analysis-filter').parentElement.hidden=view==='techniques';
+ $('#library-sort').value=libraryFilters.sort;
+ $('#gallery').setAttribute('aria-label',view==='videos'?'Video styles':view==='carousels'?'Carousel styles':'Editing techniques');updateFilterWidgets();
 }
 function videoCard(e){
  const focus=referenceCollectionFocus(e),focusedExample=focus?.kind==='example'?item(focus.technique_id)?.examples.find(x=>x.id===focus.example_id):null,poster=focusedExample?.poster||(focus?.kind==='slide'?e.slides[focus.slide-1].poster:e.poster);
@@ -260,21 +284,21 @@ function techniqueCard(t){
 }
 function render(){
  rememberFilters();
- const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean),filter=$('#technique').value,tag=$('#tag-filter').value;
+ const query=$('#search').value.toLowerCase().trim().split(/\s+/).filter(Boolean);
  let visible;
- if(view!=='techniques')visible=viewEntries().filter(e=>matchesSource(e)&&collectionMatchesReference(e)&&(filter==='all'||referenceCategories(e).includes(filter))&&(tag==='all'||(e.tags||[]).includes(tag))&&query.every(q=>[e.title,e.subtitle,e.creator,e.creator_name||'',e.creator_handle||'',e.source_url||'',e.reference_note||'',...(e.creator_aliases||[]),e.summary,...e.tags,...Object.values(e.traits),...referenceCategories(e)].join(' ').toLowerCase().includes(q)));
+ if(view!=='techniques')visible=viewEntries().filter(e=>matchesSource(e)&&collectionMatchesReference(e)&&referenceMatchesFacets(e)&&query.every(q=>[e.title,e.subtitle,e.creator,e.creator_name||'',e.creator_handle||'',e.source_url||'',e.reference_note||'',...(e.creator_aliases||[]),e.summary,...e.tags,...Object.values(e.traits),...referenceCategories(e)].join(' ').toLowerCase().includes(q)));
  else visible=browseTechniques().filter(t=>matchingExamples(t).length);
  const mode=$('#library-sort').value,status=$('#analysis-filter').value;
  if(view!=='techniques'&&status!=='all')visible=visible.filter(e=>status==='pending'?e.analysis_status==='not_analyzed':!!e.media_path||hasCarouselSlides(e));
  const date=e=>{const value=Date.parse(e.created_at||e.added_at||e.added_on||'');return Number.isFinite(value)?value:null;};
  visible.sort((a,b)=>{if(mode==='name')return a.title.localeCompare(b.title);const x=date(a),y=date(b);if(x===null&&y===null)return 0;if(x===null)return 1;if(y===null)return -1;return mode==='oldest'?x-y:y-x;});
- renderActiveFilters();
+ renderActiveFilters();updateFilterWidgets();
  const noun=view==='videos'?'video':view==='carousels'?'carousel':'technique',filtered=activeLibraryFilters().length>0;$('#result-count').textContent=visible.length+' '+noun+(visible.length===1?'':'s')+(collection==='mine'?' from my work':collection==='reference'?' from other creators':'');
- $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':(savedCollectionId!=='all'?'This collection has no matching '+noun+'s with these filters. Your collection and selections are kept.':filtered?'Try another search or clear a filter.':query.length?'Try another search or clear it to browse your library.':'There are no '+noun+'s to show yet.');$('#reset').hidden=isNew||!filtered&&!query.length;$('#reset').textContent=filtered?'Clear filters':'Clear search';$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
+ $('#empty').hidden=!!visible.length;const isNew=!entries.length&&!techniques.length;$('#empty em').textContent=isNew?'Your next inspiration starts here.':'No matches this time.';$('#empty p').textContent=isNew?'Use Add reference to save a source link, or bring your own finished edit to chat.':(hasCollectionFilter()?'These collections have no matching '+noun+'s with these filters. Your collection and selections are kept.':filtered?'Try another search or clear a filter.':query.length?'Try another search or clear it to browse your library.':'There are no '+noun+'s to show yet.');$('#reset').hidden=isNew||!filtered&&!query.length;$('#reset').textContent=filtered?'Clear filters':'Clear search';$('#gallery').innerHTML=visible.map(view==='techniques'?techniqueCard:videoCard).join('');updateSelection();
 }
-function setView(next){if(!['videos','carousels','techniques'].includes(next))return;rememberFilters();view=next;updateControls();render();history.replaceState(null,'',viewHash());}
+function setView(next){window.LibraryFilterUI?.close();if(!['videos','carousels','techniques'].includes(next))return;rememberFilters();view=next;updateControls();render();history.replaceState(null,'',viewHash());}
 function pausePreview(){const v=$('#detail-media video');if(v)v.pause();}
-function closeReferenceMenus(){document.querySelectorAll('#style-dialog .reference-menu[open]').forEach(menu=>menu.open=false);}
+function closeReferenceMenus(){window.LibraryFilterUI?.close();document.querySelectorAll('#style-dialog .reference-menu[open]').forEach(menu=>menu.open=false);}
 function closeStyle(updateUrl=true){window.ReferenceNotes?.retain();pausePreview();closeReferenceMenus();$('#style-dialog').close();active=null;sourceExcerpt=null;setVideoRange=null;techniqueReturn=null;techniqueExampleOpen=false;carouselSlideOpen=false;if(updateUrl)history.replaceState(null,'',viewHash());}
 function bindMedia(e,initialRange=null){
  const video=$('#detail-media video');if(!video)return null;
@@ -396,7 +420,7 @@ function referenceTechniqueRows(e){
  const reviewed=e.source_sha256&&e.technique_review_sha256===e.source_sha256;
  const jumpPoints=reviewed?[]:e.moments||[];
  const rows=[...excerpts,...jumpPoints];
- const scoped=detailScopeAll?rows:rows.filter(row=>row.example?matchingExamples(row.technique).includes(row.example):savedCollectionId==='all'||CollectionModel.referenceMembers(chosenCollection(),e,techniques,entries).some(m=>m.kind==='moment'&&m.time===row.time));
+ const scoped=detailScopeAll?rows:rows.filter(row=>row.example?matchingExamples(row.technique).includes(row.example):!hasTechniqueFacets()&&(!hasCollectionFilter()||CollectionModel.referenceMembers(chosenCollection(),e,techniques,entries).some(m=>m.kind==='moment'&&m.time===row.time)));
  return scoped.sort((a,b)=>a.time-b.time||(a.example?.end??a.time)-(b.example?.end??b.time));
 }
 function positionBorrowControls(){
@@ -573,32 +597,34 @@ function openBrief(ids){return window.ReferenceNotes?.openSelection(ids);}
 $('.view-switch').addEventListener('click',event=>{const b=event.target.closest('[data-view]');if(b)setView(b.dataset.view);});
 $('.collections').addEventListener('click',event=>{const b=event.target.closest('[data-collection]');if(!b)return;rememberFilters();collection=b.dataset.collection;libraryFilters.source=collection;updateControls();render();});
 $('#gallery').addEventListener('click',event=>{const moment=event.target.closest('[data-select-moment]');if(moment)return window.ReferenceNotes?.toggleTimestamp(source(moment.dataset.id),Number(moment.dataset.selectMoment),'Moment at '+exact(Number(moment.dataset.selectMoment)),moment,true);const copy=event.target.closest('[data-copy-reference]');if(copy){if(copy.dataset.copySlide)return window.ReferenceNotes?.copyCard(copy.dataset.copyReference,null,copy,Number(copy.dataset.copySlide));if(copy.dataset.copyMoment!==undefined)return window.ReferenceNotes?.copyMoment(source(copy.dataset.copyReference),Number(copy.dataset.copyMoment),copy);return copyCardReference(copy.dataset.copyReference,copy.dataset.copyExample||null,copy);}const b=event.target.closest('.select-card');if(b)return toggleSelection(b.dataset.selectSlide||exampleToken(b.dataset.id,b.dataset.selectExample));const open=event.target.closest('[data-open]');if(open){const e=item(open.dataset.open);if(e)isTech(e)?showTechnique(e.id):showStyle(e.id);}});
-$('#search').addEventListener('input',render);$('#technique').addEventListener('change',render);$('#creator').addEventListener('change',render);$('#analysis-filter').addEventListener('change',render);$('#library-sort').addEventListener('change',render);
+$('#search').addEventListener('input',render);$('#analysis-filter').addEventListener('change',render);$('#library-sort').addEventListener('change',render);
 function clearFilters(){
- libraryFilters={...defaultLibraryFilters(),search:$('#search').value,sort:$('#library-sort').value};
- collection='all';savedCollectionId='all';updateControls();render();$('#toggle-filters').focus({preventScroll:true});
+ window.LibraryFilterUI?.close();libraryFilters={...defaultLibraryFilters(),search:$('#search').value,sort:$('#library-sort').value};
+ collection='all';updateControls();render();$('#toggle-filters').focus({preventScroll:true});
 }
 function clearLibrarySearch(){$('#search').value='';render();$('#search').focus();}
 function activeLibraryFilters(){
  const active=[];
  if(collection!=='all')active.push(['source',collection==='mine'?'My work':'Other creators']);
- for(const id of ['saved-collection-filter','creator','technique','tag-filter',...(view==='techniques'?[]:['analysis-filter'])]){
-  const field=$('#'+id);if(field.value!=='all')active.push([id,(id==='saved-collection-filter'?'Collection: ':'')+(field.options[field.selectedIndex]?.textContent||field.value)]);
+ for(const [key,label] of [['saved','Collection'],['creator','Creator'],['category','Category'],['techniques','Technique']]){
+  const items=filterItems(key);for(const value of libraryFilters[key])active.push([key,label+': '+(items.find(row=>row.id===value)?.label||value),value]);
  }
+ if(view!=='techniques'&&$('#analysis-filter').value!=='all')active.push(['availability',$('#analysis-filter').value==='preview'?'Has a preview':'Awaiting analysis']);
  return active;
 }
 function renderActiveFilters(){
- const active=activeLibraryFilters(),count=active.filter(([id])=>['creator','technique','tag-filter','analysis-filter'].includes(id)).length;
+ const active=activeLibraryFilters(),count=new Set(active.filter(([id])=>['creator','category','techniques','availability'].includes(id)).map(([id])=>id)).size;
  $('#filter-count').textContent=count?String(count):'';
  $('#active-filters').hidden=!active.length;
- $('#active-filters').innerHTML=active.map(([id,text])=>'<button data-clear-filter="'+id+'" aria-label="Remove filter: '+esc(text)+'">'+esc(text)+' <span aria-hidden="true">×</span></button>').join('');
- $('#reset-filters').hidden=!active.length;
- $('#clear-library-search').hidden=!$('#search').value;
+ $('#active-filters').innerHTML=active.map(([id,text,value])=>'<button data-clear-filter="'+id+'"'+(value?' data-filter-value="'+esc(value)+'"':'')+' aria-label="Remove filter: '+esc(text)+'">'+esc(text)+' <span aria-hidden="true">×</span></button>').join('');
+ $('#reset-filters').hidden=!active.length;$('#clear-library-search').hidden=!$('#search').value;
 }
-$('#toggle-filters').addEventListener('click',()=>{const open=$('#toggle-filters').getAttribute('aria-expanded')!=='true';$('#toggle-filters').setAttribute('aria-expanded',String(open));$('#library-filter-panel').hidden=!open;});
-$('#active-filters').addEventListener('click',event=>{const b=event.target.closest('[data-clear-filter]');if(!b)return;const id=b.dataset.clearFilter;if(id==='source')collection='all';else if(id==='saved-collection-filter')savedCollectionId='all';else $('#'+id).value=id==='search'?'':'all';rememberFilters();updateControls();render();$('#search').focus();});
-$('#saved-collection-filter').addEventListener('change',()=>{savedCollectionId=$('#saved-collection-filter').value;rememberFilters();updateControls();render();});
-$('#tag-filter').addEventListener('change',render);
+$('#toggle-filters').addEventListener('click',()=>{window.LibraryFilterUI?.close();const open=$('#toggle-filters').getAttribute('aria-expanded')!=='true';$('#toggle-filters').setAttribute('aria-expanded',String(open));$('#library-filter-panel').hidden=!open;});
+$('#active-filters').addEventListener('click',event=>{
+ const b=event.target.closest('[data-clear-filter]');if(!b)return;const key=b.dataset.clearFilter;
+ if(key==='source')collection='all';else if(key==='availability')$('#analysis-filter').value='all';else if(['saved','creator','category','techniques'].includes(key))libraryFilters[key]=libraryFilters[key].filter(value=>value!==b.dataset.filterValue);
+ rememberFilters();updateControls();render();$('#toggle-filters').focus({preventScroll:true});
+});
 $('#toggle-detail-scope').addEventListener('click',()=>{
  detailScopeAll=!detailScopeAll;
  if(active&&isTech(active))showTechnique(active.id,example(active,false).id);
@@ -696,14 +722,12 @@ async function applyRoute(){
 window.addEventListener('hashchange',applyRoute);
 async function refreshLibraryOnReturn(){
  if(window.Studio?.currentSection!=='library'||document.querySelector('dialog[open]:not(#style-dialog)'))return;
- const prior=active,route=libraryRoute,category=$('#technique').value,creator=$('#creator').value;
+ const prior=active,route=libraryRoute;
  const rowsBefore=prior&&!isTech(prior)?JSON.stringify(referenceTechniqueRows(prior)):null;
  try{
   const changed=await window.refreshReferenceCatalog();
   if(!changed||route!==libraryRoute||window.Studio?.currentSection!=='library')return;
   updateControls();
-  if([...$('#technique').options].some(x=>x.value===category))$('#technique').value=category;
-  if([...$('#creator').options].some(x=>x.value===creator))$('#creator').value=creator;
   render();
   if(!prior||active!==prior||isTech(prior)||isCarousel(prior)||!$('#style-dialog').open)return;
   const entry=source(prior.id),video=$('#detail-media video');

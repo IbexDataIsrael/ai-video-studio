@@ -2,7 +2,7 @@
 
 **Unreleased collections and filtering preview**
 
-The codex/library-collections branch is stacked on the technique-completion preview. It adds optional personal and installed-pack collections, exact-example filtering, shared filters across formats and recoverable collection management. No pack promotion is shown. Existing editing picks and owner files remain separate. This preview needs user review before merge, live installation or numbered release. See docs/COLLECTIONS.md.
+The codex/library-collections branch is stacked on the technique-completion preview. It adds optional personal and installed-pack collections, exact-example filtering, shared searchable multi-select filters across formats and recoverable collection management. Creator, Category, Techniques and Collections support several immediate choices, individual removable chips and exact combined collection membership. Sort and Source stay single-choice; existing tags remain searchable. No pack promotion is shown. Existing editing picks and owner files remain separate. This preview needs user review before merge, live installation or numbered release. See docs/COLLECTIONS.md.
 
 **Technique completion dependency**
 

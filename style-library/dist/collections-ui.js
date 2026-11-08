@@ -67,7 +67,7 @@ window.LibraryCollections=(()=>{
   try{await refresh();renderManager();$('#collection-manage-status').textContent='';}catch(error){$('#collection-manage-status').textContent=error.message;}
  }
  function openCollection(id){
-  savedCollectionId=id;rememberFilters();updateControls();render();manageDialog.close();
+  libraryFilters.saved=[id];rememberFilters();updateControls();render();manageDialog.close();
   if($('#style-dialog').open)closeStyle();if($('#brief-dialog').open)$('#brief-dialog').close();
   history.replaceState(null,'',viewHash());
  }
