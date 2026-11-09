@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-beta.13 — Collections and a cleaner Reference Library — 2026-11-08
+
+- Save exact technique examples, references, slides and moments in collections, independently of your current edit picks and notes. Installed packs show their exact examples; this release includes no paid pack, storefront or promotion.
+- Use searchable multi-select filters for creators, categories, techniques and collections. Combine filters across formats, remove individual chips and clear filters without losing your search, sort or editing selections.
+- Browse sooner with a compact Reference Library heading, optional instructions and a small dismissible technique review reminder.
+- Find remaining techniques in older saved videos and eligible finished projects through an explicit chat request. Final approval can publish prepared examples for the exact chosen version; it does not start analysis.
+
+### Upgrading from beta.12
+
+Follow docs/UPDATING.md in your existing installation. Apply the reviewed source while preserving saved work, settings, browser state and local customizations. No owner-data rewrite, empty-seed replacement or renderer upgrade is needed.
+
 ## 0.1.0-beta.12 — Borrow techniques across your reference library — 2026-11-08
 
 - Save a reference with just its link, then copy its analysis request into your editing chat. Analysis captures verified reusable techniques in one chronological list, grouped into reusable families, with creator attribution, the original source link and honest access limits.
