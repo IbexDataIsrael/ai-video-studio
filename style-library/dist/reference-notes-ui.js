@@ -287,8 +287,8 @@ window.ReferenceNotes=(()=>{
   return copy(async()=>[{target,data:detail&&key(detail.target)===key(target)?detail.data:await load(target)}],
    $('#full-reference-copy-status'),$('#copy-full-reference'),()=>active===entry&&target.selection_id===noteSession&&$('#style-dialog').open);
  }
- async function copyCard(id,exampleId,button){
-  const t=targetFor(id,exampleId);if(!exampleId&&isCarousel(item(id)))t.slide=null;
+ async function copyCard(id,exampleId,button,slide=null){
+  const t=targetFor(id,exampleId,slide);if(!exampleId&&isCarousel(item(id))&&slide===null)t.slide=null;
   const status=$('#toast');status.hidden=false;
   try{const data=await load(t),p={target:t,data,loading:false,busy:false};await copy([p],status,button,()=>button.isConnected&&t.selection_id===noteSession);if(button.isConnected){setTimeout(()=>{button.innerHTML=copyIcon;status.hidden=true;},2400);}}
   catch(error){notify(error.message);}
@@ -390,13 +390,13 @@ window.ReferenceNotes=(()=>{
   const moment=selectedMoments.get(token);
   if(moment){moment.text=text;persistSelection();$('#detail-selection-status').textContent='';}
  }
- async function toggleTimestamp(entry,time,label,button){
+ async function toggleTimestamp(entry,time,label,button,fromCard=false){
   if(!entry||button.disabled)return;
   const session=noteSession;
   button.disabled=true;
   try{
    const data=await load(targetFor(entry.id));
-   if(active!==entry||session!==noteSession||!$('#style-dialog').open)return;
+   if((!fromCard&&active!==entry)||session!==noteSession||(!fromCard&&!$('#style-dialog').open))return;
    if(data.source_path!==entry.media_path||data.source_version!==entry.version||entry.source_sha256&&data.source_sha256!==entry.source_sha256)throw Error('This video changed. Reopen it before choosing a moment.');
    if(!Number.isFinite(time)||time<0||time>data.end)throw Error('Choose a time inside the video.');
    const existing=[...selectedMoments].find(([token,m])=>selected.has(token)&&m.reference_id===entry.id&&m.time===time);
@@ -410,6 +410,15 @@ window.ReferenceNotes=(()=>{
    $('#detail-selection-status').textContent=existing?'Moment removed.':'Moment added. Add direction in Selection.';
   }catch(error){$('#detail-selection-status').textContent=error.message;}
   finally{button.disabled=false;}
+ }
+ async function copyMoment(entry,time,button){
+  const session=noteSession;
+  $('#toast').hidden=false;const old=button.innerHTML;
+  await copy(async()=>{const data=await load(targetFor(entry.id));
+   if(data.source_version!==entry.version||data.source_path!==entry.media_path||entry.source_sha256&&entry.source_sha256!==data.source_sha256)throw Error('This source changed. Reopen it before copying.');
+   return [{moment:{reference_id:entry.id,time,text:'',context_revision:data.context_revision}}];
+  },$('#toast'),button,()=>button.isConnected&&noteSession===session);
+  setTimeout(()=>{if(button.isConnected)button.innerHTML=old;$('#toast').hidden=true;},2400);
  }
  function copySelection(){
   const session=noteSession,tokens=[...selected],status=$('#detail-selection-status'),button=$('#detail-copy-selection');
@@ -470,5 +479,5 @@ window.ReferenceNotes=(()=>{
   catch(error){if(run===selectionRun)$('#brief-text').value=error.message;}
  });
  if(active)mountCurrent();
- return {mountCurrent,retain,copyCurrent,copyFullReference,copyCard,openSelection,copySelection,bindMomentControls,toggleTimestamp,clearSelection,hasClearUndo,hasWork,discardClearUndo,syncSession,syncClearUndo};
+ return {mountCurrent,retain,copyCurrent,copyFullReference,copyCard,copyMoment,openSelection,copySelection,bindMomentControls,toggleTimestamp,clearSelection,hasClearUndo,hasWork,discardClearUndo,syncSession,syncClearUndo};
 })();

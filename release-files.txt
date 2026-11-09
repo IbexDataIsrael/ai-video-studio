@@ -130,3 +130,12 @@ style-library/dist/technique-upkeep.css
 style-library/test_technique_upkeep.py
 style-library/test_technique_upkeep_ui.js
 docs/TECHNIQUE-CATALOGING.md
+style-library/saved_collections.py
+style-library/dist/collection-model.js
+style-library/dist/collections-ui.js
+style-library/dist/collections.css
+style-library/test_saved_collections.py
+docs/COLLECTIONS.md
+style-library/dist/filter-model.js
+style-library/dist/library-filter-ui.js
+style-library/test_library_filters.js

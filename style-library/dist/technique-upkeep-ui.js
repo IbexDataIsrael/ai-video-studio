@@ -9,7 +9,7 @@ window.TechniqueCatalog=(()=>{
  function renderNotice(){
   let dismissed={};try{dismissed=JSON.parse(localStorage.getItem(dismissKey)||'{}');}catch{}
   $('#technique-upkeep-notice').hidden=!items.some(i=>dismissed?.[i.id]!==i.revision);
-  $('#technique-upkeep-count').textContent=items.length+' video'+(items.length===1?' hasn’t':'s haven’t')+' had a full technique review.';
+  $('#technique-upkeep-count').textContent=items.length+' saved video'+(items.length===1?' has':'s have')+' more techniques to find.';
   details();
  }
  function details(){
