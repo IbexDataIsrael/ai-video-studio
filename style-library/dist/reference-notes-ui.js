@@ -390,6 +390,27 @@ window.ReferenceNotes=(()=>{
   const moment=selectedMoments.get(token);
   if(moment){moment.text=text;persistSelection();$('#detail-selection-status').textContent='';}
  }
+ async function toggleTimestamp(entry,time,label,button){
+  if(!entry||button.disabled)return;
+  const session=noteSession;
+  button.disabled=true;
+  try{
+   const data=await load(targetFor(entry.id));
+   if(active!==entry||session!==noteSession||!$('#style-dialog').open)return;
+   if(data.source_path!==entry.media_path||data.source_version!==entry.version||entry.source_sha256&&data.source_sha256!==entry.source_sha256)throw Error('This video changed. Reopen it before choosing a moment.');
+   if(!Number.isFinite(time)||time<0||time>data.end)throw Error('Choose a time inside the video.');
+   const existing=[...selectedMoments].find(([token,m])=>selected.has(token)&&m.reference_id===entry.id&&m.time===time);
+   if(existing)removeSelection(existing[0]);
+   else{
+    if(selected.size>=60)throw Error('Choose up to 60 items for one request.');
+    const token='moment:'+crypto.randomUUID();
+    selectedMoments.set(token,{reference_id:entry.id,time,context_revision:data.context_revision,text:label});selected.add(token);
+   }
+   discardClearUndo();saveSelection();
+   $('#detail-selection-status').textContent=existing?'Moment removed.':'Moment added. Add direction in Selection.';
+  }catch(error){$('#detail-selection-status').textContent=error.message;}
+  finally{button.disabled=false;}
+ }
  function copySelection(){
   const session=noteSession,tokens=[...selected],status=$('#detail-selection-status'),button=$('#detail-copy-selection');
   const valid=()=>session===noteSession&&$('#style-dialog').open&&tokens.length===selected.size&&tokens.every(token=>selected.has(token));
@@ -449,5 +470,5 @@ window.ReferenceNotes=(()=>{
   catch(error){if(run===selectionRun)$('#brief-text').value=error.message;}
  });
  if(active)mountCurrent();
- return {mountCurrent,retain,copyCurrent,copyFullReference,copyCard,openSelection,copySelection,bindMomentControls,clearSelection,hasClearUndo,hasWork,discardClearUndo,syncSession,syncClearUndo};
+ return {mountCurrent,retain,copyCurrent,copyFullReference,copyCard,openSelection,copySelection,bindMomentControls,toggleTimestamp,clearSelection,hasClearUndo,hasWork,discardClearUndo,syncSession,syncClearUndo};
 })();

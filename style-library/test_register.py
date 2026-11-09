@@ -207,6 +207,24 @@ class RegisterOrderTest(unittest.TestCase):
             register.register('reference', self.reference(collection='reference', duration=10, version='v2'), True, plan)
         self.assertEqual(before,(self.base/'catalog.json').read_bytes())
 
+    def test_enriching_approved_exact_source_preserves_decision_and_owner_fields(self):
+        self.descriptor('demo', 'Demo')
+        manifest = self.reference(project_id='demo', duration=10)
+        register.register('reference', manifest)
+        data = self.catalog();entry = data['entries'][0]
+        entry.update(approval={'files':[{'path':'review.mp4','sha256':index.digest(self.root/'projects/demo/review.mp4')}]},
+                     delivery_status='final',review_status='preferred',reference_note='Owner note')
+        (self.base/'catalog.json').write_text(json.dumps(data))
+        plan = self.root/'examples.json';plan.write_text('[]')
+        with patch.object(register.prepare_assets,'poster'):
+            register.register('reference', manifest, True, plan)
+        saved = self.catalog()['entries'][0]
+        self.assertEqual(saved['approval'], entry['approval']);self.assertEqual(saved['reference_note'],'Owner note')
+        self.assertEqual(saved['review_status'],'preferred');self.assertEqual(saved['delivery_status'],'final')
+        (self.root/'projects/demo/review.mp4').write_bytes(b'changed export')
+        with self.assertRaisesRegex(ValueError,'approved video changed'):
+            register.register('reference', manifest, True, plan)
+
     def test_new_references_still_append(self):
         catalog = self.base / 'catalog.json'
         catalog.write_text(json.dumps({'schema_version': 4, 'entries': [{'id': 'saved-earlier'}], 'techniques': []}))

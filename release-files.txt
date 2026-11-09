@@ -122,3 +122,11 @@ style-library/scripting.py
 style-library/test_scripting.py
 style-library/dist/writing-voice-ui.js
 style-library/dist/scripting.css
+
+style-library/technique_examples.py
+style-library/technique_upkeep.py
+style-library/dist/technique-upkeep-ui.js
+style-library/dist/technique-upkeep.css
+style-library/test_technique_upkeep.py
+style-library/test_technique_upkeep_ui.js
+docs/TECHNIQUE-CATALOGING.md

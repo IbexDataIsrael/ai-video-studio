@@ -32,3 +32,8 @@ Start a project stays one optional form. Attach raw video in chat, or disclose a
 ## Project-specific reference notes — UX V26
 
 While choosing inspiration, write a borrowing note in the reference preview or its selected project card; both edit the same draft. Selected library cards keep one borrowing-note field; Reference details holds saved library context and optional time controls. Capture a playable source’s current timestamp with Add timestamp, or describe a moment/range when only a cover exists. Notes before selection stay in the tab draft; explicitly add that reference to include them in the new project request. Exact source/example and source-pinned library notes remain distinct. Changing a source requires reviewing the draft, preserving its text and clearing an obsolete position only after explicit rebase. X/Escape step through the preview/library/project form before closing; Close/Done and outside clicks retain the draft.
+
+
+## Finished video techniques
+
+Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and final-review preparation. Inspect each distinct reusable move in the exact export. Prepare examples project-locally before final approval; promote only the chosen final version, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.

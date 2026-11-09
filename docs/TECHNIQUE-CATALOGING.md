@@ -1,0 +1,31 @@
+# Finish cataloging video techniques
+
+The library's **Find remaining techniques** action and dismissible **Review videos** notice prepare the same chat workflow for one or several exact sources. Copying makes no AI call, changes no library records and does not complete analysis. The notice disappears after the actual reviewed source has been registered with its coverage hash. Dismissal is browser-local; Library options keeps the action available. Drafts, historical versions, removed sources and unchanged completed sources are excluded from catch-up. Finished projects not yet in the library are included by their recorded final primary artifact, never inferred from filenames. An ambiguous older project must be chosen/confirmed by its owner before registering it as finished.
+
+## Receiving a completion request
+
+1. Work in the exact Studio folder named in the copied request; a preview and live installation are separate. Read AGENTS.md, docs/HANDOFF.md and the exact source selection. `python3 style-library/technique_upkeep.py list` discovers current candidates. Compare each selected ID, source version/path/SHA-256 and revision against that output before starting that source. Revisions are scoped to the installation. Stop for a changed source or changed instructions; report already-completed sources instead of duplicating them. Do not add unselected videos to the request.
+2. Resolve the exact reference or project/artifact. For a project, read its STATUS, approval-state, brief, design and latest review notes. Preserve the approved representative while later experiments are pending. A project not yet represented needs one source-backed reference registered through scripts/register.py; keep it linked to that exact project/version and preserve any removed source instead of recreating it.
+3. Inspect the full playable video and all earlier timestamp observations. Production notes/code help locate candidates but do not prove the exported effect. Save each distinct verified reusable move, combine duplicate observations and reuse existing families. Preserve existing exact example IDs/ranges on an unchanged source. Use new example IDs when a new version replaces an old one; older links must still resolve. Do not assume a timestamp is a full technique window or cap extraction at an arbitrary number.
+4. Register the enriched descriptor and inspected example plan together using `python3 scripts/register.py reference <entry.json> --replace --techniques <examples.json>`. Set `technique_review_sha256` in the descriptor only after full-source review and reconciliation; it must equal the actual `source_sha256`. Keep original moments as history. Inaccessible media stays incomplete with an honest access issue. Unverified font/production/audio specifics belong in evidence. Partial work must not set the completed hash.
+5. Validate the library and inspect example playback. Report completed, partial and unavailable videos separately. Work can resume using the same IDs; completed unchanged sources drop out of catch-up. Preserve catalogs, projects, original intake notes, borrowing-note scopes/history, removals, approvals, source media and source evidence. Never reuse another installation's catalog or overwrite its content with preview data.
+
+Approved existing references can be enriched through the same registration command only when the actual media still matches the saved approval's exact file hash. The command retains approval, preferred/final status and identity and rejects a source replacement.
+
+## Own videos: prepare first, publish the chosen final
+
+Do not register every edit draft as a separate library source or technique set. One first full-review reference may be pending; keep an existing preferred source during later experiments. As part of preparing the final review, inspect that exact export and prepare an entry descriptor plus inspected example plan:
+
+```
+python3 style-library/technique_upkeep.py prepare <project-id> <artifact-id> --entry <entry.json> --examples <examples.json> --reviewed
+```
+
+The plan uses the entry/example format in docs/HANDOFF.md. The descriptor needs the project's stable reference ID, collection mine, exact media path/version, measured duration and genuine poster. New projects also need the complete reference metadata required by final approval and reference_poster_source in the project descriptor. Existing approved examples from older versions retain their IDs; new versions need new example IDs and versioned posters.
+
+Preparation validates examples, creates genuine posters and saves recoverable plans in `projects/<slug>/technique-plan.json`. It does not publish drafts, approve work or change catalog.json. Plans retain earlier preparations. The UI reports the prepared example count. **Approve & mark final** promotes only the plan matching the approved artifact's version/path/actual hash in the same guarded approval transaction. Earlier source examples remain on their archived source and accessible through saved links; normal browsing uses the current representative. Changed or unrelated plans are never silently applied.
+
+If the user declares the final in chat, reconcile the same explicit approval through the documented project review workflow; do not infer approval from an export. Catalog prepared techniques for that chosen version, preserving the approval's exact files. If cataloging was missed, approval still records the decision and catch-up offers that finished version afterward. A user may also explicitly choose an unapproved exported video for analysis; that does not approve it or replace an existing preferred baseline without their decision.
+
+## Updating existing studios
+
+This feature requires no owner-data rewrite at install time. Keep catalog schema 4, projects schema 1 and reference notes unchanged. Prepared plans are private project records, not release content. Source rollback preserves new plans, examples, evidence and all later owner work. Older source does not consume prepared plans; restore compatible source before using this approval integration. The catch-up notice is optional and performs no background extraction. Test writes and approvals in disposable copies only.

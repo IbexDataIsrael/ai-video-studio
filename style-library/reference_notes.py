@@ -112,6 +112,8 @@ def current(reference_id, example_id=None, selection_id=None):
         _, data, _ = read()
         notes = [n for n in data['notes'] if n.get('reference_id') == reference_id and n.get('example_id') == example_id and n.get('selection_id') == selection_id]
         return {**{k: v for k, v in ctx.items() if k not in {'catalog_hash', 'source'}},
+                'source_version': ctx['source']['version'], 'source_path': ctx['source']['path'],
+                'source_sha256': ctx['source']['files'][0]['sha256'] if ctx['source']['files'] else None,
                 'selection_id': selection_id,
                 'notes': [{**n, 'content_revision': content_revision(n)} for n in notes if n.get('context_revision') == ctx['context_revision']],
                 'earlier_notes': [{**n, 'content_revision': content_revision(n)} for n in notes if n.get('context_revision') != ctx['context_revision']]}

@@ -118,3 +118,8 @@ An idea-first request creates/registers a video project with stage script, then 
 Maintain useful personal writing memory during script work as described in docs/SCRIPTING.md. Use voice_remember to keep a supported lesson with the actual earlier/preferred wording, feedback and context. Keep qualifications, stable memory/example IDs, source project/script hashes when available and unrelated lessons. Use voice_recall for a small relevant set on the next script. Keep one-off directions in the project. A draft alone is not evidence of preference. Respect forgotten memories. #writing-memory and memory-revision identify an exact correction request through voice_memory_current. The current creator request takes priority.
 
 style-library/writing-voice.json and projects/<slug>/script-brief.json are private owner records with recoverable history. Missing voice memory means empty, not a reason to copy the maintainer's preferences. Preserve these files, script-state.json and existing owner data during upgrades. Shared guidance belongs in source; personal learning never belongs in the public repository or release. The assistant reads and maintains this context in chat; the website makes no AI calls.
+
+
+## Finished video techniques
+
+Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and final-review preparation. Inspect each distinct reusable move in the exact export. Prepare examples project-locally before final approval; promote only the chosen final version, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.
