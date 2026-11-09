@@ -1,6 +1,6 @@
 # Finish cataloging video techniques
 
-The library's **Find remaining techniques** action and dismissible **Review videos** notice prepare the same chat workflow for one or several exact sources. Copying makes no AI call, changes no library records and does not complete analysis. The notice disappears after the actual reviewed source has been registered with its coverage hash. Dismissal is browser-local; Library options keeps the action available. Drafts, historical versions, removed sources and unchanged completed sources are excluded from catch-up. Finished projects not yet in the library are included by their recorded final primary artifact, never inferred from filenames. An ambiguous older project must be chosen/confirmed by its owner before registering it as finished.
+The library's **Find remaining techniques** action and compact dismissible reminder with **Review** prepare the same chat workflow for one or several exact sources. Copying makes no AI call, changes no library records and does not complete analysis. The notice disappears after the actual reviewed source has been registered with its coverage hash. Dismissal is browser-local; Library options keeps the action available. Drafts, historical versions, removed sources and unchanged completed sources are excluded from catch-up. Finished projects not yet in the library are included by their recorded final primary artifact, never inferred from filenames. An ambiguous older project must be chosen/confirmed by its owner before registering it as finished.
 
 ## Receiving a completion request
 

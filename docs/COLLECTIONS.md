@@ -4,6 +4,8 @@ A technique family groups related behaviors. An example is a specific, source-ba
 
 ## Saving and browsing
 
+The compact library heading leads directly to format tabs and browsing controls. How to use references expands inline when needed and starts collapsed. First-use steps appear only when the whole library is empty. The technique-review reminder stays compact and dismissible; Library options retains access after dismissal.
+
 Expand an example and use the quiet **Save to collection** action below its borrowing controls. Whole-reference options also offer **Save to collection**. Choose a personal collection or create one with a name. Selection options also offers **Save selection to collection** for the exact current examples, whole references, slides and moments. Saving keeps the current editing picks and does not include edit-specific borrowing directions.
 
 The Collections selector sits beside Search in Videos, Carousels and Techniques. Collections, Creator, Category and Techniques use the same searchable checkbox menus. Choices apply immediately and menus stay open while checking several values. No choices means All. Each closed control summarizes its first choice and the number of additional choices. Active filter chips remove individual choices; Clear inside a menu clears that group.
