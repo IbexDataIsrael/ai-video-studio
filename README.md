@@ -90,6 +90,114 @@ You also get access to my other in-depth AI tutorials, guides, and future workfl
 
 The software is free either way. The walkthrough is just the shortcut to getting really freaking good at using it.
 
+## How to use the studio · Как пользоваться студией · Comment utiliser le studio
+
+*Adapted from [claude-video-studio](https://github.com/asaf5767/claude-video-studio) by Asaf — explanation of how the studio works, in three languages.*
+
+### 🇬🇧 English
+
+**How it works**
+
+1. **Upload your footage and make choices with clicks.** Drag in your footage, images and logo. Then click to choose: how tight to cut, which look, which sound, and how long the video should be. No prompts to write.
+2. **Add effects and choose how you look.** An After Effects–style effects board: every card shows the effect in action. You can ask for an effect to appear exactly when you say a certain word. And in the "How you look" tab: a new background behind you, text moving behind you, a sticker, a split screen and more. The studio separates you from the background on your own computer — nothing is sent to any external service.
+3. **Send to the AI.** One click, and your AI assistant starts working. You can watch what it's doing right in the studio: transcription, silence removal, captions, graphics, sound and the storyboard. You can close the window — everything is saved.
+4. **Review and approve.** For every storyboard scene: keep it, change it or drop it, with a note in your own words. The AI fixes it according to your notes, and in the end you get a finished MP4, ready to post.
+
+**And more: inspiration from reels you liked.** Paste a link or drop in a reel you loved, and the studio learns its style (pacing, captions, transitions) to use in your next video.
+
+**What's in the studio**
+
+- A friendly web interface you open in your browser; you approve every step.
+- Local transcription on your computer, free.
+- Ready-made looks, effects and "how you look" styles.
+- Faceless reels: you can also work with just your voice.
+- iPhone videos work too.
+- Optional extras: AI voice and images, with your own API key.
+
+**What you need**
+
+- Claude Code or Codex, installed and connected to your account.
+- A Windows or Mac computer.
+- Internet for the first-time setup; afterwards, editing runs on your own computer.
+- About 3.5 GB of free disk space (most of it the speech-recognition model).
+- First install takes roughly 15–45 minutes, depending on your internet speed.
+
+**Opening the studio again**
+
+Open Claude Code or Codex in the studio folder and ask it to open your studio — or from the terminal, inside the studio folder, run `python style-library/start.py --open` (on Windows use `py -3` if `python` doesn't work; on Mac use `python3`). If something gets stuck, ask your assistant to check the setup — it finds what's missing and completes only that. Manual instructions are in [SETUP.md](SETUP.md).
+
+---
+
+### 🇷🇺 Русский
+
+**Как это работает**
+
+1. **Загружаете съёмку и выбираете кликами.** Перетащите видео, картинки и логотип. Затем выбираете кликами: насколько плотно резать, какой стиль, какой звук и какой длительности будет видео. Писать промпты не нужно.
+2. **Добавляете эффекты и выбираете, как вы выглядите.** Панель эффектов в стиле After Effects: каждая карточка показывает эффект в действии. Можно попросить, чтобы эффект появился ровно в момент, когда вы произносите определённое слово. А во вкладке «Как вы выглядите»: новый фон позади вас, текст, проходящий за вами, стикер, разделённый экран и многое другое. Студия отделяет вас от фона на вашем компьютере — ничего не отправляется в сторонние сервисы.
+3. **Отправляете ИИ.** Одно нажатие — и ваш ИИ-ассистент начинает работу. Вы видите в студии, что он делает: транскрипция, удаление пауз, субтитры, графика, звук и раскадровка. Можно закрыть окно — всё сохраняется.
+4. **Проверяете и утверждаете.** Для каждой сцены раскадровки: оставить, изменить или убрать — с комментарием своими словами. ИИ исправляет по вашим замечаниям, и в итоге вы получаете готовый MP4, который можно публиковать.
+
+**И ещё: вдохновение из рилсов, которые вам понравились.** Вставьте ссылку или перетащите понравившийся рилс — студия изучит его стиль (темп, субтитры, переходы) и использует его в вашем следующем видео.
+
+**Что внутри студии**
+
+- Удобный веб-интерфейс в браузере; вы утверждаете каждый этап.
+- Локальная транскрипция на вашем компьютере, бесплатно.
+- Готовые стили, эффекты и варианты «как вы выглядите».
+- Рилсы без лица: можно работать только со своим голосом.
+- Видео с айфона тоже подходят.
+- Дополнительно (необязательно): ИИ-озвучка и изображения с вашим собственным API-ключом.
+
+**Что понадобится**
+
+- Claude Code или Codex, установленный и подключённый к вашему аккаунту.
+- Компьютер с Windows или Mac.
+- Интернет для первой установки; дальше монтаж работает на вашем компьютере.
+- Около 3,5 ГБ свободного места на диске (большая часть — модель распознавания речи).
+- Первая установка занимает примерно 15–45 минут в зависимости от скорости интернета.
+
+**Как снова открыть студию**
+
+Откройте Claude Code или Codex в папке студии и попросите открыть студию — либо из терминала, в папке студии, выполните `python style-library/start.py --open` (в Windows используйте `py -3`, если `python` не работает; на Mac — `python3`). Если что-то зависло, попросите ассистента проверить установку — он найдёт, чего не хватает, и доустановит только это. Подробные инструкции — в [SETUP.md](SETUP.md).
+
+---
+
+### 🇫🇷 Français
+
+**Comment ça marche**
+
+1. **Vous importez vos rushs et vous choisissez en cliquant.** Glissez vos vidéos, images et logos. Puis choisissez en cliquant : à quel point serrer le montage, quel style, quel son et quelle durée. Pas de prompts à écrire.
+2. **Vous ajoutez des effets et choisissez votre look.** Un panneau d'effets inspiré d'After Effects : chaque carte montre l'effet en action. Vous pouvez demander qu'un effet apparaisse exactement au moment où vous dites un mot précis. Et dans l'onglet « Votre look » : un nouvel arrière-plan derrière vous, du texte qui passe derrière vous, un sticker, un écran partagé et plus encore. Le studio vous détourage de l'arrière-plan sur votre propre ordinateur — rien n'est envoyé à un service externe.
+3. **Vous envoyez à l'IA.** Un clic, et votre assistant IA se met au travail. Vous voyez dans le studio ce qu'il fait : transcription, suppression des silences, sous-titres, graphismes, son et storyboard. Vous pouvez fermer la fenêtre — tout est enregistré.
+4. **Vous vérifiez et approuvez.** Pour chaque scène du storyboard : la garder, la modifier ou la supprimer, avec une note en vos propres mots. L'IA corrige selon vos remarques, et à la fin vous obtenez un MP4 prêt à publier.
+
+**Et aussi : l'inspiration tirée des reels que vous avez aimés.** Collez un lien ou déposez un reel que vous avez adoré, et le studio en apprend le style (rythme, sous-titres, transitions) pour votre prochaine vidéo.
+
+**Ce qu'il y a dans le studio**
+
+- Une interface web conviviale dans le navigateur ; vous approuvez chaque étape.
+- Une transcription locale sur votre ordinateur, gratuite.
+- Des styles, des effets et des looks prêts à l'emploi.
+- Des reels sans montrer votre visage : possible avec uniquement votre voix.
+- Les vidéos de l'iPhone fonctionnent aussi.
+- En option : voix et images IA, avec votre propre clé API.
+
+**Ce qu'il faut**
+
+- Claude Code ou Codex, installé et connecté à votre compte.
+- Un ordinateur Windows ou Mac.
+- Internet pour la première installation ; ensuite, le montage tourne sur votre ordinateur.
+- Environ 3,5 Go d'espace disque libre (le plus gros étant le modèle de reconnaissance vocale).
+- La première installation prend environ 15 à 45 minutes, selon votre vitesse internet.
+
+**Rouvrir le studio**
+
+Ouvrez Claude Code ou Codex dans le dossier du studio et demandez-lui de l'ouvrir — ou depuis le terminal, dans le dossier du studio, lancez `python style-library/start.py --open` (sous Windows, utilisez `py -3` si `python` ne fonctionne pas ; sous Mac, `python3`). Si quelque chose bloque, demandez à votre assistant de vérifier l'installation — il trouve ce qui manque et ne complète que ça. Les instructions détaillées sont dans [SETUP.md](SETUP.md).
+
+---
+
+*Crédit : cette section est adaptée de [claude-video-studio](https://github.com/asaf5767/claude-video-studio) (Asaf), lui-même basé sur AI Video Studio de Matt Paige — code ouvert sous licence MIT.*
+
 ## Documentation
 
 For deeper technical details:
