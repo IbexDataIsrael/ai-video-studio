@@ -1,11 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.14 — Use far less disk space for imports and versions — 2026-11-19
 
 - Use much less disk space on Macs and Linux disks that support copy-on-write clones. Imports, new version folders and Open in HyperFrames working copies now clone files instead of duplicating them; other disks keep making ordinary copies.
 - Start the next version with `python3 scripts/studio.py new-version projects/<slug>/<version>`. It leaves out regenerable caches and reports how much was shared.
 - Keep regenerable frame dumps, mattes and temporary renders in a version's `.scratch/` folder, which HyperFrames history, new versions and editor copies skip.
 - `scripts/hf.py render` warns when less than 10 GB is free. docs/TOOLING.md explains disk use and HyperFrames' own `clean --dry-run`.
+
+### Upgrading from beta.13
+
+Follow docs/UPDATING.md in your existing installation. Apply the reviewed source while preserving saved work, settings and local customizations. No owner-data rewrite, deletion, empty-seed replacement or renderer upgrade is needed. Existing project folders are left as they are; the savings apply to imports, versions and editor copies made after updating.
 
 ## 0.1.0-beta.13 — Collections and a cleaner Reference Library — 2026-11-08
 
