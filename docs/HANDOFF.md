@@ -104,3 +104,5 @@ Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and review p
 ## Saved collections
 
 Read docs/COLLECTIONS.md for optional personal collections and installed pack memberships. Preserve the private style-library/collections.json across updates, rollback, catalog registration and source changes. Collections pin exact examples, references, slides or moments; they do not change family identity, source provenance, approvals or editing selections. Never include edit-specific directions when saving a collection. No promotion or purchase flow is enabled.
+
+To install, update or remove a creator pack, follow docs/PACKS.md and its `scripts/pack.py` commands; never copy pack files or edit pack records by hand. Pack records (IDs that start with the pack ID, a `pack` marker) are the pack author's references under its LICENSE.txt. Copy a technique's `recipe` folder into the project before adapting it.

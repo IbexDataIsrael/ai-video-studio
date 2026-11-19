@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Install a creator pack with one chat request. `python3 scripts/pack.py install <file>` checks the pack file (or the folder your browser unzipped), adds its videos, techniques and exact examples to your library under the pack's own IDs, and adds a collection with the pack's name. Your projects, personal collections, notes and approvals stay as they are.
+- Install a newer version the same way: unchanged items keep their links, and anything the new version drops is cleaned up. `python3 scripts/pack.py remove <pack-id>` uninstalls a pack; installing the file again restores it.
+- Pack authors can build a deterministic pack file from one of their own collections with `python3 scripts/pack.py build`. It refuses other creators' videos and warns about music and unverified licensing. See docs/PACKS.md.
+
 ## 0.1.0-beta.15 — Techniques for whichever version you approve — 2026-11-19
 
 - Techniques are no longer missed when you approve a video in the Studio. Your editing chat now prepares techniques for every version it delivers for review, not only the one it expects to be final, in step-by-step projects and in single requests that edit a supplied video. Later versions reuse examples where the video is unchanged.

@@ -128,3 +128,9 @@ Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and review p
 ## Saved collections
 
 Read docs/COLLECTIONS.md for optional personal collections and installed pack memberships. Preserve the private style-library/collections.json across updates, rollback, catalog registration and source changes. Collections pin exact examples, references, slides or moments; they do not change family identity, source provenance, approvals or editing selections. Never include edit-specific directions when saving a collection. No promotion or purchase flow is enabled.
+
+## Creator packs
+
+When the owner asks to install a creator pack (for example "install my Creator Pack"), follow docs/PACKS.md: run `python3 scripts/pack.py verify <file>`, tell them the pack, version, size and license summary, then `python3 scripts/pack.py install <file>` and report the result. The file can be the downloaded .zip or a folder the browser unzipped. Never unzip, copy or edit pack files or catalog records by hand, and do not work around a refusal; explain it. A newer version installs the same way. Uninstall only on request with `python3 scripts/pack.py remove <pack-id>` after a `--dry-run`. Ask before `--replace-local-edits` or `--allow-downgrade`.
+
+Installed pack records carry a `pack` marker and IDs that start with the pack ID. Treat them as the pack author's creative references under the pack's LICENSE.txt in references/pack-<pack-id>/, not the owner's work: never edit them in place, and copy a technique's `recipe` folder into the project before adapting it. Recreate a pack technique with the owner's own footage; do not put a pack's videos, clips, posters, voice or likeness into the owner's exports unless that LICENSE.txt allows it. Preserve style-library/packs.json with other owner records. Pack authors build packs from their own collection with `python3 scripts/pack.py build`; only their own media goes in a pack.
