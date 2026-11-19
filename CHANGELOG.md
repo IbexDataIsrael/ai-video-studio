@@ -1,10 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.16 — Install creator packs — 2026-11-19
 
 - Install a creator pack with one chat request. `python3 scripts/pack.py install <file>` checks the pack file (or the folder your browser unzipped), adds its videos, techniques and exact examples to your library under the pack's own IDs, and adds a collection with the pack's name. Your projects, personal collections, notes and approvals stay as they are.
 - Install a newer version the same way: unchanged items keep their links, and anything the new version drops is cleaned up. `python3 scripts/pack.py remove <pack-id>` uninstalls a pack; installing the file again restores it.
 - Pack authors can build a deterministic pack file from one of their own collections with `python3 scripts/pack.py build`. It refuses other creators' videos and warns about music and unverified licensing. See docs/PACKS.md.
+
+### Upgrading from beta.15
+
+Follow docs/UPDATING.md in your existing installation. Apply the reviewed source while preserving saved work, settings and local customizations. No owner-data rewrite, deletion, empty-seed replacement or renderer upgrade is needed. Nothing is installed until you ask your editing chat to install a pack file; see docs/PACKS.md.
 
 ## 0.1.0-beta.15 — Techniques for whichever version you approve — 2026-11-19
 
