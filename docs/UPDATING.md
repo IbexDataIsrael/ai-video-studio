@@ -96,3 +96,7 @@ Adds style-library/disk.py and scripts/studio.py new-version, and changes ingest
 ### Beta.14 → beta.15 — techniques for every reviewed version
 
 Changes shared instructions (AGENTS.md, docs/WORKFLOW.md, docs/HANDOFF.md, docs/TECHNIQUE-CATALOGING.md), style-library/project_index.py and the Studio interface (studio.js, technique-upkeep-ui.js). Reconcile the instruction paragraphs with any local wording rather than overwriting it. No owner data is migrated, rewritten or deleted. Review decisions gain techniques.cataloged, a count of library examples for the primary artifact's exact file; older source ignores it. Restart only this installation's Studio server. Rollback restores the previous source files; prepared plans and catalog entries remain valid.
+
+### Beta.15 → next — creator packs
+
+Adds scripts/pack.py, style-library/creator_packs.py and docs/PACKS.md, plus an editable-recipe line in technique briefs and a recipe check in library validation. No owner data is migrated, rewritten or deleted. Installing a pack is an explicit owner request; it writes the private style-library/packs.json and the pack's folders. Preserve packs.json, references/pack-*/ and the posters/packs and techniques/packs poster folders with other owner data. Older source ignores packs.json; installed pack entries remain ordinary reference entries it can still browse and validate, but it cannot update or remove a pack. Restore compatible source to manage packs again.
