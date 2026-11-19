@@ -1477,7 +1477,8 @@ def build(root, collection_name, out, pack_id, version, license_file, name=None,
                     warnings.append(f'{record["id"]} mentions a private file path; add an override with buyer-facing text.')
                     break
     lic_summary = license_summary or next((line.strip() for line in license_text.splitlines()
-                                           if line.strip() and not line.lstrip().startswith('#')), 'See LICENSE.txt')[:600]
+                                           if line.strip() and not line.lstrip().startswith('#')
+                                           and not re.match(r'\s*(copyright|\(c\)|©)', line, re.I)), 'See LICENSE.txt')[:600]
     manifest = {'format': FORMAT, 'format_version': FORMAT_VERSION, 'pack_id': pack_id, 'name': name, 'version': version,
                 'author': {'name': author_name, 'creator_id': author_id, **({'url': author_url} if author_url else {})},
                 'license': {'title': f'{name} license', 'summary': lic_summary, 'file': LICENSE}}
@@ -1498,7 +1499,10 @@ def build(root, collection_name, out, pack_id, version, license_file, name=None,
     report = {'pack_id': pack_id, 'name': name, 'version': version, 'collection': chosen['name'],
               'author': manifest['author'], 'videos': len(out_entries), 'techniques': len(out_families),
               'examples': sum(len(f['examples']) for f in out_families), 'recipes': sum('recipe' in f for f in out_families),
-              'collection_items': len(out_members), 'files': len(rows), 'bytes': total, 'size': disk.size_label(total),
+              'collection_items': len(out_members),
+              # The Techniques tab shows one card per family; these families show several examples on one card.
+              'families_with_several_examples': {f['title']: len(f['examples']) for f in out_families if len(f['examples']) > 1},
+              'files': len(rows), 'bytes': total, 'size': disk.size_label(total),
               'warnings': warnings, 'dry_run': dry_run}
     if strict and warnings:
         raise PackError('Stopped because of warnings (--strict):\n- ' + '\n- '.join(warnings))
@@ -1564,8 +1568,9 @@ def add_recipe(folder, family_id, files, warnings):
             relative = path.relative_to(folder).as_posix()
             if path.suffix.lower() not in RECIPE:
                 raise PackError(f'Recipe {folder.name} has an unsupported file: {relative}')
-            if path.suffix.lower() in AUDIO:
-                warnings.append(f'Recipe {folder.name} includes audio ({relative}). Confirm you may resell it.')
+            if path.suffix.lower() in AUDIO | VIDEO:
+                warnings.append(f'Recipe {folder.name} includes {"audio" if path.suffix.lower() in AUDIO else "video"} ({relative}). '
+                                'Buyers edit recipes into their own videos, so leave out your footage, voice and music you may not resell.')
             found.append((relative, path))
     if not found:
         raise PackError(f'Recipe {folder.name} is empty.')

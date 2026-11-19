@@ -137,7 +137,7 @@ def author_studio(root):
     s.json('style-library/catalog.json', {'schema_version': 4, 'entries': entries, 'techniques': list(families.values())})
     save_collection(s, [('example', 'tech-orbit', 'orbit-demo'), ('example', 'tech-captions', 'captions-demo'),
                         ('reference', 'demo-captions'), ('moment', 'demo-orbit', 5.0)])
-    s.write('LICENSE-pack.txt', '# Creator Pack license\nPersonal use in your own videos. No redistribution or resale.\n')
+    s.write('LICENSE-pack.txt', '# Creator Pack license\nCopyright (c) 2026 Test Author.\nPersonal use in your own videos. No redistribution or resale.\n')
     return s
 
 
@@ -248,6 +248,8 @@ class BuildTests(PackTestCase):
         for private in ['approval', 'project_id', 'composition', 'STATUS.md', 'review_status', 'other-creator', 'Someone Else']:
             self.assertNotIn(private, raw)
         self.assertEqual(len(data['members']), 4)
+        self.assertEqual(report['families_with_several_examples'], {})
+        self.assertEqual(manifest['license']['summary'], 'Personal use in your own videos. No redistribution or resale.')
         self.assertEqual(report['warnings'], packs.build(self.author.root, 'Creator Pack 1', None, PACK, '1.0.0',
                                                          self.author.root / 'LICENSE-pack.txt', dry_run=True)['warnings'])
 
@@ -284,7 +286,9 @@ class BuildTests(PackTestCase):
         (recipes / 'tech-orbit' / 'index.html').write_text('<!doctype html><div class="orbit"></div>')
         (recipes / 'tech-orbit' / 'assets' / 'card.png').write_bytes(png('card'))
         (recipes / 'tech-orbit' / '.DS_Store').write_bytes(b'junk')
+        (recipes / 'tech-orbit' / 'assets' / 'author-take.mp4').write_bytes(video('take'))
         report, path = self.build(overrides=overrides, recipes=recipes)
+        self.assertIn('leave out your footage', ' '.join(report['warnings']))
         with zipfile.ZipFile(path) as z:
             data = json.loads(z.read('library.json'))
             names = z.namelist()
@@ -356,6 +360,19 @@ class InstallTests(PackTestCase):
             server.shutdown()
             server.server_close()
             thread.join()
+
+    def test_each_pack_family_stays_its_own_card_beside_same_titled_families(self):
+        catalog = self.buyer.read('style-library/catalog.json')
+        catalog['techniques'][0]['title'] = 'Orbit'  # Same title as the pack's family.
+        self.buyer.json('style-library/catalog.json', catalog)
+        _, path = self.build()
+        self.install(path)
+        families = self.buyer.read('style-library/catalog.json')['techniques']
+        orbit = [t for t in families if t['title'] == 'Orbit']
+        self.assertEqual(sorted(t['id'] for t in orbit), sorted(['tech-orbit', f'tech-{PACK}-orbit']))
+        pack = {t['id']: [x['id'] for x in t['examples']] for t in families if t.get('pack')}
+        self.assertEqual(pack, {f'tech-{PACK}-orbit': [f'{PACK}-orbit-demo'], f'tech-{PACK}-captions': [f'{PACK}-captions-demo']})
+        self.assertEqual(next(t for t in families if t['id'] == 'tech-orbit')['examples'][0]['id'], 'my-orbit')
 
     def test_reinstall_is_idempotent_and_repairs_a_missing_file(self):
         _, path = self.build()

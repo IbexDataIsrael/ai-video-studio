@@ -2,7 +2,7 @@
 
 A creator pack is one versioned file that holds a creator's own videos, technique families with exact examples, their posters, optional editable recipe folders and the pack's own license. Installing it adds the pack's videos and techniques to the Reference Library and a collection with the pack's name. Pack techniques are creative references to learn from and adapt, not one-click templates.
 
-The pack license is separate from the studio's MIT license. It covers the pack's media, records and recipes; read `LICENSE.txt` in the pack before reusing anything from it.
+The pack license is separate from the studio's MIT license. It covers the pack's media, records and recipes; read `LICENSE.txt` in the pack before reusing anything from it. Pack videos are references, not stock footage: recreate a technique with the owner's own footage rather than placing the pack's videos, clips, posters or the author's voice or likeness in the owner's exports, unless the pack license allows it.
 
 ## Installing a pack
 
@@ -18,7 +18,7 @@ If the installer refuses, explain its message and stop. Do not work around a ref
 Installing adds:
 
 - the pack's videos as library entries credited to the pack's author, shown under **Other creators** with IDs that start with the pack ID
-- the pack's technique families and exact examples, also with pack-prefixed IDs
+- the pack's technique families and exact examples, also with pack-prefixed IDs. Each family is its own card in the Techniques tab, separate from every other pack family and from any family the owner already has, even one with the same title
 - a pack collection with exactly the pack's items (grouped under **Creator packs** in the Collections menu)
 - media, the license and readme in `references/pack-<pack-id>/`, and posters in `style-library/dist/assets/posters/packs/<pack-id>/` and `style-library/dist/assets/techniques/packs/<pack-id>/`
 - a record of what was installed in the private `style-library/packs.json`
@@ -48,14 +48,14 @@ To uninstall, run `python3 scripts/pack.py remove <pack-id> --dry-run`, show the
 
 ## Recipes
 
-A pack technique can include an editable HyperFrames recipe: a folder recorded in the family's `recipe` field, such as `references/pack-creator-pack-1/recipes/tech-creator-pack-1-orbit-1a2b3c4d5e6f/`. To use one, copy the folder into the project's current version folder and adapt it to that project's footage, script and brand. Never edit the installed recipe in place; updates replace it. Like any composition, inspect it before running it.
+A pack technique can include an editable HyperFrames recipe: a folder recorded in the family's `recipe` field, such as `references/pack-creator-pack-1/recipes/tech-creator-pack-1-orbit-1a2b3c4d5e6f/`. To use one, copy the folder into the project's current version folder and adapt it to that project's footage, script and brand, as the pack license allows. Never edit the installed recipe in place; updates replace it. Like any composition, inspect it before running it.
 
 ## Building a pack (pack author)
 
 Run these in the author's own studio. Building only reads the studio and writes the one output file.
 
-1. Save the exact examples (and any whole videos or moments) to a personal collection, for example "Creator Pack 1". Only your own videos (`collection: mine`, one creator) can go in a pack; carousels are not supported yet.
-2. Write the pack license as a text file outside the studio library.
+1. Save the exact examples (and any whole videos or moments) to a personal collection, for example "Creator Pack 1". Only your own videos (`collection: mine`, one creator) can go in a pack; carousels are not supported yet. Buyers see one Techniques card per technique family, so give each technique you want as its own card its own family in your catalog; examples in one family share a card. The build report lists families that hold more than one example.
+2. Write the pack license as a text file outside the studio library, and pass a one-sentence `--license-summary` that buyers see before installing.
 3. Check the collection:
 
    ```
@@ -74,7 +74,7 @@ Run these in the author's own studio. Building only reads the studio and writes 
    ```
 
    Entries accept title, subtitle, summary, tags, traits, keep, avoid, evidence, moments and source_url (null removes the link). Families accept title, category, summary, direction, aliases, keep, avoid and evidence. Examples accept label and evidence. The builder warns when exported text mentions a private file path.
-5. Optional recipes: pass `--recipes <folder>` containing one folder per technique, named with your family ID (such as `tech-orbit`). Hidden files, `node_modules` and unsupported file types are refused or left out; audio files are flagged.
+5. Optional recipes: pass `--recipes <folder>` containing one folder per technique, named with your family ID (such as `tech-orbit`). Buyers edit recipes into their own videos, so include only code, text and assets they may use, not your footage or voice. Hidden files, `node_modules` and unsupported file types are refused or left out; video and audio files are flagged.
 6. Build outside the studio, for example `--out ~/Desktop/creator-pack-1-1.0.0.zip`. The report includes the file's SHA-256, which you can publish so buyers can check their download. The same collection and inputs produce a byte-identical file (checked on Python 3.11 and 3.13).
 7. Test-install the file into a disposable fresh studio, never into your own.
 
