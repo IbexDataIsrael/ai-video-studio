@@ -92,3 +92,7 @@ The multi-select filter interface stores browser-only preferences in ai-video-st
 ### Beta.13 → beta.14 — disk-efficient copies
 
 Adds style-library/disk.py and scripts/studio.py new-version, and changes ingest, Open in HyperFrames working copies and scripts/hf.py render. No owner data is migrated, rewritten or deleted, and existing project folders stay as they are. The editor fingerprint newly ignores only a version's .scratch/ folder, which no existing folder has, so saved working copies keep their revisions and reopen with their manual changes. Restart only this installation's Studio server so Open in HyperFrames uses the new copy code. Rollback restores the previous source files; folders created by new-version and clones made since are ordinary files and stay valid.
+
+### Beta.14 → beta.15 — techniques for every reviewed version
+
+Changes shared instructions (AGENTS.md, docs/WORKFLOW.md, docs/HANDOFF.md, docs/TECHNIQUE-CATALOGING.md), style-library/project_index.py and the Studio interface (studio.js, technique-upkeep-ui.js). Reconcile the instruction paragraphs with any local wording rather than overwriting it. No owner data is migrated, rewritten or deleted. Review decisions gain techniques.cataloged, a count of library examples for the primary artifact's exact file; older source ignores it. Restart only this installation's Studio server. Rollback restores the previous source files; prepared plans and catalog entries remain valid.

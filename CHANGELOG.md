@@ -1,9 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.1.0-beta.15 — Techniques for whichever version you approve — 2026-11-19
 
 - Techniques are no longer missed when you approve a video in the Studio. Your editing chat now prepares techniques for every version it delivers for review, not only the one it expects to be final, in step-by-step projects and in single requests that edit a supplied video. Later versions reuse examples where the video is unchanged.
 - The approval panel says plainly when no techniques are prepared for a version. A finished video with no techniques in your library shows **Find its techniques**, which opens the catch-up request for that video.
+
+### Upgrading from beta.14
+
+Follow docs/UPDATING.md in your existing installation. Apply the reviewed source while preserving saved work, settings and local customizations. No owner-data rewrite, deletion, empty-seed replacement or renderer upgrade is needed. Finished videos that already have no techniques show Find its techniques after the update; nothing is analyzed automatically.
 
 ## 0.1.0-beta.14 — Use far less disk space for imports and versions — 2026-11-19
 
