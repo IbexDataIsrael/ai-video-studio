@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Techniques are no longer missed when you approve a video in the Studio. Your editing chat now prepares techniques for every version it delivers for review, not only the one it expects to be final, in step-by-step projects and in single requests that edit a supplied video. Later versions reuse examples where the video is unchanged.
+- The approval panel says plainly when no techniques are prepared for a version. A finished video with no techniques in your library shows **Find its techniques**, which opens the catch-up request for that video.
+
 ## 0.1.0-beta.14 — Use far less disk space for imports and versions — 2026-11-19
 
 - Use much less disk space on Macs and Linux disks that support copy-on-write clones. Imports, new version folders and Open in HyperFrames working copies now clone files instead of duplicating them; other disks keep making ordinary copies.

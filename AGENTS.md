@@ -123,7 +123,7 @@ style-library/writing-voice.json and projects/<slug>/script-brief.json are priva
 
 ## Finished video techniques
 
-Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and final-review preparation. Inspect each distinct reusable move in the exact export. Prepare examples project-locally before final approval; promote only the chosen final version, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.
+Follow docs/TECHNIQUE-CATALOGING.md for existing-library completion and review preparation. Any delivered version can become the final, and the user usually approves it later in the Studio, so every time you deliver a video version for review (in a staged project or a single request that edits a supplied video), inspect each distinct reusable move in that exact export and prepare its examples project-locally with style-library/technique_upkeep.py prepare. Reuse the previous version's verified examples where the video is unchanged. Approval promotes only the plan for the version the user chooses, preserving the preferred baseline and historical links. Approval does not invoke AI. Existing approved sources can receive missing techniques without changing their approval or media. Software updates never perform bulk analysis or replace owner data.
 
 ## Saved collections
 
