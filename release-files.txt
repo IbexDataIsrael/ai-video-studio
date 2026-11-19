@@ -58,6 +58,8 @@ style-library/start.py
 style-library/project_index.py
 style-library/review_actions.py
 style-library/prepare_assets.py
+style-library/disk.py
+style-library/test_disk.py
 style-library/security.py
 style-library/test_context.py
 style-library/test_projects.py

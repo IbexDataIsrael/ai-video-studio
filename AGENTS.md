@@ -19,7 +19,8 @@ For software changes or publication, read docs/RELEASE.md; for an installed stud
 
 ## Files and tools
 
-- Source files in projects/<slug>/raw are immutable. Copy imports. Keep proxies, source-to-output maps, selects, captions, rights/source ledgers, code and versioned exports. Never overwrite a deliverable silently.
+- Source files in projects/<slug>/raw are immutable. Import with python3 scripts/studio.py ingest, which clones instead of duplicating where the disk supports it. Keep proxies, source-to-output maps, selects, captions, rights/source ledgers, code and versioned exports. Never overwrite a deliverable silently.
+- Start each new version folder with python3 scripts/studio.py new-version projects/<slug>/<current-version>. It clones unchanged files instead of duplicating them and leaves out regenerable caches; do not copy version folders by hand. Put regenerable frame dumps, mattes and temporary renders in that version's .scratch/ folder, never in work/ or assets/, and never reference .scratch from a composition. See docs/TOOLING.md for disk use.
 - Use python3 scripts/studio.py new <slug> to scaffold and register an intake project. Use that project's .venv Python for Pillow/media helpers. The site itself only needs Python's standard library.
 - Use the project-local pinned HyperFrames CLI through scripts/hf.py. Read its official docs and installed capabilities before changing production architecture. Each composition has a finite duration, one paused seekable timeline and local production assets.
 - Do not assume private globally installed skills/plugins, paid libraries or accounts. Shared docs and the sample are sufficient for the baseline. Optional capabilities need the user's own account/rights. Do not weaken approval/security settings or install global integrations as part of setup.
