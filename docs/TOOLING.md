@@ -6,7 +6,7 @@ Use `.venv/bin/python scripts/studio.py --help` on macOS/Linux (Windows uses .ve
 
 Use `python3 scripts/hf.py <command> ...` for the local renderer. It sets no-update/telemetry flags and fails clearly when npm dependencies are missing. Read the installed CLI help and current official composition docs before changing architecture: https://hyperframes.heygen.com/concepts/compositions . Timed media uses class clip and explicit starts/durations/media offsets; one paused timeline is registered by composition ID. Keep assets local and seek behavior deterministic. Use check, preview, render and inspect actual encoded frames. The sample is editable in examples/studio-check/index.html.
 
-### Files a composition can use
+## Files a composition can use
 
 HyperFrames renders the folder you pass to `scripts/hf.py render` (usually a version folder) and is strict about anything outside it, including files reached through a symlink:
 
